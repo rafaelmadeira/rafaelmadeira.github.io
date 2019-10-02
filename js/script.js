@@ -9,12 +9,12 @@ window.onload = function() {
     message = item.innerHTML;
     messageBody = item.firstChild;
     messageBody.classList.add('hide');
-    item.innerHTML += '<span class="bulls"><span>&bull;</span><span>&bull;</span><span>&bull;</span></span>';
+    item.innerHTML += '<span class="dots"><span>&bull;</span><span>&bull;</span><span>&bull;</span></span>';
     item.classList.add('typing');
     item.classList.remove('hide');
 
     wait(message.length * 25).then (() => {
-      bulls = item.lastChild;
+      dots = item.lastChild;
       item.innerHTML = message;
       item.classList.remove('typing');
       item.classList.add('sent');

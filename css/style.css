@@ -84,7 +84,7 @@ html, body {
   100% { transform: scale(1); }
 }
 
-.bulls {
+.dots {
   font-size: 2rem;
   line-height: 1.28rem;
   display: block;
@@ -94,19 +94,19 @@ html, body {
   position: relative;
 }
 
-.bulls span {
+.dots span {
   float: left;
   animation: opacity 999ms infinite linear, scale 999ms infinite linear;
 }
 
-.bulls span:nth-child(1) {
+.dots span:nth-child(1) {
   animation-delay: 0ms;
 }
 
-.bulls span:nth-child(2) {
+.dots span:nth-child(2) {
   animation-delay: 333ms;
 }
 
-.bulls span:nth-child(3) {
+.dots span:nth-child(3) {
   animation-delay: 666ms;
 }
