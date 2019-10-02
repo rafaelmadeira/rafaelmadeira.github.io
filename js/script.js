@@ -14,9 +14,8 @@ window.onload = function() {
     item.classList.remove('hide');
 
     wait(message.length * 25).then (() => {
-      dots = item.lastChild;
-      item.innerHTML = message;
       item.classList.remove('typing');
+      item.innerHTML = message;
       item.classList.add('sent');
     });
   }
