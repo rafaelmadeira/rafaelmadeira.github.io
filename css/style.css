@@ -345,7 +345,6 @@
       .overview-images {
         display: flex;
         flex-flow: row wrap;
-        -justify-content: space-between;
         gap: 24px;
         margin-left: 240px;
       }
@@ -359,11 +358,3 @@
         margin-top: 8px;
       }
   }
-
-
-
-
-
-body {
-  -background-image: url(baseline-8.png);
-}
