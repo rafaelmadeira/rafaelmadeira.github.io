@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="description" content="Rafael Madeira &ndash; Product Designer" />
+  <meta property="og:site_name" content="rafaelmadeira.com" />
+  <meta property="og:title" content="Rafael Madeira" />
+  <meta property="og:description" content="Product Designer" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://rafaelmadeira.com" />
+  <meta property="og:image" content="https://rafaelmadeira.com/img/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="600" />
+  <meta property="og:image:height" content="315" />
+  <link rel="icon" type="image/png" href="img/favicon.png" />
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
+  <title>Rafael Madeira &ndash; Product Designer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #f7f3e8;
+      --ink: #272727;
+      --muted: #756f63;
+      --orange: #f08a24;
+      --yellow: #f4c542;
+      --rust: #9f4d28;
+      --steel: #a8aaa7;
+      --white: #fffdf7;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "VT323", ui-monospace, monospace;
+      image-rendering: pixelated;
+      -webkit-font-smoothing: none;
+      user-select: none;
+    }
+
+    #shell {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: var(--paper);
+      transition: transform 520ms cubic-bezier(.2,.85,.2,1), opacity 260ms ease;
+      transform-origin: 50% 58%;
+      z-index: 5;
+    }
+
+    #shell.playing {
+      transform: scale(2.7);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .intro {
+      width: min(92vw, 760px);
+      display: grid;
+      justify-items: center;
+      gap: 18px;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(28px, 6vw, 58px);
+      line-height: .95;
+      letter-spacing: .08em;
+      font-weight: 900;
+    }
+
+    .worker-mark {
+      width: 96px;
+      height: 116px;
+      position: relative;
+      filter: drop-shadow(0 0 0 transparent);
+    }
+
+    .pixel {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: var(--ink);
+      box-shadow:
+        8px 0 var(--ink), 16px 0 var(--ink), 24px 0 var(--ink),
+        0 8px var(--yellow), 8px 8px var(--yellow), 16px 8px var(--yellow), 24px 8px var(--yellow), 32px 8px var(--yellow),
+        0 16px var(--orange), 8px 16px var(--orange), 16px 16px var(--orange), 24px 16px var(--orange), 32px 16px var(--orange),
+        8px 24px var(--rust), 16px 24px var(--rust), 24px 24px var(--rust),
+        8px 32px var(--rust), 16px 32px var(--white), 24px 32px var(--rust),
+        8px 40px var(--rust), 16px 40px var(--rust), 24px 40px var(--rust),
+        8px 48px var(--ink), 16px 48px var(--orange), 24px 48px var(--ink),
+        0 56px var(--ink), 8px 56px var(--orange), 16px 56px var(--orange), 24px 56px var(--orange), 32px 56px var(--ink),
+        0 64px var(--ink), 8px 64px var(--orange), 16px 64px var(--yellow), 24px 64px var(--orange), 32px 64px var(--ink),
+        8px 72px var(--ink), 16px 72px var(--ink), 24px 72px var(--ink),
+        8px 80px var(--ink), 24px 80px var(--ink),
+        0 88px var(--ink), 8px 88px var(--ink), 24px 88px var(--ink), 32px 88px var(--ink);
+      left: 28px;
+      top: 8px;
+    }
+
+    .prompt {
+      font-size: clamp(15px, 2.3vw, 22px);
+      font-weight: 800;
+      letter-spacing: .08em;
+      animation: blink 1.1s steps(2,end) infinite;
+    }
+
+    .hint {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: .05em;
+    }
+
+    @keyframes blink { 50% { opacity: .35; } }
+
+    #gameWrap {
+      position: fixed;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 240ms ease 300ms;
+      background: var(--paper);
+      z-index: 2;
+    }
+
+    #gameWrap.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      touch-action: manipulation;
+    }
+
+    #muteButton {
+      position: fixed;
+      left: max(16px, env(safe-area-inset-left));
+      bottom: max(14px, env(safe-area-inset-bottom));
+      z-index: 10;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font: 400 16px/1 "VT323", ui-monospace, monospace;
+      letter-spacing: .06em;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+    }
+    #gameWrap.active + #muteButton { opacity: .7; pointer-events: auto; }
+    #muteButton:hover { opacity: 1; }
+  </style>
+</head>
+<body>
+  <main id="shell" aria-label="Under construction game intro">
+    <section class="intro">
+      <h1>UNDER CONSTRUCTION</h1>
+      <div class="worker-mark" aria-hidden="true"><div class="pixel"></div></div>
+      <div class="prompt">PRESS SPACE TO PLAY</div>
+      <div class="hint">JUMP: SPACE / ↑ / TAP</div>
+    </section>
+  </main>
+
+  <section id="gameWrap" aria-label="Construction runner game">
+    <canvas id="game"></canvas>
+  </section>
+  <button id="muteButton" type="button">SOUND: ON</button>
+
+  <script>
+  (() => {
+    'use strict';
+
+    // Intentionally library-free: Canvas 2D is smaller and faster than pulling in a game engine for this.
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const shell = document.getElementById('shell');
+    const wrap = document.getElementById('gameWrap');
+    const muteButton = document.getElementById('muteButton');
+
+    const C = {
+      paper: '#f7f3e8',
+      ink: '#272727',
+      muted: '#756f63',
+      orange: '#f08a24',
+      yellow: '#f4c542',
+      rust: '#9f4d28',
+      steel: '#a8aaa7',
+      white: '#fffdf7',
+      red: '#cf3b32'
+    };
+
+    const VIRTUAL_H = 360;
+    let scale = 1;
+    let W = 960;
+    let H = VIRTUAL_H;
+    let groundY = 292;
+    let last = 0;
+    let running = false;
+    let gameOver = false;
+    let introGone = false;
+    let score = 0;
+    const oldHigh = Number(localStorage.getItem('constructionRunnerHighV2') || 0);
+    let high = Number(localStorage.getItem('constructionRunnerHighV3') || oldHigh * 10);
+    let speed = 330;
+    let distance = 0;
+    let elapsed = 0;
+    let nextObstacle = 520;
+    let nextDeco = 180;
+    let shake = 0;
+    let muted = false;
+    let audioCtx = null;
+    let fxTime = 0;
+    let scoreFlashUntil = 0;
+    let recordToBeat = high;
+    let newHighThisRun = false;
+
+    const player = {
+      x: 120,
+      y: 0,
+      w: 34,
+      h: 48,
+      vy: 0,
+      onGround: true,
+      runT: 0
+    };
+
+    const obstacles = [];
+    const deco = [];
+    const dust = [];
+    const fireworks = [];
+
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(innerWidth * dpr);
+      canvas.height = Math.floor(innerHeight * dpr);
+      canvas.style.width = innerWidth + 'px';
+      canvas.style.height = innerHeight + 'px';
+      scale = canvas.height / VIRTUAL_H;
+      W = canvas.width / scale;
+      H = VIRTUAL_H;
+      groundY = H * 0.79;
+      player.x = Math.max(72, W * 0.13);
+      if (player.onGround) player.y = groundY - player.h;
+    }
+    addEventListener('resize', resize, { passive: true });
+    resize();
+
+    function px(x, y, w, h, color = C.ink) {
+      ctx.fillStyle = color;
+      ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+    }
+
+    function line(x1, y1, x2, y2, color = C.ink, width = 2) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      ctx.moveTo(Math.round(x1) + .5, Math.round(y1) + .5);
+      ctx.lineTo(Math.round(x2) + .5, Math.round(y2) + .5);
+      ctx.stroke();
+    }
+
+    function text(str, x, y, size = 14, align = 'left', color = C.ink) {
+      ctx.fillStyle = color;
+      ctx.textAlign = align;
+      ctx.textBaseline = 'top';
+      ctx.font = `400 ${size}px "VT323", ui-monospace, monospace`;
+      ctx.fillText(str, x, y);
+    }
+
+    function beep(type = 'jump') {
+      if (muted) return;
+      try {
+        audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.connect(g); g.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+        if (type === 'jump') {
+          o.type = 'square'; o.frequency.setValueAtTime(180, now); o.frequency.exponentialRampToValueAtTime(260, now + .08);
+          g.gain.setValueAtTime(.025, now); g.gain.exponentialRampToValueAtTime(.0001, now + .1);
+          o.start(now); o.stop(now + .11);
+        } else if (type === 'hit') {
+          o.type = 'sawtooth'; o.frequency.setValueAtTime(110, now); o.frequency.exponentialRampToValueAtTime(42, now + .22);
+          g.gain.setValueAtTime(.045, now); g.gain.exponentialRampToValueAtTime(.0001, now + .24);
+          o.start(now); o.stop(now + .25);
+        } else if (type === 'happy') {
+          o.type = 'square';
+          o.frequency.setValueAtTime(660, now);
+          o.frequency.setValueAtTime(880, now + .08);
+          o.frequency.setValueAtTime(1100, now + .16);
+          o.frequency.setValueAtTime(1320, now + .24);
+          g.gain.setValueAtTime(.028, now);
+          g.gain.setValueAtTime(.024, now + .2);
+          g.gain.exponentialRampToValueAtTime(.0001, now + .38);
+          o.start(now); o.stop(now + .4);
+        } else {
+          o.type = 'square'; o.frequency.setValueAtTime(620, now);
+          g.gain.setValueAtTime(.018, now); g.gain.exponentialRampToValueAtTime(.0001, now + .045);
+          o.start(now); o.stop(now + .05);
+        }
+      } catch (_) {}
+    }
+
+    muteButton.addEventListener('click', () => {
+      muted = !muted;
+      muteButton.textContent = `SOUND: ${muted ? 'OFF' : 'ON'}`;
+    });
+
+    function startFromIntro() {
+      if (introGone) return;
+      introGone = true;
+      shell.classList.add('playing');
+      wrap.classList.add('active');
+      setTimeout(() => {
+        running = true;
+        gameOver = false;
+        resetGame();
+      }, 360);
+    }
+
+    function resetGame() {
+      obstacles.length = 0;
+      deco.length = 0;
+      dust.length = 0;
+      fireworks.length = 0;
+      score = 0;
+      distance = 0;
+      elapsed = 0;
+      speed = 330;
+      nextObstacle = 430;
+      nextDeco = 120;
+      gameOver = false;
+      running = true;
+      player.y = groundY - player.h;
+      player.vy = 0;
+      player.onGround = true;
+      player.runT = 0;
+      shake = 0;
+      scoreFlashUntil = 0;
+      recordToBeat = high;
+      newHighThisRun = false;
+    }
+
+    function jump() {
+      if (!introGone) return startFromIntro();
+      if (gameOver) {
+        resetGame();
+        beep('tick');
+        return;
+      }
+      if (!running) return;
+      if (player.onGround) {
+        player.vy = -500;
+        player.onGround = false;
+        beep('jump');
+      }
+    }
+
+    addEventListener('keydown', (e) => {
+      if (['Space','ArrowUp','KeyW'].includes(e.code)) {
+        e.preventDefault();
+        jump();
+      }
+    }, { passive: false });
+    canvas.addEventListener('pointerdown', jump, { passive: true });
+    shell.addEventListener('pointerdown', startFromIntro, { passive: true });
+
+    function r(min, max) { return min + Math.random() * (max - min); }
+    function choice(arr) { return arr[(Math.random() * arr.length) | 0]; }
+
+    function spawnObstacle() {
+      const airborneAllowed = elapsed > 8;
+      const kinds = airborneAllowed
+        ? ['cone','barrel','barrier','hole','beam','ball']
+        : ['cone','barrel','barrier','hole'];
+      const kind = choice(kinds);
+      let o;
+      if (kind === 'cone') o = { kind, x: W + 40, y: groundY - 31, w: 24, h: 31 };
+      if (kind === 'barrel') o = { kind, x: W + 40, y: groundY - 44, w: 30, h: 44 };
+      if (kind === 'barrier') o = { kind, x: W + 40, y: groundY - 48, w: 58, h: 48 };
+      if (kind === 'hole') o = { kind, x: W + 40, y: groundY - 4, w: 72, h: 15 };
+      // Air hazards are deliberately above standing head-height, but at the apex / body path of a jump.
+      if (kind === 'beam') o = { kind, x: W + 40, y: groundY - 122, w: 84, h: 24, swing: r(0, Math.PI * 2) };
+      if (kind === 'ball') o = { kind, x: W + 40, y: groundY - 116, w: 38, h: 38, swing: r(0, Math.PI * 2) };
+      obstacles.push(o);
+
+      const baseGap = Math.max(240, 390 - speed * .18);
+      nextObstacle = distance + r(baseGap, baseGap + 220);
+    }
+
+    function spawnDeco() {
+      const kind = choice(['crane','building','sign','cloud','rebar','fence']);
+      const depth = kind === 'cloud' ? .18 : kind === 'building' ? .35 : .55;
+      const y = kind === 'cloud' ? r(52, 115) : groundY;
+      deco.push({ kind, x: W + r(60, 220), y, depth, seed: Math.random() * 99 });
+      nextDeco = distance + r(190, 380);
+    }
+
+    function update(dt) {
+      fxTime += dt;
+      updateFireworks(dt);
+      if (!running || gameOver) return;
+
+      const prevScore = score;
+      elapsed += dt;
+      score = Math.floor(elapsed * 10);
+      speed = Math.min(700, 330 + elapsed * 1.4);
+      distance += speed * dt;
+
+      if (Math.floor(score / 100) > Math.floor(prevScore / 100)) beep('tick');
+
+      if (!newHighThisRun && score > recordToBeat) {
+        newHighThisRun = true;
+        celebrateHighScore();
+      }
+      if (newHighThisRun && score > high) high = score;
+
+      player.runT += dt * (speed / 120);
+      player.vy += 1800 * dt;
+      player.y += player.vy * dt;
+      if (player.y >= groundY - player.h) {
+        if (!player.onGround && player.vy > 220) makeDust(player.x + 11, groundY - 4, 5);
+        player.y = groundY - player.h;
+        player.vy = 0;
+        player.onGround = true;
+      }
+
+      if (distance >= nextObstacle) spawnObstacle();
+      if (distance >= nextDeco) spawnDeco();
+
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const o = obstacles[i];
+        o.x -= speed * dt;
+        if (o.swing != null) o.swing += dt * 2.3;
+        if (o.x + o.w < -80) obstacles.splice(i, 1);
+      }
+
+      for (let i = deco.length - 1; i >= 0; i--) {
+        const d = deco[i];
+        d.x -= speed * d.depth * dt;
+        if (d.x < -180) deco.splice(i, 1);
+      }
+
+      for (let i = dust.length - 1; i >= 0; i--) {
+        const p = dust[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 120 * dt;
+        p.life -= dt;
+        if (p.life <= 0) dust.splice(i, 1);
+      }
+
+      const pbox = {
+        x: player.x + 7,
+        y: player.y + 5,
+        w: player.w - 13,
+        h: player.h - 8
+      };
+
+      for (const o of obstacles) {
+        let box;
+        if (o.kind === 'hole') {
+          // "Hole" collision only counts while feet are close to the ground plane.
+          box = { x: o.x + 3, y: groundY - 9, w: o.w - 6, h: 13 };
+          const feet = player.y + player.h;
+          if (feet < groundY - 10) continue;
+        } else if (o.kind === 'ball') {
+          const bob = Math.sin(o.swing) * 5;
+          box = { x: o.x + 4, y: o.y + bob + 4, w: o.w - 8, h: o.h - 8 };
+        } else if (o.kind === 'beam') {
+          const bob = Math.sin(o.swing) * 4;
+          box = { x: o.x + 3, y: o.y + bob + 3, w: o.w - 6, h: o.h - 6 };
+        } else {
+          box = { x: o.x + 3, y: o.y + 3, w: o.w - 6, h: o.h - 3 };
+        }
+        if (hit(pbox, box)) {
+          endGame();
+          break;
+        }
+      }
+    }
+
+    function hit(a, b) {
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+
+    function endGame() {
+      gameOver = true;
+      running = false;
+      shake = 10;
+      makeDust(player.x + 14, groundY - 5, 12);
+      beep('hit');
+      if (newHighThisRun) {
+        high = Math.max(high, score);
+        localStorage.setItem('constructionRunnerHighV3', String(high));
+        fireworkBurst(W / 2, H * .27);
+        setTimeout(() => beep('happy'), 180);
+      }
+    }
+
+    function celebrateHighScore() {
+      scoreFlashUntil = fxTime + 1.45;
+      fireworkBurst(W - 72, 56);
+      beep('happy');
+    }
+
+    function fireworkBurst(x, y) {
+      const colors = [C.red, C.orange, C.yellow, C.white];
+      const count = 42;
+      for (let i = 0; i < count; i++) {
+        const a = (Math.PI * 2 * i / count) + r(-.08, .08);
+        const v = r(58, 145);
+        fireworks.push({
+          x: x + r(-2, 2), y: y + r(-2, 2),
+          vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+          life: r(.62, 1.05), maxLife: 1,
+          s: choice([2,2,3]), color: choice(colors)
+        });
+      }
+    }
+
+    function updateFireworks(dt) {
+      for (let i = fireworks.length - 1; i >= 0; i--) {
+        const p = fireworks[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 105 * dt;
+        p.vx *= Math.pow(.985, dt * 60);
+        p.life -= dt;
+        if (p.life <= 0) fireworks.splice(i, 1);
+      }
+    }
+
+    function makeDust(x, y, count) {
+      for (let i = 0; i < count; i++) {
+        dust.push({
+          x: x + r(-4, 4), y: y + r(-2, 2),
+          vx: r(-62, 12), vy: r(-90, -25),
+          life: r(.18, .42), s: choice([2,3,4])
+        });
+      }
+    }
+
+    function draw() {
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+
+      let sx = 0, sy = 0;
+      if (shake > .1) {
+        sx = r(-shake, shake);
+        sy = r(-shake * .45, shake * .45);
+        shake *= .84;
+      }
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.fillStyle = C.paper;
+      ctx.fillRect(-20, -20, W + 40, H + 40);
+
+      drawBackground();
+      drawGround();
+      for (const o of obstacles) drawObstacle(o);
+      drawPlayer();
+      for (const p of dust) px(p.x, p.y, p.s, p.s, C.muted);
+      if (!gameOver) drawFireworks();
+      drawHUD();
+      if (gameOver) {
+        drawGameOver();
+        drawFireworks();
+      }
+      ctx.restore();
+    }
+
+    function drawFireworks() {
+      for (const p of fireworks) {
+        ctx.globalAlpha = Math.min(1, p.life * 2);
+        px(p.x, p.y, p.s, p.s, p.color);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function drawBackground() {
+      for (const d of deco) {
+        ctx.save();
+        ctx.globalAlpha = d.depth < .3 ? .26 : d.depth < .5 ? .38 : .55;
+        if (d.kind === 'cloud') drawCloud(d.x, d.y, 1 + d.seed % .4);
+        if (d.kind === 'building') drawBuilding(d.x, groundY, d.seed);
+        if (d.kind === 'crane') drawCrane(d.x, groundY, d.seed);
+        if (d.kind === 'sign') drawSign(d.x, groundY);
+        if (d.kind === 'rebar') drawRebar(d.x, groundY);
+        if (d.kind === 'fence') drawFence(d.x, groundY);
+        ctx.restore();
+      }
+    }
+
+    function drawCloud(x, y, s) {
+      const u = 4 * s;
+      px(x, y, 8*u, u, C.steel);
+      px(x+u, y-u, 5*u, u, C.steel);
+      px(x+2*u, y-2*u, 2*u, u, C.steel);
+      px(x+5*u, y-u, 2*u, u, C.steel);
+    }
+
+    function drawBuilding(x, y, seed) {
+      const w = 58 + (seed % 45), h = 52 + (seed % 70);
+      px(x, y-h, w, h, C.steel);
+      for (let yy = y-h+10; yy < y-8; yy += 16) {
+        for (let xx = x+9; xx < x+w-7; xx += 15) px(xx, yy, 5, 6, C.paper);
+      }
+      line(x-8,y-h, x+w+8,y-h,C.steel,2);
+    }
+
+    function drawCrane(x, y, seed) {
+      const h = 92 + seed % 35;
+      line(x, y, x, y-h, C.steel, 3);
+      line(x-18, y, x, y-h, C.steel, 2);
+      line(x+18, y, x, y-h, C.steel, 2);
+      line(x, y-h, x+92, y-h, C.steel, 3);
+      line(x+15, y-h, x+38, y-h+18, C.steel, 2);
+      line(x+38, y-h+18, x+61, y-h, C.steel, 2);
+      line(x+70, y-h, x+70, y-h+34, C.steel, 1);
+      px(x+66, y-h+34, 8, 8, C.steel);
+    }
+
+    function drawSign(x, y) {
+      line(x+10, y-34, x+10, y, C.steel, 3);
+      line(x+42, y-34, x+42, y, C.steel, 3);
+      px(x, y-50, 52, 20, C.steel);
+      px(x+5, y-44, 42, 4, C.paper);
+      px(x+5, y-36, 31, 3, C.paper);
+    }
+
+    function drawRebar(x, y) {
+      for (let i=0;i<5;i++) {
+        line(x+i*7, y, x+i*7, y-36-r(0,15), C.steel, 2);
+        line(x+i*7-2, y-17, x+i*7+2, y-17, C.steel, 1);
+      }
+    }
+
+    function drawFence(x, y) {
+      line(x, y-32, x+72, y-32, C.steel, 2);
+      line(x, y, x+72, y, C.steel, 2);
+      for(let i=0;i<=6;i++) line(x+i*12,y, x+i*12+20,y-32,C.steel,1);
+    }
+
+    function drawGround() {
+      line(0, groundY + .5, W, groundY + .5, C.ink, 2);
+      const dashOffset = -(distance * .8) % 26;
+      for (let x = dashOffset; x < W; x += 26) px(x, groundY + 10, 6, 2, C.muted);
+    }
+
+    function drawPlayer() {
+      const x = player.x, y = player.y;
+      const step = player.onGround ? (Math.sin(player.runT * 5) > 0 ? 1 : 0) : 0;
+
+      // Helmet
+      px(x+8, y, 20, 4, C.yellow);
+      px(x+4, y+4, 28, 5, C.yellow);
+      px(x+1, y+9, 34, 4, C.orange);
+      // Head / face
+      px(x+8, y+13, 21, 10, C.rust);
+      px(x+24, y+15, 5, 3, C.white);
+      px(x+29, y+18, 4, 3, C.rust);
+      // Body vest
+      px(x+8, y+23, 20, 15, C.orange);
+      px(x+12, y+23, 4, 15, C.yellow);
+      px(x+20, y+23, 4, 15, C.yellow);
+      // arms
+      px(x+3, y+24+(step?2:0), 5, 13, C.rust);
+      px(x+28, y+25+(!step?2:0), 5, 12, C.rust);
+      // belt
+      px(x+8, y+36, 20, 4, C.ink);
+      // legs
+      if (!player.onGround) {
+        px(x+9, y+40, 7, 8, C.ink);
+        px(x+22, y+40, 7, 8, C.ink);
+      } else if (step) {
+        px(x+8, y+40, 7, 8, C.ink);
+        px(x+22, y+39, 6, 5, C.ink);
+        px(x+24, y+44, 10, 4, C.ink);
+      } else {
+        px(x+10, y+39, 6, 5, C.ink);
+        px(x+3, y+44, 11, 4, C.ink);
+        px(x+23, y+40, 7, 8, C.ink);
+      }
+    }
+
+    function drawObstacle(o) {
+      const bob = o.swing == null ? 0 : Math.sin(o.swing) * (o.kind === 'ball' ? 5 : 4);
+      if (o.kind === 'cone') {
+        px(o.x+7, o.y, 10, 5, C.orange);
+        px(o.x+5, o.y+5, 14, 6, C.orange);
+        px(o.x+3, o.y+11, 18, 7, C.yellow);
+        px(o.x+1, o.y+18, 22, 8, C.orange);
+        px(o.x-2, o.y+26, 28, 5, C.ink);
+      }
+      if (o.kind === 'barrel') {
+        px(o.x+2, o.y, 26, 44, C.orange);
+        px(o.x, o.y+4, 30, 5, C.ink);
+        px(o.x, o.y+19, 30, 6, C.yellow);
+        px(o.x, o.y+35, 30, 5, C.ink);
+        px(o.x+6, o.y+1, 3, 42, C.rust);
+      }
+      if (o.kind === 'barrier') {
+        // Based on the orange/black road barrier reference the user supplied.
+        px(o.x+3, o.y+4, 52, 15, C.orange);
+        for (let i=0;i<5;i++) {
+          ctx.save();
+          ctx.translate(o.x+8+i*10, o.y+5);
+          ctx.rotate(-0.72);
+          px(0,0,5,17,C.ink);
+          ctx.restore();
+        }
+        px(o.x+8, o.y+19, 6, 29, C.orange);
+        px(o.x+43, o.y+19, 6, 29, C.orange);
+        px(o.x+2, o.y+43, 19, 5, C.ink);
+        px(o.x+36, o.y+43, 19, 5, C.ink);
+        px(o.x+8, o.y, 7, 5, C.yellow);
+        px(o.x+43, o.y, 7, 5, C.yellow);
+      }
+      if (o.kind === 'hole') {
+        px(o.x, groundY+1, o.w, 6, C.ink);
+        px(o.x+8, groundY+7, o.w-16, 5, C.muted);
+        px(o.x+18, groundY+12, o.w-36, 4, C.ink);
+        px(o.x-6, groundY-3, 10, 3, C.rust);
+        px(o.x+o.w-4, groundY-3, 10, 3, C.rust);
+      }
+      if (o.kind === 'beam') {
+        const y = o.y + bob;
+        line(o.x+18, 0, o.x+18, y, C.steel, 1);
+        line(o.x+66, 0, o.x+66, y, C.steel, 1);
+        px(o.x, y+3, 84, 17, C.ink);
+        px(o.x+4, y+7, 76, 4, C.steel);
+        px(o.x+10, y, 7, 6, C.yellow);
+        px(o.x+67, y, 7, 6, C.yellow);
+      }
+      if (o.kind === 'ball') {
+        const y = o.y + bob;
+        line(o.x+19, 0, o.x+19, y-4, C.steel, 2);
+        px(o.x+15, y-4, 8, 5, C.ink);
+        px(o.x+6, y+3, 26, 30, C.ink);
+        px(o.x+2, y+10, 34, 18, C.ink);
+        px(o.x+9, y+8, 6, 6, C.steel);
+      }
+    }
+
+    function drawHUD() {
+      const s = String(score).padStart(5,'0');
+      const h = String(high).padStart(5,'0');
+      const fontSize = W < 620 ? 12 : 15;
+      const scoreColor = fxTime < scoreFlashUntil && Math.floor(fxTime * 9) % 2 === 0 ? C.red : C.muted;
+      ctx.font = `400 ${fontSize}px "VT323", ui-monospace, monospace`;
+      const scoreWidth = ctx.measureText(s).width;
+      text(s, W - 18, 17, fontSize, 'right', scoreColor);
+      text(`HI ${h}`, W - 18 - scoreWidth - 14, 17, fontSize, 'right', C.muted);
+    }
+
+    function drawGameOver() {
+      ctx.fillStyle = 'rgba(247,243,232,.84)';
+      ctx.fillRect(0,0,W,H);
+      text('GAME OVER', W/2, H*.35, W < 620 ? 22 : 28, 'center', C.ink);
+      if (newHighThisRun) {
+        if (Math.floor(fxTime * 4) % 2 === 0) {
+          text(`NEW HIGHSCORE ${String(score).padStart(5,'0')}`, W/2, H*.35 + 44, 14, 'center', C.red);
+        }
+      } else {
+        text(`SCORE ${String(score).padStart(5,'0')}`, W/2, H*.35 + 44, 14, 'center', C.muted);
+      }
+      text('PRESS SPACE TO RESTART', W/2, H*.35 + 78, W < 620 ? 11 : 13, 'center', C.ink);
+    }
+
+    function loop(t) {
+      const dt = Math.min(.032, (t - last) / 1000 || 0);
+      last = t;
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  })();
+  </script>
+</body>
+</html>
