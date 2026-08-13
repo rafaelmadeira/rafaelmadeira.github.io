@@ -1,0 +1,450 @@
+:root {
+  --tec-blue: #2196f3;
+  --tec-blue-link: #198fee;
+  --tec-text: #596673;
+  --tec-muted: #89939c;
+  --tec-dark: #35404a;
+  --tec-border: #dfe3e6;
+  --tec-surface: #ffffff;
+  --tec-danger: #ef3d37;
+  --tec-unread: #f1f8fd;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-width: 1220px;
+  min-height: 915px;
+  background: #edf0f2;
+  font-family: "Open Sans", "Segoe UI", Arial, sans-serif;
+  color: var(--tec-text);
+}
+
+body {
+  overflow-x: auto;
+}
+
+.prototype-stage {
+  position: relative;
+  width: 1220px;
+  height: 915px;
+  margin: 0 auto;
+  background: #edf0f2 url("tec-home.png") no-repeat 0 0 / 1220px 915px;
+}
+
+/* Bell injected into the first/top bar of the original interface. */
+.notification-bell {
+  position: absolute;
+  top: 4px;
+  right: 289px;
+  z-index: 30;
+  width: 29px;
+  height: 25px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.notification-bell:hover,
+.notification-bell[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.notification-bell:focus-visible,
+.notification-panel button:focus-visible,
+.notification-panel a:focus-visible {
+  outline: 2px solid #64b5f6;
+  outline-offset: 2px;
+}
+
+.notification-bell svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.96;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -1px;
+  right: -2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tec-danger);
+  color: #fff;
+  border: 2px solid var(--tec-dark);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.03);
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.notification-badge.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.notification-badge.count {
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  top: -5px;
+  right: -7px;
+  font-size: 10px;
+}
+
+.notification-badge.is-hidden {
+  display: none;
+}
+
+.notification-panel {
+  position: absolute;
+  top: 34px;
+  right: 36px;
+  z-index: 25;
+  width: 392px;
+  background: var(--tec-surface);
+  border: 1px solid #d7dde1;
+  border-radius: 4px;
+  box-shadow: 0 5px 18px rgba(28, 39, 49, 0.25);
+}
+
+.notification-panel[hidden] { display: none; }
+
+.notification-panel::before,
+.notification-panel::after {
+  content: "";
+  position: absolute;
+  right: 268px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+}
+
+.notification-panel::before {
+  top: -9px;
+  border-bottom: 9px solid #cfd6da;
+}
+
+.notification-panel::after {
+  top: -8px;
+  border-bottom: 9px solid #fff;
+}
+
+.panel-header {
+  min-height: 49px;
+  padding: 0 15px 0 17px;
+  border-bottom: 1px solid #e2e6e8;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.panel-title {
+  margin: 0;
+  color: #596673;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.panel-title-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  margin-right: 7px;
+  vertical-align: -3px;
+}
+
+.panel-title-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: #6e7781;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mark-all {
+  margin-left: auto;
+  border: 0;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--tec-blue-link);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.mark-all:hover { text-decoration: underline; }
+.mark-all:disabled {
+  color: #aeb7be;
+  cursor: default;
+  text-decoration: none;
+}
+
+.notification-list {
+  max-height: 390px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  position: relative;
+  min-height: 78px;
+  padding: 12px 46px 11px 17px;
+  border-bottom: 1px solid #e7eaec;
+  background: #fff;
+}
+
+.version-a .notification-item {
+  padding-right: 17px;
+}
+
+.version-b .notification-item.unread,
+.version-c .notification-item.unread {
+  background: var(--tec-unread);
+}
+
+.version-b .notification-item.unread::before,
+.version-c .notification-item.unread::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #42a5f5;
+}
+
+.notification-copy {
+  margin: 0;
+  color: #4f5e6b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.notification-time {
+  display: block;
+  margin-top: 5px;
+  color: #9aa3aa;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.read-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 27px;
+  height: 27px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #9aa4ac;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.read-toggle:hover {
+  background: rgba(33, 150, 243, 0.09);
+  color: #258fd8;
+}
+
+.notification-item.unread .read-toggle {
+  color: #278fda;
+}
+
+.read-toggle svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.read-toggle .read-dot {
+  fill: currentColor;
+  stroke: none;
+}
+
+.panel-footer {
+  min-height: 44px;
+  padding: 0 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafbfb;
+  border-radius: 0 0 4px 4px;
+}
+
+.settings-link {
+  border: 0;
+  background: transparent;
+  color: var(--tec-blue-link);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+}
+
+.settings-link:hover { text-decoration: underline; }
+.settings-link svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+
+/* Version A: settings lives in the header, matching the requested mockup. */
+.version-a .panel-header {
+  padding-right: 0;
+}
+
+.settings-link-header {
+  margin-left: auto;
+  align-self: stretch;
+  min-width: 110px;
+  padding: 0 13px;
+  justify-content: center;
+  border-radius: 0;
+  background: #fafbfb;
+}
+
+.settings-link-header:hover {
+  background: #f5f7f8;
+}
+
+/* Version C: compact overflow menu beside “Marcar tudo como lido”. */
+.panel-header-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.version-c .mark-all {
+  margin-left: 0;
+}
+
+.more-menu-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.more-menu-trigger {
+  width: 28px;
+  height: 28px;
+  padding: 0 0 4px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #74808a;
+  font: 700 16px/1 Arial, sans-serif;
+  letter-spacing: 1px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.more-menu-trigger:hover,
+.more-menu-trigger[aria-expanded="true"] {
+  background: #f0f3f5;
+  color: #4f5e6b;
+}
+
+.more-menu {
+  position: absolute;
+  top: 32px;
+  right: 0;
+  z-index: 5;
+  min-width: 168px;
+  padding: 5px 0;
+  background: #fff;
+  border: 1px solid #d7dde1;
+  border-radius: 3px;
+  box-shadow: 0 4px 12px rgba(28, 39, 49, .18);
+}
+
+.more-menu[hidden] {
+  display: none;
+}
+
+.settings-link-menu {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 8px 12px;
+  border-radius: 0;
+  color: #4f5e6b;
+  white-space: nowrap;
+}
+
+.settings-link-menu:hover {
+  background: #f5f8fa;
+  color: var(--tec-blue-link);
+  text-decoration: none;
+}
+
+.prototype-toast {
+  position: absolute;
+  top: 88px;
+  right: 36px;
+  z-index: 40;
+  max-width: 335px;
+  padding: 10px 13px;
+  background: rgba(53, 64, 74, 0.96);
+  color: #fff;
+  border-radius: 4px;
+  box-shadow: 0 3px 12px rgba(0,0,0,.18);
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0;
+  transform: translateY(-5px);
+  pointer-events: none;
+  transition: opacity .15s ease, transform .15s ease;
+}
+
+.prototype-toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
