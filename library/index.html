@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A personal library of writing projects.">
+  <title>Library</title>
+  <link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body class="library-page">
+  <header class="site-header shell">
+    <a class="site-name" href="index.html" aria-label="Library home">Library</a>
+  </header>
+
+  <main class="shell library-main">
+    <section class="library-intro" aria-labelledby="library-title">
+      <p class="eyebrow">Writing projects</p>
+      <h1 id="library-title">Library</h1>
+      <p class="library-deck">Stories, novels, and works in progress.</p>
+    </section>
+
+    <section aria-label="Books">
+      <div id="book-grid" class="book-grid" aria-live="polite">
+        <p class="loading">Loading library…</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer shell">
+    <p>Built from Feather plain text.</p>
+  </footer>
+
+  <script type="module" src="assets/js/library.js"></script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+{
+  "format": "feather",
+  "version": 2,
+  "books": [
+    {
+      "slug": "the-long-night",
+      "title": "The Long Night",
+      "author": "Example Writer",
+      "started": "2026-08-11",
+      "status": "Draft",
+      "description": "A small sample book included to demonstrate the library, table of contents, reader, and continue-reading behavior.",
+      "cover": "books/the-long-night/cover.png",
+      "units": [
+        {
+          "file": "00-prologue.feather",
+          "id": "prologue-before-the-rain",
+          "kind": "prologue",
+          "label": "Prologue",
+          "title": "Before the Rain",
+          "sections": []
+        },
+        {
+          "file": "01-manuscript.feather",
+          "id": "chapter-1",
+          "kind": "chapter",
+          "label": "Chapter 1",
+          "title": "The Long Night",
+          "sections": []
+        },
+        {
+          "file": "01-manuscript.feather",
+          "id": "chapter-2",
+          "kind": "chapter",
+          "label": "Chapter 2",
+          "title": "The House at the End",
+          "sections": [
+            {
+              "id": "section-the-door",
+              "label": "Section",
+              "title": "The Door"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

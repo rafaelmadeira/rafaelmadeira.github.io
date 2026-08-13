@@ -1,0 +1,5 @@
+title: The Long Night
+author: Example Writer
+started: 2026-08-11
+status: Draft
+description: A small sample book included to demonstrate the library, table of contents, reader, and continue-reading behavior.

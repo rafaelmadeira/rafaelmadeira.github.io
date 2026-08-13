@@ -1,0 +1,11 @@
+{
+  "name": "writing-library",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-manifests.mjs",
+    "test": "node scripts/test-parser.mjs",
+    "serve": "node scripts/serve.mjs",
+    "preview": "npm run build && npm run serve"
+  }
+}
