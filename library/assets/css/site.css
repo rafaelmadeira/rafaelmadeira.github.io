@@ -62,7 +62,7 @@ code { font-family: var(--mono); font-size: .9em; }
   margin: 0 0 8px;
   color: var(--accent);
   font-size: .75rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: .13em;
   text-transform: uppercase;
 }
@@ -72,7 +72,7 @@ code { font-family: var(--mono); font-size: .9em; }
 .library-intro h1 {
   margin: 0;
   font-family: var(--serif);
-  font-size: clamp(3.2rem, 9vw, 6.6rem);
+  font-size: clamp(3.2rem, 9vw, 4.6rem);
   font-weight: 500;
   letter-spacing: -.055em;
   line-height: .92;
@@ -192,7 +192,7 @@ code { font-family: var(--mono); font-size: .9em; }
 .toc-progress {
   color: var(--accent);
   font-size: .7rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: .08em;
   text-transform: uppercase;
 }
@@ -206,7 +206,7 @@ code { font-family: var(--mono); font-size: .9em; }
   margin: 0 0 8px;
   color: var(--muted);
   font-size: .77rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: .12em;
   text-transform: uppercase;
 }
@@ -229,7 +229,7 @@ code { font-family: var(--mono); font-size: .9em; }
 .epigraph footer { margin-top: 7px; color: var(--muted); font-size: .87rem; }
 
 .prose { font-family: var(--serif); font-size: clamp(1.08rem, 2.1vw, 1.2rem); line-height: 1.8; }
-.prose > p { margin: 0 0 1.15em; }
+.prose > p { margin: 0 0 .15em; }
 .prose > p + p { text-indent: 1.5em; }
 .prose > .scene-break + p,
 .prose > blockquote + p { text-indent: 0; }
@@ -274,7 +274,7 @@ code { font-family: var(--mono); font-size: .9em; }
 .chapter-nav-contents a { align-items: center; }
 .chapter-nav-next { text-align: right; }
 .chapter-nav-next a { align-items: flex-end; }
-.nav-direction { color: var(--muted); font-family: var(--sans); font-size: .7rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.nav-direction { color: var(--muted); font-family: var(--sans); font-size: .7rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
 
 .loading,
 .empty-state { color: var(--muted); }
