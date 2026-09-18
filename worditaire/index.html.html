@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Worditaire — Prototype</title>
+<style>
+  :root{
+    --bg:#0e5a42;
+    --bg2:#0b4b38;
+    --felt:#12684e;
+    --paper:#f7f0df;
+    --paper2:#fffaf0;
+    --ink:#23231f;
+    --muted:#bcd7ca;
+    --gold:#f0c96b;
+    --red:#b83b3b;
+    --shadow:0 10px 24px rgba(0,0,0,.22);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: radial-gradient(circle at 30% 10%, #17785b 0, var(--bg) 42%, var(--bg2) 100%);
+    color:white;
+    overflow-x:hidden;
+  }
+  button{font:inherit}
+  .app{min-height:100%; padding:18px 20px 28px; max-width:1500px; margin:0 auto}
+  .topbar{display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:14px}
+  .brand{display:flex; align-items:baseline; gap:10px}
+  .brand h1{font-family:Georgia,serif; letter-spacing:-.03em; margin:0; font-size:28px}
+  .brand .tag{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.12em}
+  .stats{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end}
+  .pill{background:rgba(0,0,0,.16); border:1px solid rgba(255,255,255,.14); border-radius:999px; padding:7px 10px; font-size:13px}
+  .pill strong{color:var(--gold)}
+
+  .layout{display:grid; grid-template-columns:minmax(0,1fr) 235px; gap:18px; align-items:start}
+  .main{min-width:0}
+  .upper{display:grid; grid-template-columns:170px minmax(620px,1fr); gap:18px; align-items:start}
+  .stock-area{display:flex; gap:10px; align-items:flex-start}
+  .pile-wrap{display:flex; flex-direction:column; gap:6px; align-items:center}
+  .pile-label{font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted)}
+
+  .card{
+    width:64px; height:86px; border-radius:8px; background:var(--paper2); color:var(--ink);
+    border:1px solid rgba(30,30,20,.25); box-shadow:0 4px 10px rgba(0,0,0,.2);
+    display:flex; align-items:center; justify-content:center; position:relative; user-select:none;
+    cursor:grab; transform:translateZ(0); transition:transform .12s ease, box-shadow .12s ease, outline .12s ease;
+  }
+  .card:hover{transform:translateY(-2px); box-shadow:0 7px 14px rgba(0,0,0,.25)}
+  .card.selected{outline:3px solid var(--gold); outline-offset:2px; transform:translateY(-4px)}
+  .card .letter{font:700 38px/1 Georgia,serif}
+  .card .value{position:absolute; right:7px; bottom:5px; font-size:11px; font-weight:800; opacity:.72}
+  .card .tiny{position:absolute; left:7px; top:5px; font-size:9px; opacity:.55}
+  .card.back{cursor:pointer; background:
+    linear-gradient(135deg, rgba(255,255,255,.06) 25%, transparent 25%) -8px 0/16px 16px,
+    linear-gradient(225deg, rgba(255,255,255,.06) 25%, transparent 25%) -8px 0/16px 16px,
+    linear-gradient(315deg, rgba(255,255,255,.06) 25%, transparent 25%) 0 0/16px 16px,
+    linear-gradient(45deg, rgba(255,255,255,.06) 25%, transparent 25%) 0 0/16px 16px,
+    #173a66;
+    border:3px solid #d8e4f0;
+    box-shadow:inset 0 0 0 2px #173a66, inset 0 0 0 4px rgba(255,255,255,.3), var(--shadow);
+  }
+  .card.back::after{content:"W"; font:700 28px Georgia,serif; color:#e6eef7; border:1px solid rgba(255,255,255,.35); width:42px; height:56px; border-radius:50%; display:grid; place-items:center}
+  .card.back.locked{opacity:.46;cursor:not-allowed;filter:saturate(.55)}
+  .empty-pile{width:64px;height:86px;border:2px dashed rgba(255,255,255,.22);border-radius:8px;display:grid;place-items:center;color:rgba(255,255,255,.45);font-size:24px}
+  .empty-pile.held-pile{font-size:20px;background:rgba(0,0,0,.08);border-style:solid;border-color:rgba(255,255,255,.14)}
+  .count-badge{position:absolute; top:-8px; right:-8px; background:#111c; color:white; border:1px solid #fff3; min-width:24px;height:24px;border-radius:12px;display:grid;place-items:center;font-size:11px;font-weight:800;padding:0 5px}
+  .pile-pos{position:relative}
+  .waste-stack{position:relative;width:72px;height:92px}
+  .waste-layer{position:absolute;left:0;top:0;pointer-events:none}
+  .waste-layer.top{pointer-events:auto}
+  .waste-layer .card{width:64px;height:86px}
+
+  .word-panel{background:rgba(0,0,0,.10); border:1px solid rgba(255,255,255,.13); border-radius:16px; padding:12px 12px 10px}
+  .slots{display:grid; grid-template-columns:repeat(10, minmax(50px, 1fr)); gap:7px; min-width:0}
+  .slot{height:98px; border:2px dashed rgba(255,255,255,.30); border-radius:10px; position:relative; display:flex; align-items:center; justify-content:center; min-width:0; background:rgba(255,255,255,.025); transition:.12s ease; cursor:pointer}
+  .slot:hover,.slot.drop-target{background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.55)}
+  .slot .card{width:min(64px, calc(100% - 6px)); height:86px}
+  .slot-index{position:absolute; bottom:-16px; font-size:9px; color:rgba(255,255,255,.42)}
+  .stack-chip{position:absolute; top:3px; right:4px; border-radius:10px; background:#222e; color:white; font-size:10px; font-weight:700; padding:2px 5px; z-index:4; pointer-events:none}
+
+  .word-readout{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; margin-top:17px}
+  .word-status{min-width:0}
+  .current-word{font:700 25px Georgia,serif; letter-spacing:.14em; min-height:31px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .status-line{font-size:12px; color:var(--muted); min-height:18px; margin-top:2px}
+  .status-line.good{color:#d8ffd8}.status-line.bad{color:#ffd0c7}
+  .actions{display:flex; gap:7px; flex-wrap:wrap; justify-content:flex-end}
+  .btn{border:1px solid rgba(255,255,255,.18); background:rgba(0,0,0,.18); color:white; padding:8px 11px; border-radius:9px; cursor:pointer; font-weight:700; font-size:12px}
+  .btn:hover{background:rgba(0,0,0,.28)}
+  .btn.primary{background:#f4d17a; color:#22302a; border-color:#ffe8a7}
+  .btn.primary:hover{background:#ffdf8e}
+  .btn:disabled{opacity:.38; cursor:not-allowed}
+
+  .tableau-head{display:flex;justify-content:space-between;align-items:center;margin:25px 2px 8px;color:var(--muted);font-size:12px}
+  .tableau{display:grid; grid-template-columns:repeat(7, 74px); gap:10px; justify-content:center; min-height:390px; padding:12px 8px 20px; border-top:1px solid rgba(255,255,255,.10)}
+  .column{position:relative; width:74px; min-width:74px; min-height:340px}
+  .tcard{position:absolute; left:50%; transform:translateX(-50%); width:64px}
+  .tcard .card{width:64px;height:86px}
+  .face-down-mini{width:64px;height:86px;border-radius:8px;background:#173a66;border:2px solid #d7e1eb;box-shadow:inset 0 0 0 2px #173a66,inset 0 0 0 3px rgba(255,255,255,.25),0 4px 8px rgba(0,0,0,.16);position:relative}
+  .face-down-mini::after{content:"";position:absolute;inset:9px;border:1px solid rgba(255,255,255,.26);border-radius:5px;background:repeating-linear-gradient(45deg,rgba(255,255,255,.05) 0 4px,transparent 4px 8px)}
+  .empty-col{position:absolute;left:50%;transform:translateX(-50%);width:64px;height:86px;border:2px dashed rgba(255,255,255,.15);border-radius:8px;transition:.12s ease;background:rgba(255,255,255,.015)}
+  .column.empty-column{cursor:pointer}
+  .column.empty-column:hover .empty-col,.column.drop-target .empty-col{border-color:rgba(255,255,255,.52);background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+
+  .sidebar{position:sticky; top:14px; background:rgba(5,35,27,.48); border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:14px; min-height:550px}
+  .side-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+  .side-title h2{font:700 19px Georgia,serif;margin:0}
+  .side-title span{font-size:11px;color:var(--muted)}
+  .completed{position:relative; min-height:340px; padding:4px 0 44px}
+  .word-card{background:var(--paper);color:var(--ink);border-radius:9px;border:1px solid rgba(0,0,0,.20);height:72px;padding:10px 12px;box-shadow:0 5px 13px rgba(0,0,0,.18);position:relative;margin-top:-44px;transition:transform .16s ease,box-shadow .16s ease}
+  .word-card:first-child{margin-top:0}
+  .word-card:hover{transform:translateY(-34px);z-index:100!important;box-shadow:0 12px 24px rgba(0,0,0,.28)}
+  .word-card .w{font:700 18px Georgia,serif;letter-spacing:.05em}
+  .word-card .s{position:absolute;right:10px;top:10px;font-size:12px;font-weight:800}
+  .word-card .m{position:absolute;left:12px;bottom:8px;font-size:10px;opacity:.55}
+  .empty-completed{border:2px dashed rgba(255,255,255,.16);border-radius:10px;padding:18px 12px;text-align:center;color:rgba(255,255,255,.46);font-size:12px;line-height:1.45}
+  .rules{margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,.12);font-size:11px;line-height:1.5;color:var(--muted)}
+  .rules strong{color:white}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:#101612e8;border:1px solid rgba(255,255,255,.18);box-shadow:var(--shadow);padding:10px 14px;border-radius:10px;font-size:13px;transition:.18s ease;z-index:999}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.58);display:none;align-items:center;justify-content:center;padding:20px;z-index:1000}
+  .modal.show{display:flex}
+  .dialog{width:min(500px,100%);background:#f7f0df;color:#222;border-radius:16px;padding:24px;box-shadow:0 28px 70px rgba(0,0,0,.45)}
+  .dialog h2{font:700 28px Georgia,serif;margin:0 0 10px}.dialog p{line-height:1.5;margin:8px 0;color:#41413b}.dialog .bigscore{font:700 48px Georgia,serif;margin:10px 0;color:#0c5e44}.dialog .btn{background:#0e5a42;color:white;border:0;margin-top:8px;padding:10px 14px}
+
+  @media(max-width:1050px){
+    .layout{grid-template-columns:1fr}.sidebar{position:static;min-height:0}.completed{min-height:150px;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}.word-card,.word-card:first-child{margin:0;height:64px}.upper{grid-template-columns:145px minmax(580px,1fr)}
+  }
+  @media(max-width:800px){
+    .app{padding:12px}.topbar{align-items:flex-start}.upper{display:block}.stock-area{margin-bottom:12px}.word-panel{overflow-x:auto}.slots{min-width:680px}.tableau{gap:4px;overflow-x:auto;padding-left:0;padding-right:0}.column{min-width:74px}.layout{display:block}.sidebar{margin-top:16px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand"><h1>Worditaire</h1><span class="tag">prototype</span></div>
+    <div class="stats">
+      <div class="pill">Score <strong id="score">0</strong></div>
+      <div class="pill">Words <strong id="wordCount">0</strong></div>
+      <div class="pill">Cleared <strong id="cleared">0</strong>/98</div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <main class="main">
+      <section class="upper">
+        <div class="stock-area">
+          <div class="pile-wrap">
+            <div class="pile-label">Draw</div>
+            <div id="stock" class="pile-pos"></div>
+          </div>
+          <div class="pile-wrap">
+            <div class="pile-label">Turned</div>
+            <div id="waste" class="pile-pos"></div>
+          </div>
+        </div>
+
+        <div class="word-panel">
+          <div id="slots" class="slots"></div>
+          <div class="word-readout">
+            <div class="word-status">
+              <div id="currentWord" class="current-word">—</div>
+              <div id="statusLine" class="status-line">Place visible letters into the row. You can stack a new letter over an old one.</div>
+            </div>
+            <div class="actions">
+              <button id="submitBtn" class="btn primary">Score word</button>
+              <button id="hintBtn" class="btn">Hint</button>
+              <button id="undoBtn" class="btn">Undo</button>
+              <button id="newBtn" class="btn">New game</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="tableau-head">
+        <span>TABLEAU — only the lowest visible card in each column can be played</span>
+        <span>Empty columns can hold any visible letter card; parking there commits the move.</span>
+      </div>
+      <section id="tableau" class="tableau"></section>
+    </main>
+
+    <aside class="sidebar">
+      <div class="side-title"><h2>Completed words</h2><span>your points pile</span></div>
+      <div id="completed" class="completed"></div>
+      <div class="rules">
+        <strong>Prototype rules:</strong> minimum 4 letters. Letter values use standard English Scrabble values. Every letter beyond 4 adds <strong>+5 points</strong>. Empty slots are allowed only before or after the word, not inside it. Hidden tableau cards stay hidden while a letter is sitting tentatively in the word row. Turned cards remain face-up in a pile: when you take the top one, the previous turned card becomes visible and available. Moving a turned card into the word row still locks drawing a <em>new unseen</em> card until those moved turned cards are scored or parked in an empty tableau column. Moving a visible letter into an empty tableau column is a committed move, and scoring a valid word also commits the current position, so Undo starts fresh after either kind of committed move. This uses a common-word prototype dictionary, not an official Scrabble lexicon.
+      </div>
+    </aside>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+<div id="modal" class="modal"><div class="dialog" id="dialog"></div></div>
+<script>
+const WORDS = ["abandon","abandoned","abandoning","abashed","abbe","abdomen","abdominal","abduction","ability","able","abnormal","abnormally","abolished","abolishing","abolition","about","above","abroad","abruptly","abscess","abscesses","absence","absent","absolute","absolutely","absorbed","absorption","abstract","absurd","abundance","abundant","abuse","abuses","accent","accept","accepted","accepting","access","accessible","accident","accidental","accidents","accompany","accomplish","accord","accordance","according","account","accountant","accounts","accurate","accurately","accused","accustomed","aching","acid","acquainted","acquire","acquired","acre","acres","across","acted","acting","action","actions","active","actively","activities","activity","actor","acts","actual","actually","acute","adams","added","adding","addition","additional","additions","address","addressed","addresses","addressing","adenoma","adherent","adhesions","adjacent","adjoining","adjusted","adjutant","adjutants","adler","admirable","admiration","admired","admission","admit","admitted","admitting","adopt","adopted","adoption","adored","adult","adults","advance","advanced","advancing","advantage","advantages","adventure","adventures","advice","advisable","advise","advised","advisers","advocate","advocated","advocates","affair","affairs","affect","affected","affecting","affection","affections","affects","afford","afforded","affording","afraid","afresh","africa","after","afternoon","afterward","afterwards","again","against","aged","agencies","agency","agent","agents","ages","aggravated","aggression","agitated","agitation","agony","agree","agreeable","agreed","agreement","ahead","aide","aided","aides","aimed","aims","akin","alabama","alarm","alarmed","alaska","albany","album","alcohol","alert","alexander","alexeevich","alice","alien","aliens","alike","alive","alleged","allegiance","alliance","allied","allies","allow","allowance","allowed","allowing","ally","almost","alone","along","aloud","alpatych","already","also","altar","alter","alteration","altered","although","altogether","always","amazed","amazement","amazing","ambassador","ambition","amenable","amendment","amendments","america","american","americans","amiable","amid","ammunition","amnesty","among","amount","amputation","amuse","amused","amusement","amusing","analysis","anatole","anatomical","anatomy","ancient","ancients","andrew","aneurysm","aneurysmal","aneurysms","angel","anger","angioma","angle","angles","angrily","angry","animal","animals","animated","animation","anisya","ankle","ankylosis","anna","anne","annette","annexation","announce","announced","annoyance","annual","another","answer","answered","answering","answers","antecedent","anterior","anteroom","anthrax","anti","antiseptic","anxiety","anxious","anxiously","anybody","anyhow","anyone","anything","anywhere","aorta","apart","apartment","apartments","apologize","apology","apparatus","apparent","apparently","appeal","appealed","appeals","appear","appearance","appeared","appearing","appears","appendix","appetite","apple","applicable","applied","apply","applying","appointed","apposition","appreciate","approach","approached","approval","approve","approved","april","apron","arakcheev","arbitrary","arch","archduke","architect","archive","ardent","area","areas","aren","arena","argue","argued","argument","arguments","arise","arises","arising","arizona","arkansas","armchair","armed","armfeldt","armies","armor","arms","army","arose","around","arouse","aroused","arrange","arranged","arranging","array","arrest","arrested","arresting","arrival","arrive","arrived","arriving","arsenic","arsenical","arterial","arteries","arterio","artery","arthritis","arthur","article","articles","articular","artificial","artillery","artisans","arts","ascended","ascending","ascertain","ascii","ascribed","aseptic","ashamed","ashes","aside","asked","asking","asks","asleep","aspect","aspects","assailed","assault","assembled","assemblies","assembly","assented","asserted","asset","assigned","assist","assistance","assistant","assistants","associate","associated","assume","assumed","assumes","assuming","assumption","assurance","assure","assured","assuring","astonished","astounding","asylum","atlantic","atmosphere","atrophy","attached","attachment","attack","attacked","attacking","attacks","attain","attained","attainment","attempt","attempted","attempting","attempts","attend","attendance","attendant","attended","attending","attention","attentive","attitude","attract","attracted","attraction","attractive","attribute","attributed","audible","audience","audio","auersperg","august","aunt","aureus","auricular","austerlitz","australia","australian","austria","austrian","austrians","author","authority","authorized","authors","autumn","avail","available","avenue","average","avert","avoid","avoided","avoiding","await","awaited","awaiting","awake","awakened","awakening","award","aware","away","awful","awfully","awhile","awkward","awkwardly","awoke","axilla","axillary","axis","baby","bachelor","bacilli","bacillus","back","background","backward","backwards","bacon","bacteria","bacterial","badly","baggage","bagration","bags","baker","balaga","balance","balashev","balcony","bald","ball","ballot","ballroom","balls","baltimore","band","bandage","bandaged","bandages","bands","bank","banker","banking","banks","barclay","bare","bargain","barn","baron","barred","barrier","base","based","baseness","basic","basis","bass","bast","bath","bathed","baths","battalion","battalions","batteries","battery","battle","battles","bayonets","bazdeev","beach","beamed","beaming","bear","beard","bearing","bears","beast","beat","beaten","beating","beausset","beautiful","beauty","became","because","beckoned","become","becomes","becoming","bedroom","beds","beeches","beef","been","bees","before","beforehand","began","beggar","begged","begging","begin","beginning","beginnings","begins","begun","behalf","behave","behaved","behind","being","beings","belief","believe","believed","believes","believing","bell","bells","belly","belong","belonged","belonging","belongings","belongs","belova","beloved","below","belt","bench","bend","bending","beneath","benefactor","beneficial","benefit","benjamin","bennigsen","bent","berezina","berg","berlin","berry","berthier","beside","besides","best","betray","betrayed","betraying","betrothed","better","between","bewildered","beyond","bezukhov","bezukhova","bible","biceps","bier","bilibin","bill","billion","bills","bind","binding","birch","bird","birds","birth","biscuit","bismuth","bitch","bite","bites","bitten","bitter","bitterly","bitterness","black","bladder","blade","blame","blamed","blank","blast","bleed","bleeders","bleeding","blend","bless","blessed","blessing","blew","blind","bliss","blister","blisters","block","blockade","blocked","blocking","blood","bloody","blow","blowing","blown","blows","blue","bluish","blunt","blushed","blushing","board","boards","boat","boats","bodies","body","bogdanich","bogdanovna","bohemia","boil","boiled","boiling","boils","bold","boldly","boldness","bolkonski","bonaparte","bond","bondage","bondmen","bonds","bone","bones","bonus","bony","book","books","boom","boone","boost","boot","boots","boracic","border","borders","bore","bored","boris","born","borne","borodino","borrowed","borzoi","borzois","boscombe","bosom","bosses","boston","both","bottle","bottles","bottom","bought","bound","boundaries","boundary","bounded","bounds","bourienne","bowed","bowels","bowing","boxes","boys","brachial","bradstreet","brain","branch","branches","brand","brandy","braunau","brave","breach","bread","breadth","break","breakfast","breaking","breaks","breast","breath","breathe","breathing","breathless","bred","breeches","brick","bride","bridge","bridges","brief","briefly","bright","brightened","brighter","brightly","brilliant","bring","bringing","brings","briony","brisk","briskly","britain","british","broad","brodie","broke","broken","brother","brothers","brought","brow","brown","brownish","brows","browser","bruised","bruit","brunn","brush","brushed","bryan","buffalo","buffoon","build","building","buildings","built","bullet","bullets","bundle","bundles","buonaparte","burden","bureau","buren","buried","burke","burn","burned","burning","burns","bursa","bursae","bursal","bursitis","burst","bursting","bushes","business","bustle","busy","butler","buttock","button","buttoned","buxhowden","buyer","buying","buzzing","cabinet","cable","cadet","caesar","calamity","calcaneus","calculated","caleche","calf","calhoun","california","call","called","callender","calling","callous","calls","callus","calm","calmly","came","camp","campaign","campaigns","campfire","campfires","canada","canal","canals","cancellous","cancer","cancerous","cancers","candidate","candidates","candle","candles","cannon","cannonade","cannot","capable","capacity","capillary","capital","caps","capsular","capsule","captain","captains","captivity","capture","captured","carbolic","carbon","carbuncle","carcinoma","card","cardiac","cards","care","cared","career","careful","carefully","careless","carelessly","cares","caressing","caribbean","caries","carolina","carolinas","carotid","carpenters","carpet","carpets","carriage","carriages","carried","carry","carrying","cart","cartilage","cartilages","carts","case","caseation","caseous","cases","cash","cast","casting","castle","casually","catch","catching","catgut","cathedral","catherine","catholic","catiche","cattle","caught","causation","cause","caused","causes","causing","caustic","cautery","caution","cautious","cautiously","cavalry","cavernous","cavities","cavity","cease","ceased","ceases","ceiling","celebrated","cell","cellar","cells","cellular","cellulitis","cent","center","centered","centers","central","centre","cents","centuries","century","ceremony","certain","certainly","certainty","cervical","cession","chain","chains","chair","chairs","chalk","challenge","challenged","chamber","champagne","chance","chances","chancre","change","changed","changes","changing","channel","channels","chapter","character","characters","charcoal","charcot","charge","charged","charges","charles","charleston","charm","charming","chart","charter","charters","chase","cheap","check","checked","cheek","cheeks","cheered","cheerful","cheerfully","chemical","cher","cherished","chest","chestnut","chicago","chichagov","chief","chiefly","child","childhood","childish","childlike","children","chill","chimney","chin","china","chinese","chisel","choice","choked","choking","chondro","chondroma","chondromas","choose","choosing","chose","chosen","christ","christian","christmas","chronic","church","churches","cicatrix","cigar","circle","circles","circular","cited","cities","citizen","citizens","city","civil","civilian","civilians","civilized","clad","claim","claimed","claims","clair","clamor","clark","clash","clasped","class","classes","clatter","clause","clavichord","clavicle","clay","clean","clear","cleared","clearer","clearing","clearly","clearness","clergy","clerk","cleveland","clever","click","client","climate","climb","climbed","clinical","clinically","cloak","clock","close","closed","closely","closer","closing","clot","cloth","clothes","clothing","clots","cloud","clouds","club","clue","clung","clutched","clutching","coach","coachman","coal","coarse","coast","coat","coats","cocci","cocked","code","coding","coffee","coffin","coin","coinage","cold","coldly","coldness","collapse","collapsed","collar","collateral","colleagues","collect","collected","collecting","collection","collective","college","colleges","collision","collodion","colonel","colonial","colonies","colonists","colony","color","colorado","colored","colour","coloured","columbia","column","columns","coman","combat","combine","combined","come","comes","comet","comfort","comforted","comforting","comforts","coming","command","commanded","commander","commanders","commanding","commands","commence","commences","comment","commerce","commercial","commission","commit","committed","committee","committees","commodore","common","commonest","commonly","commons","community","compact","companies","companion","companions","company","compare","compared","comparison","compelled","complain","complained","complains","complaint","complete","completed","completely","complex","compliance","comply","composed","composure","compound","compressed","compromise","compulsory","computer","comrade","comrades","conceal","concealed","concealing","conceive","conception","concern","concerned","concerning","concerns","concluded","conclusion","condemn","condemned","condemning","condition","conditions","conduct","conducted","conducting","confer","conference","conferred","confess","confessed","confession","confidence","confident","confine","confined","confirm","confirmed","conflict","conflicts","confronted","confused","confusion","congenital","congested","congestion","congress","conjecture","connected","connecting","connection","connective","conquered","conquest","conscience","conscious","consent","consider","considered","considers","consist","consisted","consistent","consisting","consists","consonant","conspiracy","constant","constantly","constitute","consult","consulting","contact","contain","contained","containing","contains","contempt","content","contented","contents","contest","contests","continent","continual","continue","continued","continues","continuing","continuity","continuous","contour","contract","contracted","contracts","contradict","contrary","contrast","control","controlled","contused","contusion","convenient","convention","conversing","convert","converted","convey","conveyed","conviction","convince","convinced","convincing","convoy","cook","cool","copies","copper","copy","copying","copyright","cord","cordial","cordially","cords","corn","corner","corners","corns","cornwallis","coroner","coronet","corporal","corps","corpus","corpuscles","correct","corrected","correctly","correspond","corridor","corrupt","corruption","cortex","cossack","cossacks","cost","costly","costume","cotton","couch","cough","coughed","could","couldn","council","councils","counsel","count","counted","counter","countess","counties","counting","countries","country","countrymen","county","couple","couples","courage","courier","course","court","courtesy","courtiers","courts","courtyard","cousin","cover","covered","covering","covers","coveted","crack","cracked","crackling","craft","crash","crazy","creaked","creaking","cream","create","created","creating","creation","creature","credit","creditors","crew","cried","cries","crime","crimes","criminal","criminals","crimson","crisis","critical","criticism","critics","crop","crops","cross","crossed","crosses","crossing","crowd","crowded","crowding","crowds","crown","crowned","cruel","cruelty","crush","crushed","crushing","crust","crying","cuba","cuban","cultivated","culture","cumberland","cunning","cure","curiosity","curious","curled","curls","curly","currency","current","curtain","curved","curving","custom","customary","customs","cutaneous","cutting","cycle","cylinders","cyril","cyst","cystic","cysts","dactylitis","dagger","daily","dakota","damage","damaged","damages","damp","dance","danced","dancer","dancing","danger","dangerous","dangers","daniel","danilovna","danube","dare","dared","daring","dark","darkness","darling","dashed","dashing","data","date","daughter","daughters","david","davis","davout","dawn","daylight","days","deacon","dead","deadly","deaf","deafening","deal","dealing","dealt","dear","dearest","death","debate","debates","debt","debts","debug","decade","decades","deceased","deceive","deceived","december","deception","decide","decided","decision","decisions","decisive","decked","decks","declare","declared","declaring","decline","declined","decree","dedicated","deduce","deduced","deduction","deed","deeds","deemed","deep","deeper","deepest","deeply","defeat","defeated","defect","defective","defects","defend","defended","defending","defense","defensive","define","defined","definite","definitely","definition","deformans","deformity","degree","degrees","deity","delaware","delay","delayed","delegates","deliberate","delicacy","delicate","delicious","delight","delighted","delightful","delirious","delirium","deliver","delivered","deltoid","demand","demanded","demanding","demands","democracy","democrat","democratic","democrats","denied","denisov","denounced","dense","denser","deny","department","departure","depend","depended","dependence","dependent","depends","deposit","deposited","depressed","depressing","depression","deprive","deprived","depth","depths","derive","derived","dermoids","descend","descended","descending","descent","describe","described","describing","desert","deserted","deserved","design","designed","designs","desirable","desire","desired","desires","desk","despair","despairing","desperate","despise","despised","despite","dessalles","destined","destiny","destroy","destroyed","destroying","detached","detachment","detail","detailed","details","detained","detected","determine","determined","develop","developed","developing","develops","device","devices","devil","devils","devised","devoid","devote","devoted","devotion","dewey","diabetes","diagnosed","diagnosis","diagnostic","diam","diaphysis","diary","didn","died","dies","diet","dieu","differ","differed","difference","different","differs","difficult","difficulty","diffuse","diffused","digit","digital","dignified","dignity","dilatation","dilated","dimensions","diminish","diminished","diminishes","diminution","dimly","dimmler","dine","dined","dining","dinner","dinners","diphtheria","diplomacy","diplomatic","direct","directed","directing","direction","directions","directly","director","dirt","dirty","disability","disappear","disappears","disaster","disastrous","discharge","discharged","discipline","discomfort","discontent","discover","discovered","discovery","discretion","discuss","discussed","discussing","discussion","disease","diseased","diseases","disgrace","disguise","disgust","dish","dishes","disk","disliked","dismay","dismissed","dismounted","disorder","disordered","disorders","dispatch","dispatched","disperse","dispersed","displaced","display","displayed","displaying","displeased","disposal","dispose","disposed","dispute","disputed","disputes","disputing","dissection","dissolved","distal","distance","distant","distended","distinct","distinctly","distorted","distracted","distress","distressed","distribute","district","districts","disturb","disturbed","diverse","diversity","diverted","divide","divided","dividing","divine","division","divisions","dmitri","dmitrich","dmitrievna","doctor","doctors","doctrine","doctrines","document","documents","does","doesn","dogs","doing","doings","dokhturov","dolgorukov","doll","dollar","dollars","dolokhov","domain","domestic","dominance","dominated","domingo","dominion","dominions","domo","donate","donation","donations","done","door","doors","doorway","doran","dorsal","dorsum","dose","doses","double","doubled","doubt","doubted","doubtful","doubtless","doubts","douglas","down","downcast","downhill","downstairs","downward","downwards","dowry","dozen","draft","drafted","drag","dragged","dragging","dragoons","drain","drainage","drained","dram","drama","dramatic","drank","drastic","draw","drawer","drawing","drawn","dread","dreaded","dreadful","dreadfully","dream","dreamed","dreams","dred","dress","dressed","dresses","dressing","dressings","drew","dried","drift","drink","drinking","drissa","drive","driven","driver","drives","driving","dron","dronushka","drooping","drop","dropped","dropping","drops","drove","drowned","drubetskoy","drug","drugs","drummer","drums","drunk","drunken","drying","duct","ducts","duel","duke","dull","duly","dunyasha","duration","during","dusk","dust","dusty","dutch","duties","duty","dying","each","eager","eagerly","earlier","earliest","early","earn","earned","earnest","earnestly","ears","earth","earthly","ease","easier","easily","east","eastern","easy","eaten","eating","ebook","ebooks","economic","economy","ecstatic","eczema","edge","edges","edinburgh","edition","editions","editor","edmund","educated","education","effect","effected","effective","effects","efficient","effort","efforts","effusion","eight","eighteen","eighteenth","eighth","eighty","either","ejaculated","elapsed","elastic","elbow","elbows","elder","elderly","elders","eldest","elect","elected","election","elections","electoral","electors","electric","electrical","electronic","element","elements","elevated","elevation","eleven","elicited","eloquent","else","elsewhere","elson","email","embassy","embedded","emboli","embolic","embolism","embolus","embrace","embraced","embracing","emerged","eminent","emotion","emotions","empereur","emperor","emperors","emphasis","empire","employ","employed","employees","employer","employers","employment","empowered","empress","emptied","empty","empyema","enable","enabled","enact","enacted","enchanting","enclosed","encounter","encourage","encouraged","ended","ending","endless","endorsed","endowed","ends","endure","enemies","enemy","energetic","energy","enforce","enforced","engaged","engagement","engine","engineer","england","english","englishman","engrossed","enjoy","enjoyed","enjoying","enjoyment","enlarge","enlarged","enns","enormous","enormously","enough","enrolled","ensue","ensued","ensues","ensure","enter","entered","entering","enterprise","enters","entertain","enthusiasm","entire","entirely","entitled","entity","entrance","entrusted","entry","enumerate","envelope","enveloped","envy","epidermis","epiphysial","epiphysis","episode","epithelial","epithelium","epoch","equal","equality","equally","equipment","equipped","equivalent","erect","erected","erie","ermolov","erosion","error","errors","eruption","erysipelas","esaul","escape","escaped","escapes","escaping","escort","especially","essence","essential","establish","estate","estates","esteem","estimate","estimated","eternal","europe","european","eusol","even","evening","evenings","event","events","eventually","ever","every","everybody","everyday","everyone","everything","everywhere","evidence","evident","evidently","evil","evils","evoked","evolution","exact","exactly","exalted","examine","examined","examining","example","examples","exceeded","excellency","excellent","except","exception","exceptions","excess","excessive","exchange","exchanged","exchanging","excise","excised","excising","excision","excited","excitement","exciting","exclaimed","exclude","excluded","exclusion","exclusive","excuse","execute","executed","execution","executive","exercise","exercised","exercises","exerted","exertion","exhausted","exhaustion","exhibit","exile","exist","existed","existence","existing","exists","exit","exostoses","exostosis","expanded","expansion","expect","expected","expecting","expedition","expense","expenses","expensive","experience","experiment","explain","explained","explaining","explains","exploit","exploits","exploring","export","expose","exposed","exposing","exposure","express","expressed","expressing","expression","expressly","extend","extended","extending","extends","extension","extensive","extensor","extensors","extent","external","externally","extra","extreme","extremely","extremity","exudate","exudation","eyebrows","eyed","eyelids","eyes","face","faced","faces","facility","facing","fact","factor","factories","factors","factory","facts","fail","failed","failing","fails","failure","faint","fair","fairly","faith","faithful","fall","fallen","falling","falls","false","falsehood","fame","familiar","families","family","famous","fancied","fancies","fancy","fantastic","farewell","farm","farmer","farmers","farming","farms","farther","farthest","fascia","fasciae","fashion","fashioned","fast","fastened","faster","fatal","fate","fateful","father","fatherland","fathers","fatigue","fatty","fault","favor","favorable","favored","favorite","favors","favour","favourable","favoured","favours","fear","feared","fearing","fears","feather","feature","features","february","federal","federalist","federation","fedorovna","feeble","feebly","feed","feeding","feel","feeling","feelings","feels","fees","feet","fell","fellow","fellows","felt","female","feminine","femoral","femur","fence","ferapontov","fertile","fetch","fete","feudal","fever","feverish","fewer","fibres","fibrin","fibrinous","fibro","fibroma","fibrosa","fibrositis","fibrous","fibula","field","fields","fierce","fiercely","fifteen","fifteenth","fifth","fifty","fight","fighting","figs","figure","figures","file","fill","filled","filling","fills","final","finally","finance","finances","financial","find","finding","finds","fine","finely","finest","finger","fingers","finish","finished","finishing","fire","fired","fires","firing","firm","firmly","firmness","first","fish","fishing","fiske","fistula","fits","fitted","fitting","five","fixed","fixedly","fixing","flag","flame","flames","flank","flap","flared","flash","flashed","flat","flattered","flattering","fleches","fled","flee","fleeing","fleet","flesh","flew","flexed","flexion","flexor","flight","floating","flood","floor","florida","flour","flourish","flourished","flow","flowed","flower","flowers","flowing","fluid","fluids","flung","flush","flushed","flushing","flying","foci","focus","foes","fold","folded","folds","folk","folks","follicles","follow","followed","followers","following","follows","folly","fond","food","fool","foolish","foot","footing","footman","footmen","footsteps","forbade","forbid","forbidden","forbidding","force","forced","forceps","forces","forcible","forcibly","forearm","forehead","foreign","foreigner","foreigners","foremost","foreseen","foresight","forest","forests","forever","forge","forget","forgetting","forgive","forgot","forgotten","form","formal","format","formation","formed","former","formerly","formidable","forming","forms","fort","forth","fortified","fortnight","fortunate","fortune","fortunes","forty","forward","forwards","fought","foul","found","foundation","founded","four","fourteen","fourteenth","fourth","fourths","fracture","fractures","fragment","fragments","frame","framed","framework","france","francis","francisco","frank","franklin","frankly","fraud","free","freed","freedmen","freedom","freehold","freely","freemasons","freight","french","frenchman","frenchmen","frequency","frequent","frequently","fresh","freshly","friction","friday","friend","friendly","friends","friendship","frieze","fright","frighten","frightened","fringes","frock","from","front","frontal","frontier","frontiers","frost","frown","frowned","frowning","frozen","fruit","fruits","fugitive","fugitives","fulfill","fulfilled","full","fuller","fully","function","functions","fund","funding","funds","funeral","funny","furnish","furnished","furniture","furs","further","fury","fusiform","fuss","futile","future","gaiety","gaily","gain","gained","gaining","gains","gallant","gallery","gallop","galloped","galloping","game","gamer","games","gang","ganglia","ganglion","gangrene","gangrenous","garden","gardens","garments","garrison","gasped","gate","gates","gateway","gather","gathered","gathering","gauze","gave","gaze","gazed","gazing","geese","gems","general","generally","generals","generation","generosity","generous","genitals","genius","gentle","gentleman","gentlemen","gently","gentry","genuine","george","georgia","gerasim","german","germans","germany","gesture","gets","getting","ghost","giant","gift","gigantic","girl","girls","girth","give","given","gives","giving","glad","gladly","glance","glanced","glances","glancing","gland","glanders","glands","glandular","glass","glasses","gleam","gleamed","glimpse","glitter","glittered","glittering","globe","gloom","gloomily","gloomy","glorious","glory","glove","gloves","glow","glowing","gluteal","goal","goes","going","gold","golden","gone","gonorrhoea","good","goodness","goods","goose","gospel","gossip","gout","gouty","govern","governed","governess","governing","government","governor","governors","gown","grabern","grace","graceful","gracious","grade","gradual","gradually","graft","grafting","grafts","grain","grains","grand","grandeur","grant","granted","granting","grants","grape","grapeshot","graph","grasp","grasped","grasping","grass","grateful","gratefully","grating","gratitude","grave","gravely","gravity","gray","great","greatcoat","greatcoats","greater","greatest","greatly","greatness","green","greenbacks","greenish","greeted","greeting","greetings","grenville","grew","grey","greyish","grief","grievances","grieved","grim","grimace","grip","groan","groaned","groans","groin","groom","groove","gross","ground","grounds","group","groups","grow","growing","grown","grows","growth","growths","grudge","guarantee","guard","guards","guerrilla","guess","guessed","guest","guests","guidance","guide","guided","guilt","guilty","guitar","gulf","gumma","gummata","gummatous","gunpowder","guns","gutenberg","habit","habits","habitual","hadn","haematoma","hair","haired","hairs","hairy","half","halfway","hall","halt","halted","halting","hamilton","hampshire","hand","handed","handful","handing","handle","handled","handling","hands","handsome","hang","hanged","hanging","happen","happened","happening","happens","happier","happily","happiness","happy","hard","hardened","harder","harding","hardly","hare","harm","harmful","harmony","harness","harnessed","harrison","harsh","hart","hartford","harvard","harvest","haste","hasten","hastened","hastening","hastily","hate","hated","hatherley","hatred","hats","have","haven","having","hawaii","haworth","hayes","head","headache","headed","heading","heads","heal","healed","healing","heals","health","healthy","heap","hear","heard","hearing","hears","heart","heartily","hearts","hearty","heat","heated","heaven","heavens","heavier","heavily","heavy","heed","heel","heels","height","heights","heir","heiress","held","helene","hello","help","helped","helping","helpless","hemp","hence","henry","herd","here","hereditary","hernia","hero","heroes","heroic","heroism","hers","herself","hesitated","hesitating","hesitation","hidden","hide","hideous","hiding","high","higher","highest","highly","highness","highroad","highways","hill","hills","himself","hinder","hindered","hindrance","hint","hinted","hints","hippolyte","historian","historians","historic","historical","histories","history","hitherto","hive","hoarse","hold","holder","holders","holding","hole","holiday","holland","hollow","holmes","holy","home","homes","homestead","homesteads","honest","honey","honor","honorable","honored","honors","honour","hood","hoofs","hope","hoped","hopeless","hopes","hoping","horace","horizon","horn","horner","horns","horrible","horrid","horrified","horror","horrors","horse","horseback","horsemen","horses","horsham","hosmer","hospital","hospitals","host","hostess","hostile","hostility","hotel","hounds","hour","hours","house","household","houses","houston","however","http","hudson","huge","human","humanity","humble","humerus","humor","hundred","hundreds","hung","hungary","hunger","hungry","hunt","hunter","hunters","hunting","huntsman","huntsmen","hurrah","hurried","hurriedly","hurry","hurrying","hurt","husband","husbands","hussar","hussars","hutchinson","hydatid","hydraulic","hydrogen","hydrops","hygroma","hyperaemia","hypodermic","hysterical","ichthyol","icon","icons","idea","ideal","ideals","ideas","identical","identity","idiot","idle","idleness","ignorance","ignorant","ilagin","iliac","illinois","illness","ilya","ilyin","image","imagine","imagined","imagining","immediate","immense","immigrants","immunity","impaired","impairment","impatience","impatient","impending","imperfect","imperial","implicate","implicated","implied","implies","imply","import","importance","important","imports","imposed","imposing","impossible","impress","impressed","impression","imprisoned","improve","improved","improving","impulse","impulses","inability","incapable","incessant","inch","inches","incident","incidents","incised","incision","incisions","inclined","include","included","includes","including","incoherent","income","incomes","incomplete","increase","increased","increases","increasing","incredible","incubation","incurred","indecision","indeed","indefinite","indentured","index","india","indian","indiana","indians","indicate","indicated","indicates","indicating","indication","indies","indirect","indirectly","individual","indolent","induce","induced","inducing","induction","indurated","induration","industrial","industries","industry","inevitable","inevitably","infant","infantry","infants","infected","infection","infections","infective","inferior","infinite","infinitely","inflamed","inflicted","influence","influenced","influences","inform","informed","informing","inguinal","inherent","inherited","initial","initiated","initiative","injected","injection","injections","injunction","injured","injuries","injurious","injury","injustice","inner","innocence","innocent","innominate","input","inquire","inquired","inquiries","inquiring","inquiry","insane","inserted","insertion","inside","insidious","insist","insisted","insolent","inspect","inspection","inspector","inspired","instance","instances","instant","instantly","instead","instinct","instituted","instructed","instrument","insult","insulted","intact","intellect","intended","intending","intense","intensity","intent","intention","intentions","intently","interest","interested","interests","interfere","interfered","interferes","interior","internal","interstate","interval","intervals","interview","intestinal","intestine","intima","intimacy","intimate","intimately","into","intra","intrigue","intrigues","introduce","introduced","invade","invaded","invading","invalid","invariably","invasion","invent","invented","invested","invisible","invitation","invited","inviting","involve","involved","involves","involving","iodide","iodine","iodoform","iogel","iowa","ireland","irene","irish","iron","ironic","ironical","ironically","irony","irregular","irrigation","irritable","irritant","irritated","irritating","irritation","island","islands","isolated","issue","issued","issues","issuing","italian","italy","itself","ivanovich","ivanovna","ivory","jacket","jackson","jacksonian","james","january","japan","japanese","jaws","jealous","jealousy","jefferson","jelly","jerked","jersey","jest","jesting","jesus","jewel","john","johnson","join","joined","joining","joint","joints","joke","joker","jokes","joking","jolted","jones","joseph","journey","joyful","joyfully","joyous","joys","judge","judged","judges","judging","judgment","judicial","judiciary","jugular","julie","july","jump","jumped","jumping","junction","junctions","june","jury","just","justice","justified","justify","kaluga","kansas","karagina","karataev","karay","karl","karp","kaysarov","keen","keenly","keep","keeper","keeping","keeps","keloid","kentucky","kept","kerchief","keys","kidney","kidneys","kiev","kill","killed","killing","kind","kindled","kindly","kindness","kinds","king","kingdom","kings","kiss","kissed","kissing","kitchen","klapp","knee","knees","knew","knife","knights","knit","knitting","knock","knocked","knoll","knot","know","knowing","knowledge","known","knows","kochubey","kolocha","kozlovski","krasnoe","kremlin","krems","kuragin","kutuzov","kuzmich","label","labor","labored","laborers","labors","labour","lace","lacerated","lack","lacked","lacking","laden","ladies","lads","lady","laid","lake","lakes","laminated","lamp","land","landed","landing","landlord","landowner","lands","lane","langeron","language","lantern","large","largely","larger","largest","larynx","lascar","laser","last","lasted","lasting","lastly","lasts","late","lately","latent","later","lateral","latest","latin","latter","laugh","laughed","laughing","laughter","launched","lavrushka","lawful","lawn","laws","lawyer","lawyers","layer","layers","laying","lazarev","lead","leader","leaders","leadership","leading","leads","league","lean","leaned","leaning","leaped","learn","learned","learning","leash","least","leather","leave","leaves","leaving","left","legal","legged","legitimate","legs","leisure","lemon","lend","length","lens","lent","lesion","lesions","less","lesser","lesson","lessons","lest","lestrade","letter","letters","letting","leucocytes","level","liability","liable","liberal","liberated","liberties","liberty","library","license","lies","lieutenant","life","lifeless","lift","lifted","lifting","ligament","ligaments","ligation","ligature","ligatures","light","lighted","lighting","lightly","lightning","lights","like","liked","likely","likewise","limb","limbs","lime","limit","limitation","limited","limits","lincoln","line","lined","linen","lines","lining","link","linked","links","lint","lipoma","lips","liquid","liquor","lise","list","listen","listened","listening","listless","literary","literature","little","live","lived","livelihood","lively","liver","lives","livid","living","lloyd","loaded","loan","loans","local","localised","locality","locally","located","lock","locked","locking","locomotive","lodge","lodged","lodges","lodgings","lofty","logic","logical","london","lonely","long","longed","longer","longus","look","looked","looking","looks","loops","loose","loosely","looting","lord","lords","lorrain","lose","loses","losing","loss","losses","lost","lotion","loud","louder","loudly","louis","louisiana","love","loved","lovely","lover","loves","loving","lowell","lower","lowered","lowering","lowest","loyal","loyalists","loyalty","luck","lucky","lucrative","lumber","lumen","luminous","lump","lunch","lungs","lupus","lying","lymph","lymphatic","lymphatics","macdonald","macewen","machine","machinery","mack","madam","madame","made","madison","magic","magnitski","magnitude","maid","maiden","maids","main","maine","mainly","maintain","maintained","majestic","majesty","major","majority","makar","make","maker","makes","making","male","males","malignancy","malignant","mamma","manage","managed","management","manager","mandible","maneuvers","manhood","manifest","manifesto","manifests","mankind","manly","manner","manners","manual","many","maple","marble","march","marched","marches","marching","margin","margins","marie","mark","marked","market","markets","marks","marriage","married","marrow","marry","marrying","marshal","marshall","marshals","martial","mary","marya","maryland","mask","mason","masonic","mass","massacre","massage","masses","massive","master","masterly","masters","mastoid","match","material","materials","matrix","matter","matters","maturity","mavra","maximum","maybe","mayor","mazurka","mccarthy","mckinley","mcmaster","meadow","meal","mean","meaning","means","meant","meantime","meanwhile","measure","measured","measures","meat","mechanical","mechanics","mechanism","medal","medial","median","medical","medicine","medium","medulla","medullary","meekly","meet","meeting","meetings","melancholy","melanotic","melted","melting","member","members","membrane","membranes","memorable","memories","memory","menace","menacing","meningitis","mental","mentally","mention","mentioned","merchant","merchants","mercury","mercy","mere","merely","merged","merit","merits","merrily","merry","mess","message","messenger","metal","metallic","metastases","metastasis","method","methods","metivier","mexican","mexico","michael","michaud","michigan","micro","midday","middle","midnight","midst","might","mighty","migration","mild","mile","miles","military","militia","militiamen","milk","milka","mill","million","millions","mills","mind","minded","minds","mine","mineral","miners","mines","mingled","mingling","minimum","mining","minister","ministers","ministry","minnesota","minor","minority","minute","minutes","mirror","mirrors","miserable","misery","misfortune","miss","missed","missing","mission","missouri","mist","mistake","mistaken","mistakes","mistress","misty","mitenka","mixed","mixture","moan","moaning","mobility","mode","model","moderate","moderation","modern","modest","modified","moist","moisture","molasses","mole","moment","momentary","moments","momentum","monarch","monarchs","monarchy","monday","money","monopolies","monopoly","monotonous","monroe","monsieur","monster","montana","month","months","mood","moon","moonlight","moore","moral","moran","morbid","more","morel","moreover","mormons","morning","morose","morris","morrow","mortal","moscow","most","mostly","mother","mothers","motion","motionless","motive","motives","motor","mount","mountain","mountains","mounted","mounting","mournful","mouse","mouth","mouths","movable","move","moved","movement","movements","moves","movie","moving","mozhaysk","much","mucous","muddy","multiple","mummers","municipal","murat","murder","murdered","murderer","murmur","murmured","muscle","muscles","muscular","museum","music","musket","musketry","muskets","must","mustache","mustaches","mustn","muttered","muttering","mutton","mutual","myeloma","myositis","myself","mysterious","mystery","mytishchi","myxoma","naevi","naevus","nail","nails","naive","naked","name","named","namely","names","napkin","naples","napoleon","napoleonic","narrative","narrow","narrowing","nasal","nasty","natalie","natasha","nation","national","nations","native","natives","natural","naturally","nature","natured","naval","navigation","navy","near","nearer","nearest","nearly","nearness","neatly","nebraska","necessary","necessity","neck","necrosis","need","needed","needle","needles","needs","negative","neglect","neglected","negligence","negotiate","negro","negroes","neighbor","neighbors","neither","nephew","nerve","nerves","nervous","nesvitski","network","neuralgia","neuritis","neuro","neuroma","neutral","neutrality","nevada","never","neville","newcomer","newly","news","newspaper","newspapers","next","nice","nicholas","niece","niemen","night","nightcap","nights","nikolenka","nine","nineteenth","nobility","noble","nobleman","nobody","nodded","nodding","nodular","nodule","nodules","noise","noisy","nominated","nomination","none","nonsense","normal","normally","north","northern","northwest","nose","nosed","notably","note","noted","notes","nothing","notice","noticeable","noticed","noticing","noting","notion","nourished","novel","november","nowadays","nowhere","null","number","numbers","numerous","nurse","nursery","nursing","nutrition","oath","oats","obedience","obey","object","objected","objections","objects","obligation","obliged","obscure","observe","observed","observer","observing","obstacle","obstinate","obstructed","obtain","obtained","obtaining","obvious","obviously","occasion","occasional","occasions","occupation","occupied","occupy","occupying","occur","occurred","occurrence","occurring","occurs","ocean","october","odontoma","odour","oedema","oedematous","offended","offenders","offense","offensive","offer","offered","offering","offers","office","officer","officers","offices","official","officials","offset","often","ohio","ointment","oklahoma","oldenburg","older","olmutz","ominous","once","ones","oneself","online","only","onset","onto","onychia","oozing","open","opened","opening","openings","openly","openshaw","opera","operate","operating","operation","operations","operative","opinion","opinions","opium","opponent","opponents","oppose","opposed","opposing","opposite","opposition","oppressed","oppression","orange","orator","orbit","orchestra","order","ordered","orderlies","orderly","orders","ordinance","ordinary","oregon","orel","organ","organic","organised","organism","organisms","organized","organs","oriental","origin","original","originally","originate","originated","originates","orleans","orlov","osseous","ossifying","osteo","osteoma","ostitis","other","others","otherwise","otradnoe","ought","ounce","ours","ourselves","outbreak","outburst","outcome","outer","outlet","outline","outlook","outlying","outposts","output","outright","outset","outside","oval","ovary","over","overcoat","overcome","overgrowth","overlooked","overlying","overtake","overthrow","overtook","owed","owing","owned","owner","owners","ownership","oxford","oxygen","pace","paced","paces","pacific","pacing","pack","packed","packet","packing","page","pages","paget","paid","pain","paine","painful","painfully","painless","pains","paint","painted","pair","palace","palate","pale","pallor","palm","palmar","palpable","pamphlets","panama","panel","panic","panting","papa","paper","papers","papilloma","parade","paraffin","paragraph","paragraphs","parallel","paralysed","paralysis","pardon","parent","parents","paris","park","parliament","part","parted","partial","partially","particles","particular","parties","partisan","partly","partner","parts","party","pass","passage","passages","passed","passengers","passes","passing","passion","passionate","passions","passive","past","paste","patch","patches","patella","path","pathetic","pathogenic","patience","patient","patients","patrick","patriot","patriotic","patriotism","patriots","patted","paul","paulucci","pause","paused","pavement","pavlograd","pavlovna","paxson","paying","payment","payments","peace","peaceful","peasant","peasants","pectoral","peculiar","peculiarly","peering","pelageya","pelvis","penalties","pencil","penetrate","penetrated","penis","penn","people","peoples","perceive","perception","perfect","perfection","perfectly","perforated","perform","performed","performing","perhaps","peri","period","periods","periosteal","periosteum","peripheral","perish","perished","peritoneal","peritoneum","permanent","permission","permit","permitted","peronskaya","peroxide","perpetual","perplexed","perplexing","perplexity","persian","persist","persistent","persists","person","personage","personages","personal","personally","persons","perspiring","persuade","persuaded","peter","petersburg","peterson","petition","petitions","petty","petya","pfuel","pglaf","phagocytes","phalanges","phalanx","pharynx","phase","phenomena","phenomenon","philippine","philosophy","phlebitis","phone","photo","photograph","phrase","phrases","physical","physically","pick","picked","picket","picking","picture","pictured","pictures","piece","pieces","pierce","piercing","pierre","pigment","pigmented","pilgrims","pillow","pillows","pinch","pink","pioneer","pioneers","pipe","pipes","pips","pistol","pitch","pitched","piteous","piti","pitied","pitiful","pitt","pittsburgh","pity","pixel","place","placed","places","placing","plain","plainly","plains","plan","plane","planks","planned","planning","plans","plant","plantation","planted","planter","planters","planting","plants","plaster","plate","plates","platform","platforms","platon","platov","play","played","playing","plays","plea","pleasant","pleasantly","please","pleased","pleasure","pleasures","pledge","plenty","pleura","plexus","plight","plot","plumes","plump","plunder","plunged","pneumonia","pocket","pockets","poetic","poetry","point","pointed","pointing","points","poison","poisoning","poland","pole","poles","police","policeman","policies","policy","polish","polished","polite","politely","politeness","political","politics","polk","polls","pond","pondered","pool","poor","pope","popliteal","popular","popularly","population","populists","porch","porous","porridge","port","porter","portfolio","portion","portions","porto","portrait","ports","pose","position","positions","positive","positively","possess","possessed","possession","possible","possibly","post","posted","posterior","posterity","postmaster","posts","potassium","potato","potatoes","pouches","pounds","pour","poured","poverty","powder","powdered","power","powerful","powerless","powers","practical","practice","praise","praised","pratzen","pray","prayed","prayer","prayers","preached","preceded","preceding","precious","precise","precisely","precision","prefer","preference","preferred","pregnant","premises","prepare","prepared","preparing","prepuce","prescribed","presence","present","presented","presenting","presently","presents","preserve","preserved","presidency","president","presidents","press","pressed","pressing","pressure","presume","pretended","pretending","pretext","pretty","prevailed","prevent","prevented","preventing","prevention","prevents","previous","previously","prey","price","prices","pride","priest","priests","primary","prime","prince","princes","princess","princesses","principal","principle","principles","print","printed","printing","prison","prisoner","prisoners","private","privilege","privileges","prize","probable","probably","probe","problem","problems","procedure","proceed","proceeded","proceeding","process","processes","proclaimed","produce","produced","produces","producing","product","production","products","profession","profit","profits","profound","profoundly","profuse","prognosis","program","progress","prohibited","project","projected","projecting","projects","prolonged","prominence","prominent","promise","promised","promises","promote","promoted","promoting","promotion","prompt","promptly","prone","pronounced","proof","proofs","proper","properly","property","prophecy","proportion","proposal","proposals","propose","proposed","proprietor","prospect","prosperity","prosperous","protect","protected","protecting","protection","protective","protest","protested","protests","protoplasm","proud","prove","proved","proves","provide","provided","providence","providing","province","provinces","provincial","proving","provision","provisions","proximal","proximity","prussia","prussian","pseudo","psoas","public","publican","published","puckered","puckering","puff","puffing","pull","pulled","pulling","pulsating","pulsation","pulse","puncture","punctured","punish","punished","punishment","pupil","pupils","purchase","purchased","pure","purely","purified","puritan","puritans","purity","purple","purpose","purposely","purposes","purse","pursue","pursued","pursuing","pursuit","purulent","push","pushed","pushing","pustule","pustules","putting","puzzled","pyaemia","pyogenic","qualities","quality","quantities","quantity","quarrel","quarreled","quarrels","quarter","quartered","quarters","quebec","queen","queer","quest","question","questioned","questions","quick","quicker","quickly","quiet","quietly","quilt","quincy","quit","quite","quivered","quivering","race","radial","radiant","radical","radicals","radio","radiogram","radium","radius","raevski","rage","ragged","rail","railroad","railway","railways","rain","raise","raised","raising","ramballe","rang","range","ranges","rank","ranks","rapid","rapidity","rapidly","rapp","rapture","rapturous","rare","rarely","rate","rates","rather","ratified","ratio","rattle","rattled","rays","reach","reached","reaches","reaching","reaction","read","readable","reader","readers","readily","readiness","reading","ready","real","reality","realize","realized","realizing","really","realm","rear","rearguard","reason","reasonable","reasoning","reasons","reassure","rebellion","recall","recalled","recalling","receipt","receive","received","receives","receiving","recent","recently","reception","reckless","reckoned","reckoning","recognise","recognised","recognize","recognized","recommends","record","recorded","records","recourse","recover","recovered","recovering","recovery","recruits","rectum","recur","recurrence","recurrent","reddish","redness","redoubt","reduce","reduced","reduction","reference","references","referendum","referred","referring","refined","reflect","reflected","reflection","reform","reformers","reforms","refrain","refrained","refuge","refund","refusal","refuse","refused","refusing","regain","regard","regarded","regarding","regardless","regards","regime","regiment","regimental","regiments","region","regions","registered","regret","regretted","regular","regulars","regulate","regulating","regulation","reign","rein","reins","rejected","rejoice","rejoicing","rejoined","relapse","relapsing","relate","related","relating","relation","relations","relative","relatively","relatives","relaxed","release","released","relentless","reliable","reliance","relief","relieve","relieved","religion","religious","reluctant","rely","remain","remainder","remained","remaining","remains","remark","remarkable","remarkably","remarked","remarks","remedies","remedy","remember","remembered","reminded","remorse","remote","removal","remove","removed","removing","render","rendered","rendering","renew","renewal","renewed","renounce","rent","repair","reparative","repay","repeal","repealed","repeat","repeated","repeatedly","repeating","repetition","replace","replaced","replay","replied","replies","reply","replying","report","reported","reporting","reports","represent","reproach","reproached","republic","republican","repulsed","reputation","request","require","required","requires","requiring","requisite","rescue","research","resected","resection","resemble","resembles","resembling","resented","resentment","reserve","reserved","reserves","residence","resist","resistance","resolute","resolutely","resolution","resolve","resolved","resort","resounded","resource","resources","respect","respected","respectful","respecting","respective","respects","responded","response","rest","rested","resting","restless","restore","restored","restoring","restrain","restrained","restraint","restricted","rests","result","resultant","resulted","resulting","results","resume","resumed","resumption","retain","retained","retention","retire","retired","retirement","retiring","retreat","retreated","retreating","return","returned","returning","returns","reveal","revealed","revenue","reverse","review","revision","revoir","revolt","revolution","reward","rewards","rhetor","rheumatic","rheumatism","rhine","rhode","rhodes","ribbon","ribbons","ribs","rice","rich","richer","riches","richest","rickets","rickety","rico","ridden","ride","rider","ridicule","ridiculous","riding","rifle","right","rights","rigid","rigidity","rigor","ring","ringing","rings","riot","rise","risen","rises","rising","risk","risks","rival","rivals","river","rivers","riverside","road","roads","roar","robbery","robert","robot","rode","rodent","role","roll","rolled","rolling","romance","romantic","rome","rontgen","roof","roofs","room","rooms","roosevelt","root","roots","rope","ropes","rose","ross","rostopchin","rostov","rostova","rostovs","rosy","rough","round","rounded","roused","route","routes","routine","rows","royal","royalty","roylott","rubbed","rubber","rubbing","rubbish","ruble","rubles","rucastle","rude","ruin","ruined","ruinous","ruins","rule","ruled","ruler","rulers","rules","ruling","rumor","rumors","running","runs","rupture","ruptured","rural","rush","rushed","rushing","russia","russian","russians","rustle","ryazan","ryder","saber","sabers","sacculated","sacred","sacrifice","sacrificed","sacrifices","saddle","saddled","saddles","sadly","sadness","safe","safeguard","safely","safety","said","sailing","sailors","saint","sake","salary","sale","sales","salesman","saline","sallow","salt","salts","salvation","same","samovar","samuel","sand","sang","sank","santa","santo","saphena","sapraemia","sarcastic","sarcoma","satin","satisfied","satisfy","saturday","sausage","savage","savannah","save","saved","saving","saviour","saying","says","scab","scale","scalp","scandal","scanty","scapula","scar","scarcely","scared","scarf","scarlet","scars","scattered","scene","scenes","scent","scheme","schemes","schon","school","schools","schoss","sciatic","science","sciences","scientific","scissors","sclerosis","score","scored","scoring","scotch","scotland","scott","scoundrel","scraped","scraping","scratch","scream","screamed","screams","screen","screw","screwed","screwing","scrotum","scurvy","seaboard","seal","sealed","search","searched","searching","seas","season","seat","seated","seats","sebaceous","secession","second","secondary","secondly","seconds","secrecy","secret","secretary","secreting","secretion","secretly","secrets","section","sectional","sections","secure","secured","securing","security","sedition","seed","seeing","seek","seeking","seem","seemed","seems","seen","sees","segment","seize","seized","seizing","seizure","seldom","select","selected","selection","self","sell","selling","semenovsk","semi","senate","senator","senators","send","sending","senile","senior","sensation","sense","senseless","senses","sensible","sensitive","sent","sentence","sentiment","sentiments","sentinel","separate","separated","separately","separates","separating","separation","sepsis","september","septic","sequel","sequence","sequestrum","serene","serf","serfs","sergeant","sergey","series","serious","seriously","serous","serum","servant","servants","serve","served","serves","service","services","serving","servitude","session","sets","setting","settle","settled","settlement","settlers","settling","seven","seventeen","seventh","seventy","several","severe","severed","severely","severity","seward","shade","shadow","shadows","shaft","shafts","shaggy","shake","shaken","shaking","shall","shallow","shame","shameful","shamshevo","shan","shape","shaped","share","shared","sharing","sharp","sharply","shattered","shaved","shaven","shawl","sheath","sheaths","shed","sheep","sheet","shelf","shell","shells","shelter","sherlock","sherman","shevardino","shift","shifting","shining","shinshin","ship","shippers","shipping","ships","shirt","shivering","shock","shoe","shoes","shone","shook","shoot","shooting","shop","shops","shore","short","shortening","shorter","shortly","shot","shots","should","shoulder","shoulders","shouldn","shout","shouted","shouting","shouts","show","showed","showing","shown","shows","shrank","shrewd","shrieked","shrill","shriveled","shrugged","shrugging","shudder","shuddered","shuffle","shut","shutters","shyly","sick","sickness","side","sides","sideways","sigh","sighed","sighing","sight","sighted","sign","signal","signed","signs","silence","silent","silently","silk","sill","silly","silver","similar","similarly","simon","simple","simpler","simplest","simplicity","simply","simulate","since","sincere","sincerely","sing","singers","singing","single","singly","singular","sinister","sink","sinking","sins","sinus","sinuses","sire","sister","sisters","site","sitting","situated","situation","situations","sixteen","sixteenth","sixth","sixty","size","skeleton","skiagram","skiagrams","skill","skilled","skillful","skin","skirt","skull","slammed","slave","slavery","slaves","sleep","sleeping","sleepless","sleepy","sleeve","sleeves","sleigh","sleighs","slender","slept","slight","slightest","slightly","slim","slip","slipped","slippers","slipping","slope","slot","slots","slough","sloughing","sloughs","slow","slowly","small","smaller","smallest","smart","smashed","smeared","smell","smile","smiled","smiles","smiling","smilingly","smith","smoke","smoked","smoking","smolensk","smooth","smoothed","smoothly","snake","snatched","snow","snuff","snuffbox","soaked","sobbed","sobbing","sobs","social","socialists","societies","society","soda","sodden","sofa","soft","soften","softened","softening","softer","softly","soil","sold","soldier","soldiers","sole","solely","solemn","solemnity","solemnly","solid","solitary","solitude","solution","solve","solved","solver","some","somebody","somehow","someone","something","sometimes","somewhat","somewhere","song","songs","sons","sonya","soon","sooner","soothing","sore","sores","sorrow","sorry","sort","sorts","sought","soul","souls","sound","sounded","sounds","soup","source","sources","south","southern","southwest","sovereign","sovereigns","space","spaces","spain","spanish","spare","spared","sparkling","sparks","spasm","spasms","speak","speaker","speaking","speaks","special","specially","specie","species","specific","specimen","spectacle","spectacles","speech","speeches","speed","speedily","spend","spending","spent","speranski","sphere","spice","spinal","spindle","spine","spinning","spirit","spirited","spirits","spiritual","spite","splashing","spleen","splendid","splendidly","splint","splints","split","spoil","spoiled","spoils","spoke","spoken","spongy","spoon","spores","sport","spot","spots","spotted","sprain","sprang","spread","spreading","spreads","spring","springing","springs","sprung","spurs","squadron","square","squeezed","stable","stack","staff","stage","stages","staggered","staggering","stain","stained","stair","staircase","stairs","stake","stalls","stamp","stand","standard","standards","standing","stands","staples","star","stared","staring","stark","stars","start","started","starting","startled","startling","starvation","state","stated","statehood","statement","states","statesman","statesmen","station","stationary","stationed","stations","status","stay","stayed","staying","steadily","steady","steam","steel","steep","step","stepfather","stepped","stepping","steps","sterilised","stern","sternly","sterno","sternum","steward","stick","sticking","stiff","stiffness","still","stillness","stimulated","stimulus","stir","stirred","stirring","stitch","stitches","stock","stockings","stocks","stoke","stolen","stomach","stone","stoner","stones","stood","stooped","stooping","stop","stopped","stopping","store","stores","stories","storm","story","stout","straight","strain","strained","straining","strains","strange","strangely","stranger","strangers","strategic","strategy","straw","stream","streamed","streams","street","streets","strength","strengthen","stress","stretch","stretched","stretcher","stretchers","stretching","stricken","strict","strictly","strike","strikes","striking","string","strip","stripped","strips","strode","stroke","strong","stronger","strongest","strongly","struck","structural","structure","structures","struggle","struggled","struggling","strychnin","stubborn","stuck","student","studied","studies","study","studying","stuff","stumbled","stump","stupid","stupidity","sturdy","style","subclavian","subdued","subjacent","subject","subjected","subjects","submarine","submission","submissive","submit","submitted","subsequent","subside","subsided","subsides","substance","substances","substitute","subtle","succeed","succeeded","success","successes","successful","succession","successive","successor","succumb","such","suction","sudden","suddenly","suffer","suffered","suffering","sufferings","suffers","sufficient","suffrage","sugar","suggest","suggested","suggesting","suggestion","suggestive","suggests","suicide","suit","suitable","suite","suited","summary","summer","summoned","summons","sums","sunday","sunk","sunken","sunlight","sunshine","superadded","superior","supper","supplied","supplies","supply","supplying","support","supported","supporters","supporting","suppose","supposed","supposing","suppress","suppressed","supra","supremacy","supreme","sure","surely","surface","surfaces","surgeon","surgeons","surgery","surgical","surplus","surprise","surprised","surprising","surrender","surround","surrounded","survey","survive","suspect","suspected","suspended","suspicion","suspicious","sustain","sustained","sutherland","suture","sutured","sutures","suvorov","swallow","swallowed","sway","swayed","swaying","swear","sweat","sweating","sweep","sweeping","sweet","swelling","swellings","swept","swift","swiftly","swing","swinging","swollen","sword","swords","swung","sympathies","sympathy","symptom","symptoms","syncope","synovial","synovitis","syphilis","syphilitic","syringe","system","systematic","systems","table","tableau","tables","tact","taft","tail","take","taken","takes","taking","tale","talent","tales","talk","talked","talking","talks","tall","tapped","tapping","tariff","tariffs","tartar","tarutino","task","taste","tattered","taught","tavern","taxation","taxes","taylor","teach","teacher","teachers","teaching","tear","tearing","tears","technical","teeth","tell","telling","tells","telyanin","temper","temple","temples","temporary","temptation","tend","tendencies","tendency","tender","tenderly","tenderness","tendon","tendons","tends","tennessee","teno","tens","tense","tension","tent","tenth","tenure","term","termed","terminal","terms","terrible","terribly","terrified","territory","terror","tertiary","test","tested","tetanic","tetanus","texas","text","textile","than","thank","thanked","thanks","that","theater","thee","their","theirs","them","theme","themselves","then","thence","theodore","theories","theory","there","thereby","therefore","thereof","these","they","thick","thickened","thickening","thickness","thief","thiers","thigh","thin","thing","things","think","thinking","thinks","thinner","third","thirds","thirst","thirteen","thirteenth","thirty","this","thomas","thoracic","thorax","thorough","thoroughly","those","thou","though","thought","thoughtful","thoughts","thousand","thousands","thread","threat","threaten","threatened","three","threshold","threw","thrill","throat","thrombosis","thrombus","throne","throng","through","throughout","throw","throwing","thrown","thrust","thud","thumb","thus","thyreoid","tibia","tibial","tide","tied","ties","tiger","tight","tightly","tikhon","till","tilled","tilsit","timber","time","times","timid","timidly","timokhin","tingling","tint","tiny","tips","tipsy","tiptoe","tired","tissue","tissues","title","tobacco","today","toes","together","toil","token","told","toleration","toll","toller","tolly","tolstoy","tomorrow","tone","tones","tongue","tonight","took","tools","tooth","topic","topics","tore","tories","tormented","tormenting","torn","tortuous","tortured","tossed","total","touch","touched","touching","tour","tourniquet","tout","toward","towards","tower","town","towns","townshend","toxaemia","toxic","toxin","toxins","trace","traced","traces","track","tracks","trade","trademark","traders","trades","tradesmen","trading","tradition","traditions","traffic","trail","trails","train","trained","training","trains","traitor","traitors","tramp","trampled","tranquil","transfer","transition","transmit","transport","transverse","trap","trauma","traumatic","travel","traveled","traveler","travelers","traveling","treachery","tread","treason","treasure","treasury","treat","treated","treaties","treating","treatment","treaty","tree","trees","trembled","trembling","tremendous","trench","trend","trial","tribute","trick","tried","trifle","trifles","trifling","trip","triumph","triumphant","trivial","trodden","troops","trophic","tropical","trot","trouble","troubled","troubles","trousers","troyka","truce","true","truly","trunk","trunks","trust","trusted","trustees","trusts","truth","trying","tsar","tsarevich","tube","tubercle","tubes","tucked","tumour","tumours","tune","tunica","turkey","turkish","turmoil","turn","turned","turner","turning","turns","tushin","tutor","twelfth","twelve","twentieth","twenty","twice","twist","twisted","twisting","twitched","twitching","tyler","type","types","typhoid","typical","ugly","uhlans","ulcer","ulcerate","ulcerated","ulceration","ulcers","ulnar","ultimate","ultimately","unable","unanimous","unbroken","unbuttoned","uncertain","unchanged","uncle","uncommon","uncovered","undecided","under","undergo","undergoes","undergoing","underlying","understand","understood","undertake","undertaken","underwood","undo","undoubted","undressed","undressing","unduly","uneasily","uneasiness","uneasy","uneven","unexpected","unfair","unfamiliar","unhappy","unhealthy","uniform","uniforms","union","unions","unique","unit","unite","united","uniting","units","unity","universal","universe","university","unjust","unknown","unlawful","unless","unlike","unnatural","unnoticed","unpleasant","unseen","until","unusual","unusually","unwilling","unworthy","upon","upper","uprising","upset","upstairs","upward","upwards","urban","urge","urged","urgent","urging","urine","usage","used","useful","useless","using","usual","usually","utah","uterine","uterus","utilities","utmost","utter","uttered","uttering","utterly","vacancies","vacancy","vacant","vaccine","vaccines","vague","vaguely","vain","vainly","valet","valid","valley","valleys","valuable","value","valued","valves","vanguard","vanished","vanity","vanquished","variable","variations","varicose","varied","varies","varieties","variety","various","varix","vary","varying","vascular","vasili","vasilich","vaska","vast","vehicle","vehicles","veil","veiled","vein","veins","velvet","venereal","venezuela","venous","vent","ventilator","venture","ventured","vera","verdict","vermont","verses","version","vertebrae","vertebral","very","vessel","vessels","vested","vestibule","vexation","vexed","vice","vicinity","vicious","vicomte","victim","victories","victorious","victory","video","vienna","view","viewed","views","vigor","vigorous","vigorously","viii","vile","village","villages","villain","vilna","vincent","violation","violence","violent","violently","virgin","virginia","virtue","virtues","virtuous","virulence","virulent","virus","viscera","visible","vision","visit","visited","visiting","visitor","visitors","visits","vital","vitality","vive","vivid","vividly","vodka","voice","voices","void","volkonski","vols","volume","voluntary","volunteers","vomiting","voronezh","vote","voted","voters","votes","vous","vowel","vowels","voyage","vyazma","wage","waged","wages","wagon","wagons","waist","waistcoat","wait","waited","waiting","wake","waking","walk","walked","walking","walks","wall","walls","wander","wandered","wandering","want","wanted","wanting","wants","ward","warfare","warlike","warm","warmly","warmth","warn","warned","warning","warrant","warranties","warrior","wars","warts","wash","washed","washing","washington","wasn","waste","wasted","wasting","watch","watched","watching","water","waters","watery","watson","wattle","wave","waved","waves","waving","ways","weak","weakened","weaker","weakness","wealth","wealthy","weapon","weapons","wear","weariness","wearing","weary","weather","webapp","webster","wedding","wednesday","week","weeks","weep","weeping","weighed","weight","welcome","welcomed","welfare","well","wens","went","wept","were","west","western","westward","weyrother","what","whatever","wheat","wheel","wheels","when","whence","whenever","where","whereas","wherever","whether","which","whig","whigs","while","whip","whiskers","whisky","whisper","whispered","whispering","whispers","whistle","whistled","whistling","white","whites","whitlow","whitney","whoever","whole","wholly","whom","whose","wicked","wide","widely","wider","widespread","widow","wife","wild","wilderness","will","willarski","william","willing","wills","wilson","winchester","wind","windibank","winding","window","windows","wine","wing","wings","wink","winking","winning","winter","wiped","wiping","wire","wisconsin","wisdom","wise","wish","wished","wishes","wishing","with","withdraw","withdrawal","withdrawn","withdrew","within","without","witness","witnessed","witty","wives","woke","wolf","wolves","wolzogen","woman","women","wonder","wondered","wonderful","wondering","wont","wood","wooden","woodrow","woods","wool","woolen","word","words","wore","work","worked","workers","working","workingmen","workmen","works","world","worldly","worn","worried","worry","worse","worst","worth","worthless","worthy","would","wouldn","wound","wounded","wounds","wrapped","wrath","wretched","wrinkled","wrinkles","wrist","writ","write","writer","writers","writes","writing","writings","writs","written","wrong","wrote","wrung","wyoming","xiii","xvii","xviii","xxii","yakov","yard","yards","yaroslavl","year","years","yellow","yesterday","yield","yielded","yielding","yields","york","young","younger","youngest","your","yours","yourself","yourselves","youth","youthful","zeal","zealous","zebra","zherkov","znaim","zone"];
+const WORD_SET = new Set(WORDS);
+const VALUES = {A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:5,L:1,M:3,N:1,O:1,P:3,Q:10,R:1,S:1,T:1,U:1,V:4,W:4,X:8,Y:4,Z:10};
+const DIST = {A:9,B:2,C:2,D:4,E:12,F:2,G:3,H:2,I:9,J:1,K:1,L:4,M:2,N:6,O:8,P:2,Q:1,R:6,S:4,T:6,U:4,V:2,W:2,X:1,Y:2,Z:1};
+
+let state;
+let selected = null;
+let history = [];
+let toastTimer = null;
+
+function makeDeck(){
+  const deck=[]; let id=1;
+  for(const [letter,count] of Object.entries(DIST)){
+    for(let i=0;i<count;i++) deck.push({id:id++,letter,value:VALUES[letter]});
+  }
+  return shuffle(deck);
+}
+function shuffle(a){
+  a=[...a];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+function newGame(){
+  const deck=makeDeck();
+  const tableau=Array.from({length:7},()=>[]);
+  for(let c=0;c<7;c++){
+    for(let r=0;r<=c;r++) tableau[c].push({card:deck.pop(),faceUp:r===c});
+  }
+  state={stock:deck,waste:[],tableau,slots:Array.from({length:10},()=>[]),completed:[],score:0,cleared:0,stockPasses:0,blockedSources:{},wasteHolds:[]};
+  history=[]; selected=null; render();
+  showToast('New deal. Build words from the exposed letters.');
+}
+function snapshot(){
+  history.push(JSON.stringify(state));
+  if(history.length>80) history.shift();
+}
+function undo(){
+  if(!history.length) return showToast('Nothing to undo.');
+  state=JSON.parse(history.pop()); selected=null; render();
+}
+function cardHTML(card, source, extraClass=''){
+  return `<div class="card ${extraClass}" draggable="true" data-source="${source}" data-id="${card.id}" title="${card.letter} = ${card.value} point${card.value===1?'':'s'}"><span class="letter">${card.letter}</span><span class="value">${card.value}</span></div>`;
+}
+function staticCardHTML(card, extraClass=''){
+  return `<div class="card ${extraClass}" aria-hidden="true"><span class="letter">${card.letter}</span><span class="value">${card.value}</span></div>`;
+}
+function wasteLocked(){ return !!(state.wasteHolds && state.wasteHolds.length); }
+function render(){
+  renderStock(); renderSlots(); renderTableau(); renderCompleted(); updateReadout();
+  document.getElementById('score').textContent=state.score;
+  document.getElementById('wordCount').textContent=state.completed.length;
+  document.getElementById('cleared').textContent=state.cleared;
+  document.getElementById('undoBtn').disabled=!history.length;
+  bindCards();
+}
+function renderStock(){
+  const stock=document.getElementById('stock');
+  const locked=wasteLocked();
+  if(state.stock.length){
+    const title=locked?'Commit the turned cards you moved before revealing a new unseen card':'Turn the next card';
+    stock.innerHTML=`<div class="card back ${locked?'locked':''}" id="stockBack" title="${title}"></div><span class="count-badge">${state.stock.length}</span>`;
+  }else if(state.waste.length){
+    stock.innerHTML=`<div class="empty-pile ${locked?'held-pile':''}" id="stockBack" title="${locked?'Commit the moved turned cards before recycling the face-up pile':'Recycle the turned pile'}">${locked?'…':'↻'}</div>`;
+  }else stock.innerHTML='<div class="empty-pile">✓</div>';
+  const sb=document.getElementById('stockBack'); if(sb) sb.onclick=drawStock;
+
+  const waste=document.getElementById('waste');
+  if(state.waste.length){
+    // Keep the turned cards visibly face-up. We show the top few layers so the
+    // area reads as a real pile; only the top card is playable at any moment.
+    const visible=state.waste.slice(-3);
+    const layers=visible.map((card,i)=>{
+      const isTop=i===visible.length-1;
+      const offset=i*4;
+      const inner=isTop?cardHTML(card,'waste'):staticCardHTML(card,'waste-preview');
+      return `<div class="waste-layer ${isTop?'top':''}" style="left:${offset}px;top:${offset}px;z-index:${i+1}">${inner}</div>`;
+    }).join('');
+    waste.innerHTML=`<div class="waste-stack">${layers}</div>${state.waste.length>1?`<span class="count-badge">${state.waste.length}</span>`:''}`;
+  }else waste.innerHTML='<div class="empty-pile">·</div>';
+}
+function renderSlots(){
+  const el=document.getElementById('slots');
+  el.innerHTML='';
+  state.slots.forEach((stack,i)=>{
+    const slot=document.createElement('div'); slot.className='slot'; slot.dataset.slot=i;
+    if(stack.length){
+      const card=stack[stack.length-1];
+      slot.innerHTML=cardHTML(card,`slot:${i}`)+(stack.length>1?`<span class="stack-chip">${stack.length} deep</span>`:'')+`<span class="slot-index">${i+1}</span>`;
+    } else slot.innerHTML=`<span class="slot-index">${i+1}</span>`;
+    slot.addEventListener('click',e=>{
+      if(e.target.closest('.card')) return;
+      if(selected) placeSelected(i);
+    });
+    slot.addEventListener('dragover',e=>{e.preventDefault();slot.classList.add('drop-target')});
+    slot.addEventListener('dragleave',()=>slot.classList.remove('drop-target'));
+    slot.addEventListener('drop',e=>{e.preventDefault();slot.classList.remove('drop-target');const src=e.dataTransfer.getData('text/source'); if(src) moveSourceToSlot(src,i)});
+    el.appendChild(slot);
+  });
+}
+function renderTableau(){
+  const el=document.getElementById('tableau'); el.innerHTML='';
+  state.tableau.forEach((col,ci)=>{
+    const c=document.createElement('div'); c.className='column'; c.dataset.column=ci;
+    if(!col.length){
+      c.classList.add('empty-column');
+      c.innerHTML='<div class="empty-col" title="Park a visible letter here"></div>';
+      c.addEventListener('click',e=>{if(e.target.closest('.card'))return;if(selected)moveSourceToColumn(selected,ci)});
+      c.addEventListener('dragover',e=>{e.preventDefault();c.classList.add('drop-target')});
+      c.addEventListener('dragleave',()=>c.classList.remove('drop-target'));
+      c.addEventListener('drop',e=>{e.preventDefault();c.classList.remove('drop-target');const src=e.dataTransfer.getData('text/source');if(src)moveSourceToColumn(src,ci)});
+      el.appendChild(c);return;
+    }
+    col.forEach((entry,ri)=>{
+      const wrap=document.createElement('div'); wrap.className='tcard'; wrap.style.top=(ri*28)+'px'; wrap.style.zIndex=ri+1;
+      if(entry.faceUp && ri===col.length-1) wrap.innerHTML=cardHTML(entry.card,`tableau:${ci}`);
+      else wrap.innerHTML='<div class="face-down-mini"></div>';
+      c.appendChild(wrap);
+    });
+    el.appendChild(c);
+  });
+}
+function renderCompleted(){
+  const el=document.getElementById('completed');
+  if(!state.completed.length){el.innerHTML='<div class="empty-completed">Each scored word becomes a card in this pile.<br><br>Longer words earn a bonus.</div>';return;}
+  const list=state.completed.slice(-12);
+  el.innerHTML=list.map((x,i)=>`<div class="word-card" style="z-index:${i+1}"><div class="w">${x.word}</div><div class="s">+${x.points}</div><div class="m">letters ${x.base} + length ${x.bonus}</div></div>`).join('');
+}
+function bindCards(){
+  document.querySelectorAll('.card[data-source]').forEach(el=>{
+    const src=el.dataset.source;
+    if(selected===src) el.classList.add('selected');
+    el.addEventListener('click',e=>{
+      e.stopPropagation();
+      const slotEl=el.closest('.slot');
+      if(slotEl && selected && selected!==src){ moveSourceToSlot(selected,Number(slotEl.dataset.slot)); return; }
+      selected=(selected===src?null:src); render();
+    });
+    el.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/source',src);e.dataTransfer.effectAllowed='move'});
+  });
+}
+function drawStock(){
+  if(wasteLocked()) return showToast('Commit the turned letters you moved before revealing a new unseen card. Earlier face-up cards in the turned pile are still available.');
+  snapshot(); selected=null;
+  if(state.stock.length){ state.waste.push(state.stock.pop()); }
+  else if(state.waste.length){ state.stock=state.waste.reverse(); state.waste=[]; state.stockPasses++; showToast('Turned pile recycled.'); }
+  render(); checkEndState();
+}
+function parseSource(src){
+  if(src==='waste') return {type:'waste'};
+  const [type,n]=src.split(':'); return {type,index:Number(n)};
+}
+function peekSource(src){
+  const s=parseSource(src);
+  if(s.type==='waste') return state.waste[state.waste.length-1]||null;
+  if(s.type==='tableau'){const col=state.tableau[s.index]; const e=col[col.length-1]; return e&&e.faceUp?e.card:null;}
+  if(s.type==='slot'){const st=state.slots[s.index]; return st[st.length-1]||null;}
+  return null;
+}
+function removeSource(src){
+  const s=parseSource(src);
+  if(s.type==='waste'){
+    const card=state.waste.pop();
+    if(card){
+      state.wasteHolds=state.wasteHolds||[];
+      if(!state.wasteHolds.includes(card.id)) state.wasteHolds.push(card.id);
+    }
+    return card;
+  }
+  if(s.type==='slot') return state.slots[s.index].pop();
+  if(s.type==='tableau'){
+    const col=state.tableau[s.index]; const e=col.pop();
+    if(col.length){
+      state.blockedSources=state.blockedSources||{};
+      state.blockedSources[`tableau:${s.index}`]=e.card.id;
+    }
+    return e.card;
+  }
+}
+function placeSelected(slotIndex){ if(selected) moveSourceToSlot(selected,slotIndex); }
+function moveSourceToSlot(src,slotIndex){
+  const source=parseSource(src);
+  if(source.type==='slot' && source.index===slotIndex){selected=null;render();return;}
+  const card=peekSource(src); if(!card) return;
+  snapshot();
+  const moved=removeSource(src); state.slots[slotIndex].push(moved); selected=null; render();
+}
+function moveSourceToColumn(src,columnIndex){
+  if(state.tableau[columnIndex].length) return showToast('Cards can only be parked in an empty column.');
+  const source=parseSource(src);
+  if(source.type==='tableau' && source.index===columnIndex){selected=null;render();return;}
+  const card=peekSource(src); if(!card) return;
+
+  // Parking a card in an empty tableau column is a complete move of its own,
+  // not a tentative part of the word currently being assembled.
+  const moved=removeSource(src);
+  state.tableau[columnIndex].push({card:moved,faceUp:true});
+
+  // If this card had been hiding its source (directly or after first being
+  // placed in a word slot), release that source immediately.
+  releaseHiddenCards([moved]);
+
+  // Just like scoring a word, this is a commit point. This prevents Undo from
+  // being used to reveal the next hidden card and then rewind with that knowledge.
+  history=[];
+  selected=null;
+  render();
+  checkEndState();
+}
+function releaseHiddenCards(used){
+  const ids=new Set(used.map(c=>c.id));
+  state.blockedSources=state.blockedSources||{};
+  for(const [key,cardId] of Object.entries({...state.blockedSources})){
+    if(!ids.has(cardId)) continue;
+    const s=parseSource(key);
+    if(s.type==='tableau'){
+      const col=state.tableau[s.index];
+      if(col.length) col[col.length-1].faceUp=true;
+    }
+    delete state.blockedSources[key];
+  }
+  state.wasteHolds=(state.wasteHolds||[]).filter(id=>!ids.has(id));
+}
+function activeWordInfo(){
+  const occupied=[];
+  state.slots.forEach((st,i)=>{if(st.length) occupied.push(i)});
+  if(!occupied.length) return {word:'',valid:false,reason:'Place letters into the row.'};
+  const first=occupied[0], last=occupied[occupied.length-1];
+  for(let i=first;i<=last;i++) if(!state.slots[i].length) return {word:state.slots.map(st=>st.length?st[st.length-1].letter:'_').join(''),valid:false,reason:'There is a gap inside the active word.'};
+  const cards=[]; for(let i=first;i<=last;i++) cards.push(state.slots[i][state.slots[i].length-1]);
+  const word=cards.map(c=>c.letter).join('').toLowerCase();
+  if(word.length<4) return {word:word.toUpperCase(),valid:false,reason:`Minimum word length is 4 (${word.length}/4).`,first,last,cards};
+  if(!WORD_SET.has(word)) return {word:word.toUpperCase(),valid:false,reason:'Not in the prototype dictionary.',first,last,cards};
+  const base=cards.reduce((s,c)=>s+c.value,0), bonus=(cards.length-4)*5;
+  return {word:word.toUpperCase(),valid:true,reason:`Valid — ${base} letter points + ${bonus} length bonus = ${base+bonus}.`,first,last,cards,base,bonus,points:base+bonus};
+}
+function updateReadout(){
+  const info=activeWordInfo();
+  document.getElementById('currentWord').textContent=info.word||'—';
+  const line=document.getElementById('statusLine'); line.textContent=info.reason; line.className='status-line '+(info.valid?'good':(info.word?'bad':''));
+  document.getElementById('submitBtn').disabled=!info.valid;
+}
+function submitWord(){
+  const info=activeWordInfo(); if(!info.valid) return showToast(info.reason);
+  const used=[];
+  for(let i=info.first;i<=info.last;i++) used.push(state.slots[i].pop());
+  state.completed.push({word:info.word,points:info.points,base:info.base,bonus:info.bonus});
+  state.score+=info.points; state.cleared+=used.length;
+  releaseHiddenCards(used);
+  history=[]; selected=null; render();
+  showToast(`${info.word} scored +${info.points}`); checkEndState();
+}
+function availableVisibleCards(includeAllStock=false){
+  const cards=[];
+  for(const st of state.slots) if(st.length) cards.push(st[st.length-1]);
+  for(const col of state.tableau) if(col.length && col[col.length-1].faceUp) cards.push(col[col.length-1].card);
+  if(includeAllStock){
+    // Every card in the face-up pile is already known and can become available
+    // by taking the cards above it. Unseen stock only counts while drawing is unlocked.
+    cards.push(...state.waste);
+    if(!wasteLocked()) cards.push(...state.stock);
+  } else if(state.waste.length) cards.push(state.waste[state.waste.length-1]);
+  return cards;
+}
+function countsFor(cards){const c={};for(const x of cards)c[x.letter]=(c[x.letter]||0)+1;return c;}
+function canSpell(word, counts){const c={...counts};for(const ch of word.toUpperCase()){if(!c[ch])return false;c[ch]--;}return true;}
+function findPlayable(includeAllStock=false){
+  const cards=availableVisibleCards(includeAllStock), counts=countsFor(cards);
+  let best=null;
+  for(const w of WORDS){
+    if(w.length<4||w.length>10) continue;
+    if(best && w.length<best.length) continue;
+    if(canSpell(w,counts)){
+      if(!best || w.length>best.length || (w.length===best.length && w<best)) best=w;
+    }
+  }
+  return best;
+}
+function hint(){
+  const w=findPlayable(false);
+  if(w) return showToast(`Visible-letter hint: ${w.toUpperCase()}`);
+  if(wasteLocked()) return showToast('No word from the currently exposed letters. Earlier face-up cards in the turned pile are still available; drawing a new unseen card stays locked until the moved turned cards are committed.');
+  if(state.stock.length || state.waste.length) return showToast('No word from the currently visible letters. Try turning the draw pile.');
+  showToast('No playable word found from the exposed letters.');
+}
+function allCardsCleared(){
+  return !state.stock.length && !state.waste.length && state.tableau.every(c=>!c.length) && state.slots.every(s=>!s.length);
+}
+function checkEndState(){
+  if(allCardsCleared()) return endGame(true,'You cleared all 98 letter cards.');
+  if(findPlayable(false)) return;
+  // A face-up turned card is always still playable, even while the unseen draw pile is locked.
+  if(state.waste.length) return;
+  // If drawing is unlocked, an unseen stock card may still change the position.
+  if(!wasteLocked() && state.stock.length) return;
+  // A held turned card can also be committed by parking it in an empty tableau column.
+  if(wasteLocked() && state.tableau.some(c=>!c.length) && state.slots.some(s=>s.length)) return;
+  setTimeout(()=>endGame(false,'No valid 4+ letter word can be formed from the cards still accessible.'),120);
+}
+function endGame(win,reason){
+  const modal=document.getElementById('modal'), d=document.getElementById('dialog');
+  d.innerHTML=`<h2>${win?'Deck cleared!':'No more words'}</h2><p>${reason}</p><div class="bigscore">${state.score}</div><p>${state.completed.length} word${state.completed.length===1?'':'s'} completed · ${state.cleared}/98 cards cleared.</p><button class="btn" id="againBtn">Deal again</button>`;
+  modal.classList.add('show'); document.getElementById('againBtn').onclick=()=>{modal.classList.remove('show');newGame()};
+}
+function showToast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+document.getElementById('submitBtn').onclick=submitWord;
+document.getElementById('hintBtn').onclick=hint;
+document.getElementById('undoBtn').onclick=undo;
+document.getElementById('newBtn').onclick=()=>{ if(confirm('Start a new shuffled game?')) newGame(); };
+document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')e.currentTarget.classList.remove('show')});
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){selected=null;render()}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo()}
+  if(e.key==='Enter'){const info=activeWordInfo();if(info.valid)submitWord()}
+});
+
+newGame();
+</script>
+</body>
+</html>
