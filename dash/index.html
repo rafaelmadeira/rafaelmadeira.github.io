@@ -1,0 +1,1318 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Definition Dash</title>
+  <style>
+    :root{
+      --bg:#f5f4ef;
+      --panel:#ffffff;
+      --card:#f8f7f3;
+      --text:#24231f;
+      --muted:#75736d;
+      --border:#dedcd4;
+      --accent:#e0b43f;
+      --accent-dark:#b98913;
+      --danger:#91423b;
+      --success:#1f8a52;
+      --success-dark:#10693b;
+      --shadow:0 18px 55px rgba(40,35,20,.08);
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      background:var(--bg);
+      color:var(--text);
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    }
+    button{font:inherit;cursor:pointer}
+    button:disabled{cursor:not-allowed;opacity:.48}
+
+    .app{
+      width:min(920px,calc(100% - 32px));
+      margin:0 auto;
+      padding:42px 0 72px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:20px;
+    }
+
+    .brand h1{
+      margin:0;
+      font-size:clamp(24px,4vw,34px);
+      line-height:1;
+      letter-spacing:-.035em;
+    }
+
+    .brand p{
+      margin:7px 0 0;
+      color:var(--muted);
+      font-size:14px;
+    }
+
+    .pill{
+      border:1px solid var(--border);
+      background:var(--panel);
+      color:var(--muted);
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:13px;
+      white-space:nowrap;
+    }
+
+    .panel{
+      border:1px solid var(--border);
+      background:var(--panel);
+      border-radius:22px;
+      box-shadow:var(--shadow);
+    }
+
+    .screen{display:none}
+    .screen.active{display:block}
+
+    .start,.end{
+      padding:clamp(24px,5vw,48px);
+    }
+
+    .eyebrow{
+      margin:0 0 10px;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+    }
+
+    .start h2,
+    .end h2{
+      margin:0;
+      font-size:clamp(28px,5vw,44px);
+      line-height:1.04;
+      letter-spacing:-.04em;
+    }
+
+    .lead{
+      max-width:650px;
+      margin:16px 0 0;
+      color:var(--muted);
+      font-size:17px;
+      line-height:1.6;
+    }
+
+    .rules{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:12px;
+      margin:28px 0;
+    }
+
+    .rule{
+      border:1px solid var(--border);
+      border-radius:15px;
+      padding:15px;
+      background:var(--card);
+    }
+
+    .rule strong{
+      display:block;
+      font-size:17px;
+      margin-bottom:4px;
+    }
+
+    .rule span{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.35;
+    }
+
+    .primary,.secondary{
+      min-height:48px;
+      border-radius:13px;
+      padding:0 20px;
+      font-weight:800;
+    }
+
+    .primary{
+      border:0;
+      background:var(--accent);
+      color:#201b0d;
+    }
+
+    .primary:hover{background:#ecc657}
+
+    .secondary{
+      border:1px solid var(--border);
+      background:var(--panel);
+      color:var(--text);
+    }
+
+    .secondary:hover{background:var(--card)}
+
+    .hud{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:12px;
+      margin-bottom:14px;
+    }
+
+    .hud-item{
+      border:1px solid var(--border);
+      background:var(--panel);
+      border-radius:15px;
+      padding:13px 15px;
+    }
+
+    .hud-label{
+      display:block;
+      color:var(--muted);
+      font-size:11px;
+      font-weight:800;
+      letter-spacing:.1em;
+      text-transform:uppercase;
+    }
+
+    .hud-value{
+      display:block;
+      margin-top:3px;
+      font-size:24px;
+      font-weight:850;
+      letter-spacing:-.03em;
+    }
+
+    .streak-card{
+      display:grid;
+      grid-template-columns:1fr auto;
+      grid-template-rows:auto auto;
+      column-gap:16px;
+      align-items:end;
+    }
+
+    .streak-card .hud-label{
+      grid-column:1;
+      grid-row:1;
+    }
+
+    .streak-best-label{
+      grid-column:2;
+      grid-row:1;
+      align-self:start;
+      color:var(--muted);
+      font-size:11px;
+      font-weight:500;
+      letter-spacing:0;
+      text-transform:uppercase;
+      text-align:right;
+    }
+
+    .streak-current{
+      grid-column:1;
+      grid-row:2;
+      margin-top:5px;
+      font-size:24px;
+      font-weight:850;
+      line-height:1;
+      letter-spacing:-.03em;
+    }
+
+    .streak-best{
+      grid-column:2;
+      grid-row:2;
+      margin-top:5px;
+      color:var(--success);
+      font-size:22px;
+      font-weight:500;
+      line-height:1;
+      text-align:right;
+    }
+
+    .timer-track{
+      overflow:hidden;
+      height:8px;
+      margin-bottom:14px;
+      background:#ddd9ce;
+      border-radius:999px;
+    }
+
+    .timer-fill{
+      height:100%;
+      width:100%;
+      background:var(--accent);
+      border-radius:999px;
+      transition:width .18s linear,background .2s ease;
+    }
+
+    .timer-fill.danger{background:var(--danger)}
+
+    .game-card{
+      position:relative;
+      height:380px;
+      padding:clamp(22px,5vw,44px);
+      overflow:visible;
+    }
+
+    .game-content.hidden{
+      display:none;
+    }
+
+    .pause-message{
+      height:100%;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+    }
+
+    .pause-message.show{
+      display:flex;
+    }
+
+    .pause-message-inner{
+      max-width:420px;
+    }
+
+    .pause-message h2{
+      margin:0;
+      font-size:clamp(30px,5vw,46px);
+      letter-spacing:-.04em;
+    }
+
+    .pause-message p{
+      margin:12px 0 0;
+      color:var(--muted);
+      font-size:15px;
+      line-height:1.5;
+    }
+
+    .end-run-button{
+      min-height:48px;
+      padding:0 20px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:transparent;
+      color:var(--muted);
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .end-run-button:hover{
+      background:var(--panel);
+      color:var(--text);
+    }
+
+    .definition{
+      min-height:82px;
+      margin:0 auto;
+      max-width:700px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      font-size:clamp(22px,4vw,31px);
+      line-height:1.28;
+      letter-spacing:-.025em;
+      font-weight:780;
+    }
+
+    .slots{
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:center;
+      gap:8px;
+      margin:38px auto 30px;
+    }
+
+    .slot{
+      width:clamp(28px,7vw,46px);
+      height:54px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-bottom:3px solid var(--border);
+      font-size:26px;
+      font-weight:850;
+      text-transform:uppercase;
+      transition:.15s ease;
+    }
+
+    .slot.revealed{
+      border-color:var(--accent-dark);
+      background:#fff7dc;
+      border-radius:8px 8px 3px 3px;
+    }
+
+    .slot.typed{
+      border-color:var(--text);
+    }
+
+    .hint-row{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:center;
+      gap:12px;
+      margin-top:10px;
+    }
+
+    .hint-copy{
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .controls-note{
+      margin-top:18px;
+      text-align:center;
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .shake{animation:shake .24s ease}
+    @keyframes shake{
+      25%{transform:translateX(-5px)}
+      75%{transform:translateX(5px)}
+    }
+
+    .notice{
+      min-height:26px;
+      margin-top:16px;
+      text-align:center;
+      font-size:14px;
+      font-weight:800;
+      color:var(--muted);
+      opacity:0;
+    }
+
+    .notice.good{color:var(--success)}
+    .notice.bad{color:var(--danger)}
+
+    .notice.show{
+      animation:notice-fade 3.8s linear forwards;
+    }
+
+    @keyframes notice-fade{
+      0%{opacity:1}
+      30%{opacity:1}
+      100%{opacity:0}
+    }
+
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;
+      margin-top:28px;
+    }
+
+    .stat{
+      border:1px solid var(--border);
+      background:var(--card);
+      border-radius:15px;
+      padding:16px;
+    }
+
+    .stat strong{
+      display:block;
+      font-size:24px;
+      line-height:1.05;
+      overflow-wrap:anywhere;
+    }
+
+    .stat span{
+      display:block;
+      margin-top:5px;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .stat.wide{grid-column:span 3}
+
+    .pace-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+
+    .pace-word{font-size:20px !important}
+    .pace-time{
+      margin-top:4px;
+      color:var(--text) !important;
+      font-weight:700;
+    }
+
+    .end-actions{
+      display:flex;
+      gap:10px;
+      margin-top:26px;
+    }
+
+    .tiny-note{
+      margin-top:20px;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.5;
+    }
+
+    @media(max-width:700px){
+      .app{width:min(100% - 20px,920px);padding-top:20px}
+      .brand{align-items:flex-start}
+      .rules{grid-template-columns:1fr 1fr}
+      .hud{grid-template-columns:1fr 1fr}
+      .game-card{height:400px}
+      .definition{min-height:100px}
+      .stats{grid-template-columns:1fr 1fr}
+      .stat.wide{grid-column:span 2}
+    }
+
+    @media(max-width:460px){
+      .pill{display:none}
+      .stats,.pace-grid{grid-template-columns:1fr}
+      .stat.wide{grid-column:auto}
+      .end-actions{display:block}
+      .end-actions button{width:100%}
+      .end-actions button + button{margin-top:9px}
+    }
+
+    @media(prefers-reduced-motion:reduce){
+      .shake{animation:none}
+      .notice.show{animation:none;opacity:1}
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <header class="brand">
+      <div>
+        <h1>Definition Dash</h1>
+        <p>Guess the word. Beat the clock.</p>
+      </div>
+      <div class="pill">100-word run</div>
+    </header>
+
+    <section id="startScreen" class="screen active panel start">
+      <p class="eyebrow">Survival word game</p>
+      <h2>How many definitions can you solve?</h2>
+      <p class="lead">
+        You begin with 60 seconds. Every correct answer adds time based on the length of the word.
+        Hints reveal letters, but each hint reduces the points available for that word.
+      </p>
+
+      <div class="rules">
+        <div class="rule">
+          <strong>60 sec</strong>
+          <span>Starting time</span>
+        </div>
+        <div class="rule">
+          <strong>Type directly</strong>
+          <span>Your letters appear right in the slots</span>
+        </div>
+        <div class="rule">
+          <strong>2–3 hints</strong>
+          <span>3-letter words only get two</span>
+        </div>
+        <div class="rule">
+          <strong>Keyboard flow</strong>
+          <span>Tab hints · Space skips · Esc clears</span>
+        </div>
+      </div>
+
+      <button id="startButton" class="primary" type="button">Start run</button>
+    </section>
+
+    <section id="gameScreen" class="screen">
+      <div class="hud">
+        <div class="hud-item">
+          <span class="hud-label">Time</span>
+          <span id="timeValue" class="hud-value">60.0</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Word</span>
+          <span id="progressValue" class="hud-value">1 / 100</span>
+        </div>
+        <div class="hud-item streak-card">
+          <span class="hud-label">Clean streak</span>
+          <span class="streak-best-label">Best</span>
+          <span id="cleanStreakCurrent" class="streak-current">0</span>
+          <span id="cleanStreakBest" class="streak-best">0</span>
+        </div>
+        <div class="hud-item streak-card">
+          <span class="hud-label">Under 5s</span>
+          <span class="streak-best-label">Best</span>
+          <span id="fastStreakCurrent" class="streak-current">0</span>
+          <span id="fastStreakBest" class="streak-best">0</span>
+        </div>
+      </div>
+
+      <div class="timer-track" aria-hidden="true">
+        <div id="timerFill" class="timer-fill"></div>
+      </div>
+
+      <section id="gameCard" class="panel game-card">
+        <div id="gameContent" class="game-content">
+          <div id="definition" class="definition"></div>
+          <div id="slots" class="slots" aria-label="Letter slots"></div>
+
+          <div class="hint-row">
+            <button id="hintButton" class="secondary" type="button">Hint (3)</button>
+            <button id="endRunButton" class="end-run-button" type="button">End run</button>
+          </div>
+
+          <div class="controls-note">Type to fill the slots · Enter = submit · Tab = hint · Space = skip · Alt = pause · Backspace deletes · Esc clears</div>
+        </div>
+
+        <div id="pauseMessage" class="pause-message" aria-live="polite">
+          <div class="pause-message-inner">
+            <h2>Paused</h2>
+            <p>Press Alt to resume.</p>
+          </div>
+        </div>
+      </section>
+
+      <div id="notice" class="notice" aria-live="polite" aria-atomic="true"></div>
+    </section>
+
+    <section id="endScreen" class="screen panel end">
+      <p id="endEyebrow" class="eyebrow">Time's up</p>
+      <h2 id="endTitle">Run over</h2>
+
+      <div class="stats">
+        <div class="stat">
+          <strong id="finalScore">0</strong>
+          <span>Score</span>
+        </div>
+
+        <div class="stat">
+          <strong id="finalWords">0</strong>
+          <span>Words solved</span>
+        </div>
+
+        <div class="stat">
+          <strong id="finalHints">0</strong>
+          <span>Hints used</span>
+        </div>
+
+        <div class="stat">
+          <strong id="finalPerfect">0</strong>
+          <span>No-hint solves</span>
+        </div>
+
+        <div class="stat">
+          <strong id="averageTime">—</strong>
+          <span>Average solve time</span>
+        </div>
+
+        <div class="stat">
+          <strong id="accuracyStat">—</strong>
+          <span>Correct submissions</span>
+        </div>
+
+        <div class="stat">
+          <strong id="bestFastStreak">0</strong>
+          <span>Best ≤5s streak</span>
+        </div>
+
+        <div class="stat">
+          <strong id="bestCleanStreak">0</strong>
+          <span>Best clean streak</span>
+        </div>
+
+        <div class="stat">
+          <strong id="survivalBonus">+0</strong>
+          <span>Survival bonus</span>
+        </div>
+
+        <div class="stat wide">
+          <div class="pace-grid">
+            <div>
+              <span class="eyebrow">Quickest word</span>
+              <strong id="quickestWord" class="pace-word">—</strong>
+              <span id="quickestTime" class="pace-time">—</span>
+            </div>
+            <div>
+              <span class="eyebrow">Slowest word</span>
+              <strong id="slowestWord" class="pace-word">—</strong>
+              <span id="slowestTime" class="pace-time">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="end-actions">
+        <button id="restartButton" class="primary" type="button">Play again</button>
+      </div>
+
+      <p class="tiny-note">
+        Every run reshuffles the full word deck. Fast streaks reward consecutive words solved in 5 seconds or less,
+        clean streaks reward consecutive words solved without a wrong guess, and you earn 1 bonus point for every second you stay alive.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const WORDS = [
+        ['cat','A small domesticated feline often kept as a pet.'],
+        ['sun','The star that Earth travels around.'],
+        ['map','A visual representation of an area or route.'],
+        ['key','A small object used to open a lock.'],
+        ['owl','A bird of prey known for being active at night.'],
+        ['ice','Water in its solid frozen state.'],
+        ['bee','A flying insect that gathers nectar and makes honey.'],
+        ['fog','A thick cloud that forms close to the ground.'],
+        ['gem','A precious or semiprecious stone used in jewelry.'],
+        ['oak','A large tree that produces acorns.'],
+        ['rain','Water droplets that fall from clouds.'],
+        ['moon','A natural object that orbits a planet.'],
+        ['book','A collection of written or printed pages bound together.'],
+        ['bird','A feathered animal with wings and a beak.'],
+        ['fire','Heat and light produced by burning material.'],
+        ['wind','Air moving naturally across the surface of Earth.'],
+        ['lake','A large body of water surrounded by land.'],
+        ['snow','Soft white ice crystals that fall from the sky.'],
+        ['fork','An eating utensil with several narrow prongs.'],
+        ['lamp','A device that produces light.'],
+        ['shoe','An item worn on the foot for protection.'],
+        ['wave','A moving ridge on the surface of water.'],
+        ['nest','A structure built by birds for eggs or young.'],
+        ['road','A prepared route used by vehicles and travelers.'],
+        ['salt','A common mineral used to season food.'],
+        ['apple','A round fruit that is often red, green, or yellow.'],
+        ['bread','Food made by baking a dough of flour and water.'],
+        ['clock','A device used to measure and display time.'],
+        ['river','A large natural stream of flowing water.'],
+        ['stone','A hard solid piece of rock.'],
+        ['cloud','A visible mass of tiny water droplets in the sky.'],
+        ['smile','A facial expression in which the corners of the mouth turn upward.'],
+        ['dream','A sequence of images or events experienced during sleep.'],
+        ['chair','A piece of furniture designed for one person to sit on.'],
+        ['plant','A living organism that typically grows in soil and uses sunlight.'],
+        ['beach','A sandy or pebbly shore beside a body of water.'],
+        ['horse','A large four-legged animal commonly ridden by people.'],
+        ['flame','The visible glowing part of a fire.'],
+        ['grape','A small round fruit that grows in clusters on vines.'],
+        ['house','A building intended for people to live in.'],
+        ['light','Visible energy that allows things to be seen.'],
+        ['music','Organized sound using rhythm, melody, or harmony.'],
+        ['train','A connected series of railway vehicles.'],
+        ['world','Earth together with all its countries and people.'],
+        ['laugh','To make sounds that express amusement.'],
+        ['planet','A large object that travels in orbit around a star.'],
+        ['forest','A large area covered mainly with trees.'],
+        ['mirror','A reflective surface in which you can see an image of yourself.'],
+        ['candle','A stick of wax with a wick that is burned for light.'],
+        ['bridge','A structure built to carry a path over an obstacle.'],
+        ['window','An opening in a wall or vehicle fitted with glass.'],
+        ['pocket','A small sewn compartment in clothing used to carry things.'],
+        ['garden','An area where flowers, vegetables, or other plants are grown.'],
+        ['silver','A shiny gray precious metal used for jewelry and coins.'],
+        ['button','A small fastener pushed through a hole in clothing.'],
+        ['camera','A device used to take photographs or record images.'],
+        ['travel','To go from one place to another.'],
+        ['yellow','The color commonly associated with lemons and sunlight.'],
+        ['circle','A perfectly round closed shape.'],
+        ['school','A place where people go to learn.'],
+        ['bottle','A container with a narrow neck, usually used for liquids.'],
+        ['winter','The coldest season of the year.'],
+        ['castle','A large fortified building associated with rulers or nobles.'],
+        ['friend','A person you know well and feel affection or trust toward.'],
+        ['rabbit','A small long-eared animal that often lives in burrows.'],
+        ['thunder','The loud sound that follows a flash of lightning.'],
+        ['blanket','A large piece of warm fabric used as a covering.'],
+        ['compass','An instrument that shows direction using a magnetic needle.'],
+        ['journey','The act of traveling from one place to another.'],
+        ['picture','An image made by drawing, painting, or photography.'],
+        ['morning','The early part of the day before noon.'],
+        ['kitchen','A room where food is prepared and cooked.'],
+        ['rainbow','A curved band of colors sometimes seen after rain.'],
+        ['library','A place where books and other materials can be read or borrowed.'],
+        ['monster','An imaginary frightening creature.'],
+        ['whisper','To speak very quietly using little or no voice.'],
+        ['traffic','Vehicles moving along roads in a particular area.'],
+        ['diamond','A very hard precious stone made of carbon.'],
+        ['village','A small community in a rural area.'],
+        ['popcorn','Corn kernels that expand and puff when heated.'],
+        ['pyramid','A solid shape with triangular sides meeting at a point.'],
+        ['sweater','A warm knitted garment worn on the upper body.'],
+        ['captain','The person in command of a ship or a team.'],
+        ['volcano','A mountain with an opening through which lava may erupt.'],
+        ['balance','A state in which weight or forces are evenly distributed.'],
+        ['mountain','A very high natural elevation of land.'],
+        ['elephant','A very large mammal with a trunk and tusks.'],
+        ['keyboard','A set of keys used to type into a computer or device.'],
+        ['sandwich','Food made by placing a filling between pieces of bread.'],
+        ['notebook','A small book of blank or ruled pages for writing notes.'],
+        ['treasure','Valuable objects such as money, jewels, or precious items.'],
+        ['hospital','A medical institution where sick or injured people receive treatment.'],
+        ['dinosaur','A member of a group of reptiles that lived millions of years ago.'],
+        ['umbrella','A folding canopy carried to protect against rain or sun.'],
+        ['calendar','A system or chart showing the days, weeks, and months of a year.'],
+        ['chocolate','A sweet food made from roasted and ground cacao seeds.'],
+        ['adventure','An unusual or exciting experience, often involving risk or discovery.'],
+        ['waterfall','A place where a river or stream drops steeply over an edge.'],
+        ['telescope','An instrument used to make distant objects appear closer.'],
+        ['hurricane','A powerful tropical storm with very strong rotating winds.']
+      ].map(([word, definition]) => ({ word, definition }));
+
+      const $ = id => document.getElementById(id);
+
+      const startScreen = $('startScreen');
+      const gameScreen = $('gameScreen');
+      const endScreen = $('endScreen');
+      const startButton = $('startButton');
+      const restartButton = $('restartButton');
+
+      const timeValue = $('timeValue');
+      const progressValue = $('progressValue');
+      const cleanStreakCurrent = $('cleanStreakCurrent');
+      const cleanStreakBest = $('cleanStreakBest');
+      const fastStreakCurrent = $('fastStreakCurrent');
+      const fastStreakBest = $('fastStreakBest');
+      const timerFill = $('timerFill');
+      const gameCard = $('gameCard');
+      const gameContent = $('gameContent');
+      const pauseMessage = $('pauseMessage');
+      const endRunButton = $('endRunButton');
+      const definition = $('definition');
+      const slots = $('slots');
+      const hintButton = $('hintButton');
+      const notice = $('notice');
+
+      let deck = [];
+      let index = 0;
+      let time = 60;
+      let score = 0;
+      let hintsThisWord = 0;
+      let totalHints = 0;
+      let perfect = 0;
+      let revealed = new Set();
+      let typedBuffer = '';
+
+      let running = false;
+      let paused = false;
+      let timerFrame = null;
+      let lastTick = 0;
+      let wordStartedAt = 0;
+      let pauseStartedAt = 0;
+      let totalPausedMs = 0;
+
+      let solveTimes = [];
+      let correctSubmissions = 0;
+      let wrongSubmissions = 0;
+
+      let wrongThisWord = 0;
+      let fastStreak = 0;
+      let cleanStreak = 0;
+      let bestFastStreak = 0;
+      let bestCleanStreak = 0;
+
+      let runStartedAt = 0;
+      let survivalSeconds = 0;
+      let survivalBonusPoints = 0;
+
+      let noticeFadeTimer = null;
+      let noticeClearTimer = null;
+
+      function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+      }
+
+      function current() {
+        return deck[index];
+      }
+
+      function timeGain(length) {
+        return Math.min(8, 2 + Math.ceil(length / 2));
+      }
+
+      function basePoints(length) {
+        return length * 10;
+      }
+
+      function multiplier() {
+        return Math.max(0.25, 1 - hintsThisWord * 0.25);
+      }
+
+      function pointsNow() {
+        return Math.round(basePoints(current().word.length) * multiplier());
+      }
+
+      function showScreen(screen) {
+        [startScreen, gameScreen, endScreen].forEach(el => el.classList.remove('active'));
+        screen.classList.add('active');
+      }
+
+      function renderStats() {
+        const shownTime = Math.max(0, time);
+        timeValue.textContent = shownTime.toFixed(1);
+        progressValue.textContent = `${Math.min(index + 1, 100)} / 100`;
+        cleanStreakCurrent.textContent = cleanStreak;
+        cleanStreakBest.textContent = bestCleanStreak;
+        fastStreakCurrent.textContent = fastStreak;
+        fastStreakBest.textContent = bestFastStreak;
+
+        const width = Math.max(0, Math.min(100, shownTime / 60 * 100));
+        timerFill.style.width = `${width}%`;
+        timerFill.classList.toggle('danger', shownTime <= 15);
+      }
+
+      function renderSlots() {
+        const word = current().word;
+        slots.innerHTML = '';
+
+        for (let i = 0; i < word.length; i++) {
+          const slot = document.createElement('div');
+          slot.className = 'slot';
+
+          if (revealed.has(i)) {
+            slot.textContent = word[i];
+            slot.classList.add('revealed');
+          } else if (typedBuffer[i]) {
+            slot.textContent = typedBuffer[i];
+            slot.classList.add('typed');
+          }
+
+          slots.appendChild(slot);
+        }
+      }
+
+      function updateHintUI() {
+        const maxHints = current().word.length === 3 ? 2 : 3;
+        const remainingHints = Math.max(0, maxHints - hintsThisWord);
+
+        hintButton.textContent = `Hint (${remainingHints})`;
+        hintButton.disabled = remainingHints === 0;
+      }
+
+      function showNotice(message, kind) {
+        clearTimeout(noticeFadeTimer);
+        clearTimeout(noticeClearTimer);
+
+        // Reset the animation so a new message appears immediately,
+        // even if the previous one was halfway through fading.
+        notice.className = 'notice';
+        void notice.offsetWidth;
+        notice.textContent = message;
+        notice.className = `notice ${kind || ''} show`.trim();
+
+        noticeClearTimer = setTimeout(() => {
+          notice.textContent = '';
+          notice.className = 'notice';
+        }, 3900);
+      }
+
+      function clearTypedBuffer() {
+        typedBuffer = '';
+        renderSlots();
+      }
+
+      function loadWord() {
+        if (!current()) {
+          finishRun('completed');
+          return;
+        }
+
+        hintsThisWord = 0;
+        wrongThisWord = 0;
+        revealed = new Set();
+        typedBuffer = '';
+
+        definition.textContent = current().definition;
+
+        updateHintUI();
+        renderSlots();
+        renderStats();
+
+        wordStartedAt = performance.now();
+      }
+
+      function useHint() {
+        if (!running) return;
+
+        const word = current().word;
+        const maxHints = word.length === 3 ? 2 : 3;
+        if (hintsThisWord >= maxHints) return;
+
+        if (hintsThisWord === 0) {
+          revealed.add(0);
+        } else if (hintsThisWord === 1) {
+          revealed.add(word.length - 1);
+        } else {
+          const options = [];
+          for (let i = 1; i < word.length - 1; i++) {
+            if (!revealed.has(i)) options.push(i);
+          }
+          if (options.length) {
+            const randomIndex = Math.floor(Math.random() * options.length);
+            revealed.add(options[randomIndex]);
+          }
+        }
+
+        hintsThisWord += 1;
+        totalHints += 1;
+
+        updateHintUI();
+        renderSlots();
+      }
+
+      function submitTypedWord() {
+        if (!running) return;
+        const guess = typedBuffer.trim().toLowerCase();
+        if (!guess) return;
+
+        if (guess === current().word) {
+          correctSubmissions += 1;
+
+          const elapsedSeconds = Math.max(
+            0.01,
+            (performance.now() - wordStartedAt) / 1000
+          );
+
+          solveTimes.push({
+            word: current().word,
+            seconds: elapsedSeconds
+          });
+
+          const earned = pointsNow();
+          const gain = timeGain(current().word.length);
+
+          let fastBonus = 0;
+          let cleanBonus = 0;
+
+          if (elapsedSeconds <= 5) {
+            fastStreak += 1;
+            bestFastStreak = Math.max(bestFastStreak, fastStreak);
+            fastBonus = fastStreak * 5;
+          } else {
+            fastStreak = 0;
+          }
+
+          if (wrongThisWord === 0) {
+            cleanStreak += 1;
+            bestCleanStreak = Math.max(bestCleanStreak, cleanStreak);
+            cleanBonus = cleanStreak * 5;
+          } else {
+            cleanStreak = 0;
+          }
+
+          renderStats();
+          score += earned + fastBonus + cleanBonus;
+          time += gain;
+
+          if (hintsThisWord === 0) {
+            perfect += 1;
+          }
+
+          const bonusParts = [];
+          if (fastBonus) bonusParts.push(`Fast x${fastStreak} +${fastBonus}`);
+          if (cleanBonus) bonusParts.push(`Clean x${cleanStreak} +${cleanBonus}`);
+          const bonusText = bonusParts.length ? ` · ${bonusParts.join(' · ')}` : '';
+
+          showNotice(`Correct! +${earned} pts · +${gain}s${bonusText}`, 'good');
+
+          gameCard.classList.remove('shake');
+
+          index += 1;
+          if (index >= deck.length) {
+            finishRun('completed');
+          } else {
+            loadWord();
+          }
+
+
+        } else {
+          wrongSubmissions += 1;
+          wrongThisWord += 1;
+          cleanStreak = 0;
+          renderStats();
+          showNotice('Not quite — keep trying.', 'bad');
+
+          gameCard.classList.add('shake');
+
+          setTimeout(() => {
+            gameCard.classList.remove('shake');
+          }, 240);
+
+          clearTypedBuffer();
+        }
+      }
+
+      function skipWord() {
+        if (!running) return;
+
+        fastStreak = 0;
+        cleanStreak = 0;
+        renderStats();
+
+        index += 1;
+
+        if (index >= deck.length) {
+          finishRun('completed');
+        } else {
+          loadWord();
+        }
+      }
+
+      function setPaused(nextPaused) {
+        if (!running || paused === nextPaused) return;
+
+        paused = nextPaused;
+
+        if (paused) {
+          pauseStartedAt = performance.now();
+          cancelAnimationFrame(timerFrame);
+          gameContent.classList.add('hidden');
+          pauseMessage.classList.add('show');
+
+          clearTimeout(noticeFadeTimer);
+          clearTimeout(noticeClearTimer);
+          notice.textContent = '';
+          notice.className = 'notice';
+        } else {
+          const now = performance.now();
+          const pausedFor = Math.max(0, now - pauseStartedAt);
+          totalPausedMs += pausedFor;
+          wordStartedAt += pausedFor;
+          pauseStartedAt = 0;
+
+          gameContent.classList.remove('hidden');
+          pauseMessage.classList.remove('show');
+
+          lastTick = 0;
+          timerFrame = requestAnimationFrame(tick);
+        }
+      }
+
+      function togglePause() {
+        setPaused(!paused);
+      }
+
+      function tick(now) {
+        if (!running || paused) return;
+
+        if (!lastTick) {
+          lastTick = now;
+        }
+
+        const delta = (now - lastTick) / 1000;
+        lastTick = now;
+        time -= delta;
+
+        if (time <= 0) {
+          time = 0;
+          renderStats();
+          finishRun('timeout');
+          return;
+        }
+
+        renderStats();
+        timerFrame = requestAnimationFrame(tick);
+      }
+
+      function beginRun() {
+        deck = shuffle(WORDS.slice());
+
+        index = 0;
+        time = 60;
+        score = 0;
+        hintsThisWord = 0;
+        totalHints = 0;
+        perfect = 0;
+        revealed = new Set();
+        typedBuffer = '';
+
+        solveTimes = [];
+        correctSubmissions = 0;
+        wrongSubmissions = 0;
+
+        wrongThisWord = 0;
+        fastStreak = 0;
+        cleanStreak = 0;
+        bestFastStreak = 0;
+        bestCleanStreak = 0;
+
+        survivalSeconds = 0;
+        survivalBonusPoints = 0;
+        runStartedAt = performance.now();
+
+        running = true;
+        paused = false;
+        pauseStartedAt = 0;
+        totalPausedMs = 0;
+        lastTick = 0;
+
+        gameContent.classList.remove('hidden');
+        pauseMessage.classList.remove('show');
+
+        clearTimeout(noticeFadeTimer);
+        clearTimeout(noticeClearTimer);
+        notice.textContent = '';
+        notice.className = 'notice';
+        cancelAnimationFrame(timerFrame);
+        showScreen(gameScreen);
+        loadWord();
+        timerFrame = requestAnimationFrame(tick);
+      }
+
+      function formatSeconds(seconds) {
+        if (!Number.isFinite(seconds)) return '—';
+        return `${seconds.toFixed(2)}s`;
+      }
+
+      function finishRun(reason = 'timeout') {
+        if (!running) return;
+
+        const now = performance.now();
+
+        if (paused && pauseStartedAt) {
+          totalPausedMs += Math.max(0, now - pauseStartedAt);
+          pauseStartedAt = 0;
+        }
+
+        running = false;
+        paused = false;
+        cancelAnimationFrame(timerFrame);
+
+        gameContent.classList.remove('hidden');
+        pauseMessage.classList.remove('show');
+
+        if (reason === 'completed') {
+          $('endEyebrow').textContent = '100 words completed';
+          $('endTitle').textContent = 'You cleared the whole run!';
+        } else if (reason === 'ended') {
+          $('endEyebrow').textContent = 'Run ended';
+          $('endTitle').textContent = 'Run summary';
+        } else {
+          $('endEyebrow').textContent = "Time's up";
+          $('endTitle').textContent = 'Run over';
+        }
+
+        survivalSeconds = Math.max(0, (now - runStartedAt - totalPausedMs) / 1000);
+        survivalBonusPoints = Math.floor(survivalSeconds);
+        score += survivalBonusPoints;
+
+        $('finalScore').textContent = score;
+        $('finalWords').textContent = solveTimes.length;
+        $('finalHints').textContent = totalHints;
+        $('finalPerfect').textContent = perfect;
+        $('bestFastStreak').textContent = bestFastStreak;
+        $('bestCleanStreak').textContent = bestCleanStreak;
+        $('survivalBonus').textContent = `+${survivalBonusPoints}`;
+
+        if (solveTimes.length) {
+          const quickest = solveTimes.reduce((best, item) =>
+            item.seconds < best.seconds ? item : best
+          );
+
+          const slowest = solveTimes.reduce((worst, item) =>
+            item.seconds > worst.seconds ? item : worst
+          );
+
+          const average = solveTimes.reduce((sum, item) => sum + item.seconds, 0) / solveTimes.length;
+
+          $('quickestWord').textContent = quickest.word;
+          $('quickestTime').textContent = formatSeconds(quickest.seconds);
+          $('slowestWord').textContent = slowest.word;
+          $('slowestTime').textContent = formatSeconds(slowest.seconds);
+          $('averageTime').textContent = formatSeconds(average);
+        } else {
+          $('quickestWord').textContent = '—';
+          $('quickestTime').textContent = '—';
+          $('slowestWord').textContent = '—';
+          $('slowestTime').textContent = '—';
+          $('averageTime').textContent = '—';
+        }
+
+        const totalSubmissions = correctSubmissions + wrongSubmissions;
+        $('accuracyStat').textContent = totalSubmissions
+          ? `${Math.round(correctSubmissions / totalSubmissions * 100)}%`
+          : '—';
+
+        showScreen(endScreen);
+      }
+
+      function handleGameKeydown(event) {
+        if (!running) return;
+
+        const key = event.key;
+
+        if (key === 'Alt') {
+          event.preventDefault();
+          if (!event.repeat) {
+            togglePause();
+          }
+          return;
+        }
+
+        if (paused) {
+          event.preventDefault();
+          return;
+        }
+
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+        const wordLength = current().word.length;
+
+        if (key === 'Escape') {
+          event.preventDefault();
+          clearTypedBuffer();
+          return;
+        }
+
+        if (key === 'Tab') {
+          event.preventDefault();
+          if (!event.repeat) {
+            useHint();
+          }
+          return;
+        }
+
+        if (key === ' ' || event.code === 'Space') {
+          event.preventDefault();
+          if (!event.repeat) {
+            skipWord();
+          }
+          return;
+        }
+
+        if (key === 'Backspace') {
+          event.preventDefault();
+          typedBuffer = typedBuffer.slice(0, -1);
+          renderSlots();
+          return;
+        }
+
+        if (key === 'Enter') {
+          event.preventDefault();
+          if (typedBuffer.length === wordLength) {
+            submitTypedWord();
+          }
+          return;
+        }
+
+        if (/^[a-zA-Z]$/.test(key)) {
+          event.preventDefault();
+          if (typedBuffer.length >= wordLength) return;
+          typedBuffer += key.toLowerCase();
+          renderSlots();
+        }
+      }
+
+      startButton.addEventListener('click', beginRun);
+      restartButton.addEventListener('click', beginRun);
+      hintButton.addEventListener('click', useHint);
+      endRunButton.addEventListener('click', () => finishRun('ended'));
+      document.addEventListener('keydown', handleGameKeydown);
+    })();
+  </script>
+</body>
+</html>
