@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Unplaced — Crossword Prototype</title>
+<style>
+  :root{
+    --bg:#f4f1ea;
+    --paper:#fffdf8;
+    --ink:#171717;
+    --muted:#76736c;
+    --line:#1e1e1e;
+    --soft:#e9e4da;
+    --select:#e9dcc0;
+    --active:#d8c08b;
+    --accent:#1d5f55;
+    --danger:#b7473d;
+    --success:#286a43;
+    --cell:clamp(25px,3.1vw,37px);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color:var(--ink);
+    background:var(--bg);
+  }
+  button{font:inherit}
+  .app{max-width:1220px;margin:0 auto;padding:24px}
+  header{
+    display:flex;align-items:flex-start;justify-content:space-between;gap:20px;
+    padding:2px 0 20px;border-bottom:1px solid #d4cec2;
+  }
+  .brand h1{font-family:Georgia,serif;letter-spacing:.01em;font-size:34px;margin:0 0 4px}
+  .brand p{margin:0;color:var(--muted);font-size:14px}
+  .stats{display:flex;gap:22px;align-items:center;text-align:right}
+  .stat b{display:block;font-size:18px;font-variant-numeric:tabular-nums}
+  .stat span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.09em}
+
+  .intro{
+    display:flex;justify-content:space-between;align-items:center;gap:16px;
+    padding:16px 0 14px;
+  }
+  .intro strong{font-size:15px}
+  .intro small{display:block;color:var(--muted);margin-top:3px}
+  .controls{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+  .btn{
+    border:1px solid #aaa49a;background:var(--paper);color:var(--ink);border-radius:999px;
+    padding:8px 13px;cursor:pointer;font-weight:650;font-size:13px;
+  }
+  .btn:hover{background:#fff}
+  .btn.primary{background:var(--ink);color:white;border-color:var(--ink)}
+  .btn.ghost{background:transparent}
+
+  main{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(310px,.92fr);gap:34px;align-items:start}
+  .board-card,.clues-card{
+    background:rgba(255,253,248,.72);border:1px solid #d9d3c8;border-radius:16px;
+    box-shadow:0 8px 24px rgba(41,32,20,.05);
+  }
+  .board-card{padding:24px;min-height:650px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .board-wrap{width:100%;overflow:visible;padding:4px;display:flex;justify-content:center}
+  .grid{
+    display:grid;
+    width:min(100%,560px);
+    aspect-ratio:1 / 1;
+    grid-template-columns:repeat(14,minmax(0,1fr));
+    grid-template-rows:repeat(14,minmax(0,1fr));
+    gap:0;
+    user-select:none;
+  }
+  .cell{
+    width:100%;height:100%;min-width:0;min-height:0;position:relative;
+  }
+  .cell.active{
+    background:var(--paper);border:1px solid var(--line);margin:-.5px 0 0 -.5px;
+    z-index:1;display:flex;align-items:center;justify-content:center;cursor:pointer;
+    font-size:clamp(14px,1.8vw,22px);font-weight:750;text-transform:uppercase;
+  }
+  .cell.active.path{background:var(--select)}
+  .cell.active.selected{background:var(--active);outline:2px solid var(--ink);outline-offset:-2px;z-index:3}
+  .cell.active.wrong{animation:wrong .9s ease;background:#f1c9c4}
+  .cell.active.revealed::after{
+    content:"";position:absolute;width:5px;height:5px;border-radius:50%;background:var(--accent);bottom:3px;right:3px;
+  }
+  @keyframes wrong{0%,100%{transform:translateX(0)}25%{transform:translateX(-2px)}50%{transform:translateX(2px)}75%{transform:translateX(-1px)}}
+  .board-help{margin-top:20px;text-align:center;color:var(--muted);font-size:12px;line-height:1.6}
+  .dir{color:var(--ink);font-weight:700}
+
+  .clues-card{padding:22px}
+  .clues-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:12px}
+  .clues-head h2{font-family:Georgia,serif;margin:0;font-size:25px}
+  .clues-head span{font-size:12px;color:var(--muted)}
+  .clue-list{display:grid;gap:7px}
+  .clue{
+    display:grid;grid-template-columns:24px 1fr;gap:8px;align-items:start;
+    border:1px solid #ded8ce;border-radius:10px;background:var(--paper);padding:10px 11px;cursor:pointer;
+    transition:.15s ease;
+  }
+  .clue:hover{border-color:#aaa297;transform:translateY(-1px)}
+  .clue .mark{width:18px;height:18px;border:1.5px solid #999187;border-radius:50%;margin-top:1px;display:grid;place-items:center;font-size:12px;color:white}
+  .clue .text{font-size:13px;line-height:1.38}
+  .clue .length{color:var(--muted);font-weight:700}
+  .clue.done{opacity:.46}
+  .clue.done .text{text-decoration:line-through}
+  .clue.done .mark{background:var(--accent);border-color:var(--accent)}
+  .clue.done .mark::before{content:"✓"}
+
+  .footer-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+  .note{margin-top:13px;font-size:11px;color:var(--muted);line-height:1.45}
+
+  .toast{
+    position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);opacity:0;
+    background:var(--ink);color:white;padding:10px 16px;border-radius:999px;font-size:13px;font-weight:650;
+    pointer-events:none;transition:.2s ease;z-index:20;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(19,18,16,.52);display:none;place-items:center;padding:20px;z-index:30;
+  }
+  .modal-backdrop.show{display:grid}
+  .modal{background:var(--paper);border-radius:18px;max-width:430px;width:100%;padding:28px;text-align:center;box-shadow:0 25px 80px rgba(0,0,0,.22)}
+  .modal .eyebrow{text-transform:uppercase;letter-spacing:.14em;color:var(--success);font-size:11px;font-weight:800}
+  .modal h3{font-family:Georgia,serif;font-size:34px;margin:6px 0 8px}
+  .modal p{color:var(--muted);line-height:1.5;margin:0 0 18px}
+  .modal-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0}
+  .modal-stat{background:var(--soft);border-radius:10px;padding:12px 8px}
+  .modal-stat b{display:block;font-size:20px}
+  .modal-stat span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+
+  @media (max-width:900px){
+    main{grid-template-columns:1fr}
+    .board-card{min-height:auto;padding:18px}
+    .clues-card{order:-1}
+  }
+  @media (max-width:600px){
+    .app{padding:14px}
+    header{align-items:flex-end}
+    .brand h1{font-size:28px}
+    .stats{gap:12px}
+    .intro{display:block}
+    .controls{justify-content:flex-start;margin-top:10px}
+    :root{--cell:clamp(20px,5.2vw,31px)}
+    .board-card{padding:12px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <h1>Unplaced</h1>
+      <p>Crossword prototype</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="timer">0:00</b><span>Time</span></div>
+      <div class="stat"><b id="progress">0%</b><span>Filled</span></div>
+    </div>
+  </header>
+
+  <div class="intro">
+    <div>
+      <strong>Solve the clues. Then figure out where the answers go.</strong>
+      <small>No clue numbers. No Across/Down list. Every clue belongs somewhere in the grid.</small>
+    </div>
+    <div class="controls">
+      <button class="btn ghost" id="lengthBtn">Lengths: off</button>
+      <button class="btn" id="checkBtn">Check</button>
+      <button class="btn" id="hintBtn">Reveal letter (3)</button>
+      <button class="btn" id="resetBtn">Reset</button>
+    </div>
+  </div>
+
+  <main>
+    <section class="board-card">
+      <div class="board-wrap"><div class="grid" id="grid" aria-label="crossword grid"></div></div>
+      <div class="board-help">
+        Click a square and type. At an intersection, click again or press <b>Space</b> to switch direction.<br>
+        Arrow keys move manually. Current typing direction: <span class="dir" id="dirLabel">→</span>
+      </div>
+    </section>
+
+    <aside class="clues-card">
+      <div class="clues-head"><h2>Clues</h2><span>click to mark solved</span></div>
+      <div class="clue-list" id="clues"></div>
+      <div class="footer-actions">
+        <button class="btn primary" id="checkPuzzleBtn">Check puzzle</button>
+        <button class="btn" id="revealBtn">Reveal puzzle</button>
+      </div>
+      <div class="note">This test puzzle uses answers from 3–10 letters, with at most two words of any one length. “Lengths” remains an optional assist so you can compare the deduction with and without them shown.</div>
+    </aside>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="modal-backdrop" id="modalBg">
+  <div class="modal">
+    <div class="eyebrow">Puzzle solved</div>
+    <h3>Everything found its place.</h3>
+    <p>The interesting question is whether the placement deduction added a satisfying second layer to the clue solving.</p>
+    <div class="modal-stats">
+      <div class="modal-stat"><b id="finalTime">0:00</b><span>Time</span></div>
+      <div class="modal-stat"><b id="finalChecks">0</b><span>Checks</span></div>
+      <div class="modal-stat"><b id="finalHints">0</b><span>Hints</span></div>
+    </div>
+    <button class="btn primary" id="closeModal">Keep looking</button>
+  </div>
+</div>
+
+<script>
+const ROWS=14, COLS=14;
+// This test puzzle is purpose-built for the unnumbered format.
+// Answer lengths range from 3–10 letters, with no more than two answers of any length.
+// With all clues solved, the placement logic can be resolved by deduction alone: the
+// unique 10-letter slot anchors the puzzle, and its crossings cascade through the grid.
+const slots=[
+  {answer:'CHOCOLATE',  r:7,  c:0,  d:'A'},
+  {answer:'STRAWBERRY', r:4,  c:6,  d:'D'},
+  {answer:'BUTTERFLY',  r:5,  c:4,  d:'A'},
+  {answer:'NOTEBOOK',   r:1,  c:4,  d:'D'},
+  {answer:'MOUNTAIN',   r:6,  c:2,  d:'D'},
+  {answer:'CAMERA',     r:7,  c:0,  d:'D'},
+  {answer:'PLANETS',    r:4,  c:11, d:'D'},
+  {answer:'BRIDGE',     r:11, c:5,  d:'A'},
+  {answer:'STAR',       r:9,  c:10, d:'A'},
+  {answer:'LIBRARY',    r:0,  c:9,  d:'D'},
+  {answer:'LAMP',       r:0,  c:9,  d:'A'},
+  {answer:'PLANT',      r:3,  c:0,  d:'A'},
+  {answer:'OCEAN',      r:0,  c:2,  d:'D'},
+  {answer:'SKY',        r:13, c:4,  d:'A'}
+];
+const clueData=[
+  {answer:'PLANETS', clue:'Large bodies that orbit a star'},
+  {answer:'NOTEBOOK', clue:'Book of blank pages used for writing notes'},
+  {answer:'OCEAN', clue:'A vast body of salt water'},
+  {answer:'CAMERA', clue:'A device used to take photographs'},
+  {answer:'STAR', clue:'A bright celestial body like the Sun'},
+  {answer:'PLANT', clue:'A living thing that usually grows from soil'},
+  {answer:'BUTTERFLY', clue:'Winged insect that begins life as a caterpillar'},
+  {answer:'LAMP', clue:'A device that provides light'},
+  {answer:'MOUNTAIN', clue:'A very high natural elevation of land'},
+  {answer:'SKY', clue:'The space above Earth that appears blue by day'},
+  {answer:'CHOCOLATE', clue:'A sweet food made from cacao'},
+  {answer:'BRIDGE', clue:'A structure built to cross an obstacle'},
+  {answer:'LIBRARY', clue:'A place where books can be borrowed or read'},
+  {answer:'STRAWBERRY', clue:'A red fruit with seeds on its outside'}
+];
+
+const gridEl=document.getElementById('grid');
+const cluesEl=document.getElementById('clues');
+const timerEl=document.getElementById('timer');
+const progressEl=document.getElementById('progress');
+const dirLabel=document.getElementById('dirLabel');
+const toastEl=document.getElementById('toast');
+let cellMap=new Map(), values=new Map(), selected=null, direction='A', lengthsOn=false;
+let seconds=0, timerId=null, checks=0, hintsUsed=0, hintsLeft=3, solved=false;
+
+function key(r,c){return `${r},${c}`}
+function slotCells(slot){
+  return [...slot.answer].map((_,i)=>({r:slot.r+(slot.d==='D'?i:0),c:slot.c+(slot.d==='A'?i:0)}));
+}
+function buildBoard(){
+  cellMap.clear();
+  slots.forEach((slot,si)=>slotCells(slot).forEach((p,i)=>{
+    const k=key(p.r,p.c);
+    if(!cellMap.has(k)) cellMap.set(k,{r:p.r,c:p.c,answer:slot.answer[i],slots:[]});
+    cellMap.get(k).slots.push(si);
+  }));
+  gridEl.innerHTML='';
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    const d=document.createElement('div'); d.className='cell'; d.dataset.key=key(r,c);
+    if(cellMap.has(key(r,c))){
+      d.classList.add('active'); d.tabIndex=0;
+      d.addEventListener('click',()=>selectCell(r,c,true));
+    }
+    gridEl.appendChild(d);
+  }
+  paint();
+}
+function buildClues(){
+  cluesEl.innerHTML='';
+  clueData.forEach((item,i)=>{
+    const row=document.createElement('div'); row.className='clue'; row.dataset.answer=item.answer;
+    row.innerHTML=`<span class="mark"></span><span class="text">${item.clue}<span class="length"></span></span>`;
+    row.addEventListener('click',()=>row.classList.toggle('done'));
+    cluesEl.appendChild(row);
+  });
+  updateLengths();
+}
+function updateLengths(){
+  document.querySelectorAll('.clue').forEach(el=>{
+    const len=el.dataset.answer.length;
+    el.querySelector('.length').textContent=lengthsOn?` (${len})`:'';
+  });
+  document.getElementById('lengthBtn').textContent=`Lengths: ${lengthsOn?'on':'off'}`;
+}
+function selectedSlot(){
+  if(!selected) return null;
+  const info=cellMap.get(key(selected.r,selected.c));
+  if(!info) return null;
+  const candidates=info.slots.map(i=>slots[i]);
+  return candidates.find(s=>s.d===direction) || candidates[0] || null;
+}
+function selectCell(r,c,toggle=false){
+  const info=cellMap.get(key(r,c)); if(!info) return;
+  if(toggle && selected && selected.r===r && selected.c===c && info.slots.length>1){
+    direction=direction==='A'?'D':'A';
+  } else {
+    selected={r,c};
+    const dirs=info.slots.map(i=>slots[i].d);
+    if(!dirs.includes(direction)) direction=dirs[0];
+  }
+  dirLabel.textContent=direction==='A'?'→':'↓';
+  startTimer(); paint();
+}
+function paint(){
+  const slot=selectedSlot(); const path=new Set(slot?slotCells(slot).map(p=>key(p.r,p.c)):[]);
+  document.querySelectorAll('.cell.active').forEach(el=>{
+    const k=el.dataset.key;
+    el.textContent=values.get(k)||'';
+    el.classList.toggle('path',path.has(k));
+    el.classList.toggle('selected',selected && k===key(selected.r,selected.c));
+  });
+  const filled=[...values.values()].filter(Boolean).length;
+  progressEl.textContent=Math.round(100*filled/cellMap.size)+'%';
+}
+function move(step){
+  if(!selected) return;
+  const slot=selectedSlot(); if(!slot) return;
+  const arr=slotCells(slot), idx=arr.findIndex(p=>p.r===selected.r&&p.c===selected.c);
+  const next=arr[idx+step]; if(next) selectCell(next.r,next.c,false);
+}
+function moveArrow(dr,dc,dir){
+  if(!selected) return;
+  direction=dir; dirLabel.textContent=dir==='A'?'→':'↓';
+  let r=selected.r+dr,c=selected.c+dc;
+  while(r>=0&&c>=0&&r<ROWS&&c<COLS){
+    if(cellMap.has(key(r,c))){selectCell(r,c,false);return}
+    r+=dr;c+=dc;
+  }
+  paint();
+}
+function typeLetter(ch){
+  if(!selected) return;
+  values.set(key(selected.r,selected.c),ch.toUpperCase());
+  startTimer(); paint();
+  move(1); checkWin();
+}
+function erase(){
+  if(!selected) return;
+  const k=key(selected.r,selected.c);
+  if(values.get(k)){values.delete(k);paint();}
+  else {move(-1); if(selected){values.delete(key(selected.r,selected.c));paint();}}
+}
+function showToast(msg){
+  toastEl.textContent=msg;toastEl.classList.add('show');
+  clearTimeout(showToast.t);showToast.t=setTimeout(()=>toastEl.classList.remove('show'),1800);
+}
+function checkErrors(all=false){
+  checks++;
+  let wrong=0, blank=0;
+  cellMap.forEach((info,k)=>{
+    const el=document.querySelector(`.cell[data-key="${k}"]`), v=values.get(k)||'';
+    if(!v){blank++;return}
+    if(v!==info.answer){wrong++; el.classList.remove('wrong'); void el.offsetWidth; el.classList.add('wrong'); setTimeout(()=>el.classList.remove('wrong'),950)}
+  });
+  if(wrong===0 && blank===0){checkWin();return}
+  if(wrong===0) showToast(all?`No errors so far — ${blank} squares left.`:'Everything filled so far is correct.');
+  else showToast(`${wrong} incorrect ${wrong===1?'square':'squares'} highlighted.`);
+}
+function revealLetter(){
+  if(hintsLeft<=0){showToast('No reveals left.');return}
+  let targets=[];
+  const slot=selectedSlot();
+  if(slot) targets=slotCells(slot).filter(p=>!values.get(key(p.r,p.c)));
+  if(!targets.length) targets=[...cellMap.values()].filter(p=>!values.get(key(p.r,p.c))).map(p=>({r:p.r,c:p.c}));
+  if(!targets.length){showToast('Nothing left to reveal.');return}
+  const p=targets[Math.floor(Math.random()*targets.length)], k=key(p.r,p.c), info=cellMap.get(k);
+  values.set(k,info.answer); hintsLeft--; hintsUsed++;
+  const el=document.querySelector(`.cell[data-key="${k}"]`); el.classList.add('revealed');
+  document.getElementById('hintBtn').textContent=`Reveal letter (${hintsLeft})`;
+  selectCell(p.r,p.c,false); checkWin();
+}
+function revealPuzzle(){
+  if(!confirm('Reveal the entire puzzle?')) return;
+  cellMap.forEach((info,k)=>values.set(k,info.answer));
+  solved=true; clearInterval(timerId); paint(); showToast('Puzzle revealed.');
+}
+function checkWin(){
+  if(solved) return;
+  for(const [k,info] of cellMap) if(values.get(k)!==info.answer) return;
+  solved=true; clearInterval(timerId);
+  document.getElementById('finalTime').textContent=formatTime(seconds);
+  document.getElementById('finalChecks').textContent=checks;
+  document.getElementById('finalHints').textContent=hintsUsed;
+  document.getElementById('modalBg').classList.add('show');
+}
+function formatTime(s){return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`}
+function startTimer(){if(timerId||solved)return; timerId=setInterval(()=>{seconds++;timerEl.textContent=formatTime(seconds)},1000)}
+function reset(){
+  if(values.size && !confirm('Clear the grid and restart the timer?')) return;
+  values.clear();selected=null;direction='A';seconds=0;checks=0;hintsUsed=0;hintsLeft=3;solved=false;
+  clearInterval(timerId);timerId=null;timerEl.textContent='0:00';dirLabel.textContent='→';
+  document.getElementById('hintBtn').textContent='Reveal letter (3)';
+  document.querySelectorAll('.cell').forEach(el=>el.classList.remove('revealed','wrong'));
+  document.querySelectorAll('.clue').forEach(el=>el.classList.remove('done'));
+  paint();
+}
+
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('modalBg').classList.contains('show')) return;
+  if(/^[a-zA-Z]$/.test(e.key)){e.preventDefault();typeLetter(e.key);return}
+  if(e.key==='Backspace'||e.key==='Delete'){e.preventDefault();erase();return}
+  if(e.key===' '){e.preventDefault(); if(selected){const info=cellMap.get(key(selected.r,selected.c)); if(info.slots.length>1){direction=direction==='A'?'D':'A';dirLabel.textContent=direction==='A'?'→':'↓';paint()}} return}
+  if(e.key==='ArrowRight'){e.preventDefault();moveArrow(0,1,'A')}
+  if(e.key==='ArrowLeft'){e.preventDefault();moveArrow(0,-1,'A')}
+  if(e.key==='ArrowDown'){e.preventDefault();moveArrow(1,0,'D')}
+  if(e.key==='ArrowUp'){e.preventDefault();moveArrow(-1,0,'D')}
+});
+
+document.getElementById('lengthBtn').onclick=()=>{lengthsOn=!lengthsOn;updateLengths()};
+document.getElementById('checkBtn').onclick=()=>checkErrors(false);
+document.getElementById('checkPuzzleBtn').onclick=()=>checkErrors(true);
+document.getElementById('hintBtn').onclick=revealLetter;
+document.getElementById('resetBtn').onclick=reset;
+document.getElementById('revealBtn').onclick=revealPuzzle;
+document.getElementById('closeModal').onclick=()=>document.getElementById('modalBg').classList.remove('show');
+
+buildBoard();buildClues();
+</script>
+</body>
+</html>
