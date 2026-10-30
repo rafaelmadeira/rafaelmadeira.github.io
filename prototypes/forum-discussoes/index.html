@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Fórum de discussão — protótipo de navegação</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --blue:#3498db; --blue-dark:#2586c9; --line:#dedfe1; --text:#666973; --ink:#30343a; --gray:#edeff0; --panel:#f9fafa; --red:#df766a; --green:#36bb61; --shadow:0 12px 42px rgba(26,37,52,.15); }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--gray);font-family:'Source Sans 3','Source Sans Pro','Segoe UI',Arial,sans-serif;color:var(--text);font-size:14px;line-height:1.45}
+    a{color:var(--blue);text-decoration:none}
+    a:hover{text-decoration:underline}
+    button,select,textarea{font:inherit}
+    button{cursor:pointer}
+    button:focus-visible,a:focus-visible,textarea:focus-visible{outline:3px solid #87c9f4;outline-offset:2px}
+    button:disabled{cursor:not-allowed;opacity:.45}
+    .link{border:0;padding:0;background:transparent;color:var(--blue);line-height:inherit}
+    .link:hover{text-decoration:underline}
+    .link.underlined{text-decoration:underline;text-underline-offset:2px}
+    .dot{display:inline-block;color:#c0c3c6;margin:0 7px}
+    .site-shell{max-width:1220px;margin:auto;padding:24px 40px 42px}
+    .breadcrumbs{min-height:28px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;font-size:13px}
+    .crumbs{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+    .chevron{border-right:3px solid #8b9299;border-top:3px solid #8b9299;transform:rotate(45deg);width:7px;height:7px;display:inline-block;margin-right:3px}
+    .timer{color:#858b94;white-space:nowrap;font-size:14px;display:flex;gap:10px;align-items:center}
+    .primary-tabs{display:flex;min-height:43px;align-items:stretch;gap:0;background:var(--gray)}
+    .primary-tab{padding:10px 12px;display:flex;gap:6px;align-items:center;color:var(--blue);font-size:16px}
+    .primary-tab.active{color:#6e737b;background:white;border-radius:5px 5px 0 0}
+    .primary-tab .ico{font-weight:700;font-size:17px;color:#858b94}
+    .primary-tab.active .ico{color:var(--blue)}
+    .primary-tabs .share-link{margin-left:auto;align-self:center;white-space:nowrap;font-size:15px;padding-right:4px}
+    .question-card{display:flex;align-items:center;gap:18px;min-height:82px;background:white;padding:12px 20px;border-bottom:1px solid #dddfe2}
+    .crest{width:51px;height:62px;flex:none;display:flex;align-items:center;justify-content:center}
+    .crest svg{width:100%;height:100%}
+    .question-info{min-width:0;flex:1}
+    .question-title{font-size:17px;color:#333842;margin-bottom:1px;line-height:1.25}
+    .question-title small{color:#89909b;font-size:12px}
+    .question-title .ok{color:#34b95a}
+    .question-title .err{color:#f06b5a}
+    .question-info .detail{font-size:12px;color:#898e96;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.6}
+    .question-info .detail a{text-decoration:underline}
+    .question-tools{display:flex;gap:17px;align-items:center;white-space:nowrap}
+    .tool-glyph{border:0;background:transparent;padding:0;font-size:26px;line-height:1;position:relative;display:inline-block;color:var(--blue)}
+    .tool-glyph.graduation{color:#333}
+    .tool-glyph.book{color:#f04a4a}
+    .tool-glyph.star{color:#f5ae22}
+    .tool-glyph.pen{color:#c77cdd}
+    .tool-glyph.dots{color:#8b959a;font-size:24px}
+    .tool-glyph.bubble span{position:absolute;bottom:-5px;right:-4px;font-size:10px;padding:0 3px;background:#67bb66;color:#fff;line-height:1.35}
+    .donut{display:inline-block;width:23px;height:23px;border:7px solid #74bebe;border-top-color:#df6869;border-right-color:#78bfb7;border-radius:100%}
+    .forum-region{background:var(--panel);min-height:300px}
+    .forum-heading{min-height:56px;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:18px;border-bottom:1px solid #e4e5e7}
+    .forum-title-actions{display:flex;align-items:center;gap:18px}
+    .forum-name{font-weight:700;color:#333940;font-size:16px;white-space:nowrap}
+    .forum-view{display:flex;align-items:center;gap:10px;white-space:nowrap}
+    .forum-view .tiny-icon{font-size:15px;color:#555d63}
+    .forum-view .close-forum{font-size:11px;color:#666d73;margin-left:0;text-transform:uppercase;text-decoration:none}
+    .forum-view .close-forum::before{content:'×';font-size:17px;font-weight:bold;margin-right:5px;vertical-align:-1px}
+    .btn{border:1px solid rgba(0,0,0,.11);border-bottom-color:rgba(0,0,0,.22);border-radius:2px;padding:6px 12px;background:var(--blue);color:#fff;font-size:13px;font-weight:700;line-height:1.35;text-transform:uppercase}
+    .btn:hover{background:var(--blue-dark)}
+    .btn.secondary{background:#fff;border-color:#cdd3d6;color:#60656b;text-transform:none}
+    .btn.secondary:hover{background:#f5f7f8}
+    .forum-inner{padding:0 20px 17px}
+    .toolbar{background:var(--gray);border-top:1px solid #e2e4e5;border-bottom:1px solid #e0e2e3;min-height:35px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 12px;font-size:14px}
+    .toolbar-right{display:flex;gap:19px;align-items:center;flex-wrap:wrap}
+    .toolbar .muted{color:#686d75}
+    .toolbar .crumb-btn{display:flex;align-items:center;gap:5px}
+    .toolbar .arrow-left{font-size:18px;line-height:12px}
+    .toolbar .dropdown-holder{display:inline-block;position:relative}
+    .menu{position:absolute;z-index:30;min-width:170px;top:calc(100% + 6px);right:0;background:#fff;border:1px solid #d8dde0;box-shadow:0 8px 22px rgba(0,0,0,.13);padding:4px 0;border-radius:3px}
+    .menu-item{display:block;width:100%;text-align:left;border:0;background:white;padding:8px 13px;color:#434954;white-space:nowrap}
+    .menu-item:hover,.menu-item.active{background:#eaf4fc;color:#2183c6}
+    .post-list{background:white}
+    .post{background:#fff;padding:24px 24px 22px;border-bottom:1px solid #dadcdd;position:relative;min-width:0}
+    .post:last-child{border-bottom:1px solid #d9dcdd}
+    .post:target,.post.emphasized{background:#f7fbfe}
+    .post-header{display:flex;align-items:flex-start;gap:12px;min-width:0}
+    .vote-stack{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;width:28px;flex:none;margin-right:1px;line-height:1.08}
+    .vote-stack .vote{width:23px;height:15px;border:0;background:transparent;display:flex;align-items:center;justify-content:center;padding:0;color:#c2c8cc}
+    .vote-stack .vote:hover{color:#74a9cd}
+    .vote-stack .vote.active{color:var(--blue)}
+    .vote .vote-arrow{width:10px;height:10px;border:solid currentColor;border-width:3px 0 0 3px;transform:rotate(45deg);display:inline-block;margin-top:6px}
+    .vote.down .vote-arrow{transform:rotate(225deg);margin-top:-6px}
+    .score{font-weight:700;font-size:16px;color:#464d53;padding:2px 0 4px}
+    .avatar{width:47px;height:47px;flex:none;position:relative;border-radius:50%;background:#cbd0d3;overflow:hidden}
+    .avatar::before{content:'';position:absolute;top:7px;left:14px;width:19px;height:23px;background:#fff;border-radius:48% 48% 44% 44%}
+    .avatar::after{content:'';position:absolute;top:28px;left:5px;width:38px;height:29px;background:#fff;border-radius:50% 50% 0 0}
+    .author{padding-top:6px;min-width:0;flex:1;color:#333b40;line-height:1.25}
+    .author strong{font-size:15px;font-weight:700}
+    .reputation{font-size:13px;color:#9da3ad;display:block;margin-top:2px}
+    .reputation strong{font-size:13px;font-weight:400;color:var(--green)}
+    .date-actions{margin-left:auto;align-self:flex-start;padding-top:5px;min-width:135px;text-align:right;color:#9ba2ac;font-size:12px;line-height:1.15}
+    .date-actions button{font-size:12px}
+    .date-actions .between{color:#bbc0c5}
+    .reply-ref{margin-top:21px;min-height:17px;font-size:13px;display:flex;flex-direction:column;align-items:flex-start}
+    .reply-ref button{font-size:13px;display:flex;align-items:center;flex-wrap:wrap;text-align:left;gap:4px}
+    .reply-symbol{color:#8d939a;font-size:15px;margin-right:2px;line-height:1}
+    .mini-chevron{font-size:12px;display:inline-block;transition:transform .15s}
+    .mini-chevron.up{transform:rotate(180deg)}
+    .parent-preview{margin-top:10px;width:100%;border:1px solid #d9dcdf;border-radius:2px;background:#fff;padding:15px 18px;box-shadow:inset 0 1px 1px rgba(0,0,0,.02)}
+    .parent-preview-top{display:flex;align-items:center;gap:9px;font-size:13px;margin-bottom:9px;color:#313a40}
+    .parent-preview .avatar{width:31px;height:31px}
+    .parent-preview .avatar::before{top:5px;left:10px;width:12px;height:16px}
+    .parent-preview .avatar::after{top:20px;left:3px;width:25px;height:18px}
+    .parent-preview .parent-copy{font-size:14px;max-height:96px;overflow:hidden;position:relative}
+    .parent-preview .parent-copy::after{content:'';display:block;position:absolute;left:0;right:0;bottom:0;height:19px;background:linear-gradient(transparent,#fff)}
+    .parent-preview-bottom{margin-top:10px}
+    .post-copy{margin:23px 0 21px;font-size:16px;color:#686b77;line-height:1.56;word-break:normal}
+    .reply-ref+.post-copy{margin-top:18px}
+    .post-copy p,.parent-copy p{margin:0 0 12px}
+    .post-copy p:last-child,.parent-copy p:last-child{margin-bottom:0}
+    .post-copy strong{font-weight:700;color:#575b65}
+    .post-copy em{font-style:italic}
+    .post-copy ul{margin:7px 0;padding-left:19px}
+    .post-copy li{padding:2px 0}
+    .post-copy blockquote{margin:10px 0;border-left:3px solid #d7e6f1;padding:5px 14px;background:#f9fbfc}
+    .post-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;min-height:20px}
+    .post-action-left{display:flex;align-items:center;flex-wrap:wrap}
+    .report{color:var(--red);white-space:nowrap}
+    .composer{margin-top:17px;background:#f8fafb;border:1px solid #dce2e5;padding:13px;border-radius:2px}
+    .composer .composer-heading{font-weight:700;color:#464a50;margin-bottom:8px}
+    .composer textarea{display:block;width:100%;resize:vertical;min-height:87px;padding:10px 12px;border:1px solid #cad1d7;border-radius:2px;background:#fff;color:#34383f;line-height:1.45}
+    .composer-footer{display:flex;align-items:center;gap:10px;margin-top:11px}
+    .composer-note{font-size:12px;color:#949aa1;margin-left:auto}
+    .footer-action{padding:16px 0 0;background:var(--panel)}
+    .load-more{display:flex;justify-content:center;background:#fff;padding:17px 12px;border-bottom:1px solid #e1e3e3}
+    .thread-tree{background:#fff}
+    .thread-node{min-width:0}
+    .thread-children{margin-left:17px;border-left:2px solid #3498db;min-width:0}
+    .thread-children .post{padding-left:22px}
+    .thread-children .thread-children{margin-left:15px}
+    .thread-children .thread-children .post{padding-left:20px}
+    .continuation{padding:8px 20px 19px;background:#fff;border-bottom:1px solid #ddd}
+    .continuation button{font-size:14px}
+    .thread-list .post{border-top:0}
+    .modal-backdrop{position:fixed;z-index:80;inset:0;background:rgba(0,0,0,.51);display:flex;justify-content:center;align-items:center;padding:32px 28px}
+    .modal-backdrop[hidden]{display:none}
+    .modal-panel{width:min(1100px,100%);max-height:calc(100dvh - 64px);display:flex;flex-direction:column;background:white;box-shadow:0 8px 20px rgba(0,0,0,.15);border-radius:2px;overflow:hidden}
+    .modal-toolbar{flex:none;min-height:37px}
+    .modal-close{display:inline-flex;color:#444b51;align-items:center;justify-content:center;font-size:20px;line-height:1;margin-left:15px}
+    .modal-body{overflow:auto;min-height:0;overscroll-behavior:contain;background:white;scrollbar-gutter:stable}
+    .modal-body .post{padding:22px 24px}
+    .modal-footer{background:#f9fafa;padding:15px 14px;border-top:1px solid #d9dcdf;flex:none}
+    body.modal-open{overflow:hidden}
+    .review-panel{position:fixed;z-index:110;bottom:17px;right:17px;background:white;border:1px solid #d0d6db;border-radius:8px;box-shadow:var(--shadow);width:315px;overflow:hidden;font-size:13px;color:#545f69}
+    .review-panel[hidden]{display:none}
+    .review-head{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e7e9ec;background:#fafbfc}
+    .review-head strong{font-size:14px;color:#2f3d48}
+    .review-head button{border:0;background:transparent;color:#7a8791;font-size:19px;line-height:1;padding:0 3px}
+    .review-body{padding:14px}
+    .review-label{font-size:12px;color:#7c8791;display:block;margin-bottom:7px;font-weight:600}
+    .review-label:not(:first-child){margin-top:15px}
+    .segmented{display:flex;border:1px solid #d2d9de;border-radius:5px;overflow:hidden}
+    .segmented button{flex:1;border:0;border-right:1px solid #d2d9de;background:#fff;padding:8px 5px;font-size:12px;color:#56606b;white-space:nowrap}
+    .segmented button:last-child{border-right:0}
+    .segmented button:hover{background:#f1f8fc}
+    .segmented button.selected{background:#e3f2fc;color:#1d80bd;font-weight:700}
+    .review-foot{margin-top:13px;font-size:11px;color:#8d959e;line-height:1.3}
+    .review-tab{position:fixed;bottom:17px;right:17px;border:1px solid #d0d6db;background:#fff;z-index:110;padding:9px 13px;border-radius:6px;box-shadow:var(--shadow);color:#387eaa;font-weight:700;font-size:13px}
+    .review-tab[hidden]{display:none}
+    .toast{position:fixed;z-index:150;left:50%;bottom:24px;transform:translateX(-50%);background:#3d464d;color:white;padding:10px 16px;border-radius:4px;box-shadow:0 5px 20px rgba(0,0,0,.15);font-size:14px;max-width:calc(100vw - 40px)}
+    .toast[hidden]{display:none}
+    .empty-state{padding:45px 20px;color:#89919b;text-align:center}
+    @media(max-width:850px){
+      .site-shell{padding:15px 15px 27px}
+      .question-tools{gap:10px}
+      .tool-glyph{font-size:21px}
+      .primary-tab{font-size:13px;padding:9px}
+      .primary-tab .ico{font-size:15px}
+      .question-card{padding:12px;gap:10px}
+      .forum-inner{padding:0 12px 15px}
+      .forum-heading{padding:11px 12px}
+      .post{padding:17px 15px}
+      .toolbar{flex-wrap:wrap}
+      .post-copy{font-size:15px}
+      .review-panel{bottom:10px;right:10px}
+    }
+    @media(max-width:560px){
+      .breadcrumbs{font-size:11px}
+      .timer,.primary-tabs .share-link,.primary-tab:not(.active):nth-of-type(n+4),.question-tools .book,.question-tools .pen,.question-tools .donut,.question-tools .dots{display:none}
+      .crest{width:38px;height:49px}
+      .question-title{font-size:14px}
+      .question-tools{gap:6px}
+      .forum-name{font-size:14px}
+      .forum-view{font-size:12px}
+      .forum-title-actions{gap:9px}
+      .btn{font-size:11px;padding:6px 8px}
+      .forum-inner{padding:0 6px 12px}
+      .toolbar{font-size:12px;gap:5px}
+      .toolbar-right{gap:10px}
+      .post{padding:16px 11px}
+      .post-header{gap:7px}
+      .vote-stack{width:22px;margin-right:0}
+      .avatar{width:34px;height:34px}
+      .avatar::before{top:5px;left:10px;width:14px;height:17px}
+      .avatar::after{top:21px;left:3px;width:28px;height:23px}
+      .author strong{font-size:13px}
+      .reputation,.reputation strong{font-size:11px}
+      .date-actions{min-width:92px;font-size:10px}
+      .date-actions button{font-size:10px}
+      .post-copy{font-size:14px;margin-top:16px}
+      .post-actions{font-size:12px}
+      .reply-ref{margin-top:15px;font-size:12px}
+      .reply-ref button{font-size:12px}
+      .thread-children{margin-left:9px}
+      .thread-children .thread-children{margin-left:8px}
+      .thread-children .post,.thread-children .thread-children .post{padding-left:9px}
+      .modal-backdrop{padding:8px}
+      .modal-panel{max-height:calc(100dvh - 16px)}
+      .modal-body .post{padding:15px 11px}
+      .review-panel{width:min(315px,calc(100vw - 20px))}
+    }
+  </style>
+</head>
+<body>
+  <div class="site-shell" id="site-shell">
+    <header aria-label="Contexto da questão">
+      <div class="breadcrumbs">
+        <nav class="crumbs" aria-label="Trilha de navegação">
+          <a href="#" data-action="demo-link">Estudo</a><i class="chevron" aria-hidden="true"></i>
+          <a href="#" data-action="demo-link">Minhas pastas</a><i class="chevron" aria-hidden="true"></i>
+          <a href="#" data-action="demo-link">Soldado Militar (PM MA)/2026 - Combatente</a><i class="chevron" aria-hidden="true"></i>
+          <span>Língua Portuguesa para PM MA - 2026</span><span style="color:#eb6867">×</span>
+        </nav>
+        <div class="timer" aria-hidden="true"><span>◉</span><span>↔</span><span>▥ 00:00:25</span></div>
+      </div>
+      <nav class="primary-tabs" aria-label="Áreas da questão">
+        <div class="primary-tab active"><span class="ico">Q</span> Questões</div>
+        <div class="primary-tab"><span class="ico">☷</span> Índice</div>
+        <div class="primary-tab"><span class="ico">◕</span> Estatísticas</div>
+        <div class="primary-tab"><span class="ico">✔</span> Gabarito</div>
+        <div class="primary-tab"><span class="ico">⚒</span> Configurações</div>
+        <div class="primary-tab"><span class="ico">▣</span> Imprimir</div>
+        <a class="share-link" href="#" data-action="demo-link">♧ Compartilhar</a>
+      </nav>
+      <div class="question-card">
+        <div class="crest" aria-hidden="true">
+          <svg viewBox="0 0 56 67" xmlns="http://www.w3.org/2000/svg"><path d="M28 3 49 10 46 41Q43 55 28 63 13 55 10 41L7 10Z" fill="#b5a36a" stroke="#5d5944" stroke-width="2.5"/><path d="M28 9 42 14 39 40Q36 48 28 54 20 48 17 40L14 14Z" fill="#e8dfad" stroke="#6f684b" stroke-width="1.5"/><path d="M15 25H41M19 35H37" stroke="#73746f" stroke-width="1.8"/><path d="M28 17 30.5 23H37L32 26.8 34 33 28 29 22 33 24 26.8 19 23H25.5Z" fill="#9f6650" stroke="#555" stroke-width=".8"/><text x="28" y="44" text-anchor="middle" font-size="8.5" font-weight="bold" fill="#5f5138">PM</text></svg>
+        </div>
+        <div class="question-info">
+          <div class="question-title">Questão 1 de 777 <small>(0 Resolvidas, <span class="ok">0 Acertos</span> e <span class="err">0 Erros</span>)</small> <span class="err">×</span></div>
+          <div class="detail">Matéria: <a href="#" data-action="demo-link">Língua Portuguesa (Português)</a></div>
+          <div class="detail">Assunto: <a href="#" data-action="demo-link">Fatos da Língua Portuguesa (Porque, Por Que, Porquê e Por Quê; Onde, Aonde e De Onde; Há e A, etc)</a> <span class="err">×</span></div>
+        </div>
+        <div class="question-tools" aria-hidden="true">
+          <span class="tool-glyph graduation">🎓</span><span class="tool-glyph book">▣</span><span class="tool-glyph bubble">●<span>23</span></span><span class="tool-glyph star">☆</span><span class="tool-glyph pen">✎</span><span class="donut"></span><span class="tool-glyph dots">⋮</span>
+        </div>
+      </div>
+    </header>
+    <main class="forum-region" id="forum-region">
+      <div class="forum-heading">
+        <div class="forum-title-actions"><span class="forum-name">☁ Fórum de discussão</span><button class="btn" data-action="new-post">Adicionar post</button></div>
+        <div class="forum-view">Visualizar: <span class="tiny-icon">▤</span><button class="link underlined" data-action="demo-link">Acima</button><button class="link close-forum" data-action="demo-link">Fechar</button></div>
+      </div>
+      <div class="forum-inner" id="forum-view-root"></div>
+    </main>
+  </div>
+
+  <div id="modal-layer" class="modal-backdrop" hidden aria-hidden="true">
+    <section class="modal-panel" role="dialog" aria-modal="true" aria-label="Discussão">
+      <div id="modal-toolbar"></div>
+      <div id="modal-body" class="modal-body"></div>
+      <div class="modal-footer"><button class="btn" data-action="new-post">Adicionar post</button></div>
+    </section>
+  </div>
+
+  <aside class="review-panel" id="review-panel" aria-label="Controles para avaliação do protótipo">
+    <div class="review-head"><strong>◈ Comparar propostas</strong><button title="Ocultar controles" aria-label="Ocultar controles" data-action="hide-review">−</button></div>
+    <div class="review-body">
+      <span class="review-label">Ao clicar em “Ver discussão”</span>
+      <div class="segmented" role="group" aria-label="Forma de abrir a discussão"><button data-action="set-presentation" data-value="page">Página</button><button data-action="set-presentation" data-value="modal">Modal</button></div>
+      <span class="review-label">Visualizações que o produto oferece</span>
+      <div class="segmented" role="group" aria-label="Modos de visualização disponíveis"><button data-action="set-policy" data-value="both">Ambas</button><button data-action="set-policy" data-value="chronological">Só cronológica</button><button data-action="set-policy" data-value="threaded">Só encadeada</button></div>
+      <div class="review-foot">Estes controles são apenas para avaliação. Não fazem parte da interface proposta.</div>
+    </div>
+  </aside>
+  <button id="review-tab" class="review-tab" hidden data-action="show-review">◈ Comparar propostas</button>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script>
+  (()=>{
+    'use strict';
+    // A single canonical reply graph is used by the feed, flat discussion and threaded discussion.
+    // In the threaded view children are ordered by posting time within each parent branch.
+    // In the chronological view all descendants of a root are flattened by time.
+    const initialComments = [
+      {id:101, parent:null, author:'Marina Soares', reputation:1894, points:48, at:'2026-10-28T09:00:00', body:`<p>Pessoal, ainda estou confundindo <strong>“por que” e “porque”</strong> nas questões. A regra de substituir por “por qual motivo” funciona sempre que a frase é uma pergunta?</p><p>E no caso de “Não sei por que ele faltou”, mesmo sem ponto de interrogação, continua separado?</p>`},
+      {id:102, parent:101, author:'Gustavo Lima', reputation:6548, points:23, at:'2026-10-28T09:12:00', body:`<p>Sim, Marina. Em <strong>“Não sei por que ele faltou”</strong>, você pode trocar por “por qual motivo ele faltou”. É uma pergunta indireta, por isso fica separado.</p><p>Já em “Ele faltou <strong>porque</strong> estava doente”, a palavra introduz a explicação.</p>`},
+      {id:103, parent:101, author:'Larissa Almeida', reputation:2087, points:19, at:'2026-10-28T09:18:00', body:`<p>Eu só acrescentaria um detalhe: <strong>“por que”</strong> também pode equivaler a “pelo qual”, “pela qual” etc.</p><p>Ex.: “Este é o motivo <strong>por que</strong> saí cedo”. Nesse caso, não é uma pergunta, mas continua separado.</p>`},
+      {id:104, parent:102, author:'Elisa Fernandes', reputation:1103, points:8, at:'2026-10-28T09:34:00', body:`<p>Gustavo, e quando a pergunta termina com a expressão? Tipo: “Você faltou <strong>por quê</strong>?”</p><p>O acento aparece só porque está no final da frase?</p>`},
+      {id:105, parent:104, author:'Gustavo Lima', reputation:6548, points:13, at:'2026-10-28T09:47:00', body:`<p>Isso! Quando o <strong>“que”</strong> é tônico e aparece no final da frase (ou antes de uma pausa marcada por pontuação), usamos <strong>“por quê”</strong>.</p><p>Compare: “<em>Por que</em> você faltou?” e “Você faltou <em>por quê</em>?”</p>`},
+      {id:106, parent:101, author:'Bruno Castro', reputation:3441, points:11, at:'2026-10-28T09:21:00', body:`<p>O macete que uso é: <strong>por que = pergunta/motivo; porque = resposta/explicação</strong>. Depois lembro das duas exceções para não cair na pegadinha.</p>`},
+      {id:107, parent:103, author:'Thiago Moura', reputation:974, points:5, at:'2026-10-28T10:02:00', body:`<p>Larissa, seu exemplo ajudou muito. Eu estava aplicando a regra da pergunta de forma automática e errando as frases com “motivo por que”. Obrigado!</p>`},
+      {id:108, parent:101, author:'Karina Oliveira', reputation:7342, points:31, at:'2026-10-28T10:15:00', body:`<p>Montei este resuminho para revisão:</p><ul><li><strong>Por que</strong> — pergunta direta/indireta ou “pelo qual”.</li><li><strong>Porque</strong> — explicação ou causa.</li><li><strong>Por quê</strong> — no fim, antes de pausa.</li><li><strong>Porquê</strong> — substantivo, geralmente com artigo: “o porquê”.</li></ul><p>O mais importante é olhar a função na frase, não decorar só o lugar.</p>`},
+      {id:109, parent:108, author:'Marina Soares', reputation:1894, points:6, at:'2026-10-28T10:26:00', body:`<p>Karina, era exatamente um resumo assim que eu precisava! A última linha é a que faz mais diferença para mim.</p>`},
+      {id:110, parent:101, author:'Renata Pereira', reputation:2916, points:14, at:'2026-10-28T10:39:00', body:`<p>Uma pegadinha comum da banca: “Gostaria de saber <strong>o porquê</strong> da mudança”. Aqui tem artigo (“o”), então é substantivo e recebe acento, mesmo estando no meio da frase.</p>`},
+      {id:111, parent:105, author:'Clara Santos', reputation:828, points:4, at:'2026-10-29T07:51:00', body:`<p>Então a vírgula também pode provocar essa pausa? Por exemplo: “Você veio por quê, afinal?”</p>`},
+      {id:112, parent:110, author:'Bruno Castro', reputation:3441, points:7, at:'2026-10-29T08:03:00', body:`<p>Perfeito, Renata. Dá para substituir por “o motivo”: “Gostaria de saber <strong>o motivo</strong> da mudança”. É um ótimo teste para o <strong>porquê</strong> substantivo.</p>`},
+      {id:201, parent:null, author:'Daniel Ribeiro', reputation:2183, points:9, at:'2026-10-29T09:05:00', body:`<p>Em prova, vocês resolvem primeiro pela regra dos quatro porquês ou tentam <strong>substituir a expressão</strong> por outra? Estou buscando uma forma mais rápida de decidir.</p>`},
+      {id:202, parent:201, author:'Camila Nunes', reputation:4025, points:12, at:'2026-10-29T09:16:00', body:`<p>Eu faço pela substituição. Se couber “pois”, penso em <strong>porque</strong>. Se couber “por qual motivo”, penso em <strong>por que</strong>. Depois confiro se está no fim ou se é substantivo.</p>`},
+      {id:301, parent:null, author:'André Teixeira', reputation:692, points:3, at:'2026-10-29T11:42:00', body:`<p>Uma dica extra: vale a pena reler o enunciado inteiro antes de olhar as alternativas. Às vezes a pontuação já entrega a função do “quê”.</p>`},
+      {id:113, parent:101, author:'Elisa Fernandes', reputation:1103, points:17, at:'2026-10-30T08:31:00', body:`<p>Voltei para contar que resolvi dez questões sobre isso hoje e acertei nove! A distinção entre pergunta indireta e explicação finalmente ficou clara.</p>`},
+      {id:114, parent:113, author:'Marina Soares', reputation:1894, points:10, at:'2026-10-30T10:14:00', body:`<p>Que bom, Elisa! Também fui melhor nos exercícios depois desta conversa. Eu tinha tentado memorizar as regras sem entender a relação entre as frases.</p>`},
+      {id:115, parent:103, author:'Ricardo Freitas', reputation:1230, points:6, at:'2026-10-30T10:32:00', body:`<p>Para reforçar o que a Larissa disse: em “A razão <strong>por que</strong> estudamos”, o “por que” equivale a “pela qual”. Não há interrogação e a grafia continua separada.</p>`}
+    ];
+    const state={comments:initialComments.map(c=>({...c})),sort:'recent',presentation:'page',policy:'both',view:'chronological',threadId:null,openMenu:null,composerFor:null,expandedParents:new Set(),expandedContinuations:new Set(),votes:new Map(),pinned:new Set(),visibleCount:8,reviewVisible:true,editingText:'',savedScroll:0};
+    const $=sel=>document.querySelector(sel);
+    const viewRoot=$('#forum-view-root');
+    const modalLayer=$('#modal-layer');
+    const modalBody=$('#modal-body');
+    let toastTimeout;
+    function escapeHTML(value){return String(value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
+    function getComment(id){return state.comments.find(c=>c.id===Number(id));}
+    function rootOf(c){let current=c,guard=0;while(current&&current.parent!=null&&guard++<50){const parent=getComment(current.parent);if(!parent)break;current=parent;}return current;}
+    function descendants(c){let count=0;const seen=new Set();function visit(id){for(const ch of state.comments.filter(x=>x.parent===id)){if(seen.has(ch.id))continue;seen.add(ch.id);count++;visit(ch.id);}}visit(c.id);return count;}
+    function childrenOf(id){return state.comments.filter(c=>c.parent===id).sort((a,b)=>new Date(a.at)-new Date(b.at)||a.id-b.id);}
+    function threadOf(id){const root=getComment(id);if(!root)return[];return state.comments.filter(c=>rootOf(c)?.id===rootOf(root)?.id);}
+    function formatTime(value){const d=new Date(value);return new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(d).replace(',','');}
+    function voteScore(c){return c.points+(state.votes.get(c.id)||0);}
+    function sortedFeed(){const arr=state.comments.slice();const byDate=(a,b)=>new Date(a.at)-new Date(b.at)||a.id-b.id;switch(state.sort){case 'old':arr.sort(byDate);break;case 'points':arr.sort((a,b)=>voteScore(b)-voteScore(a)||-byDate(a,b));break;case 'replies':arr.sort((a,b)=>descendants(b)-descendants(a)||-byDate(a,b));break;default:arr.sort((a,b)=>-byDate(a,b));}return arr;}
+    function renderMenu(name,options){if(state.openMenu!==name)return'';return `<div class="menu" role="menu">${options.map(([v,label])=>`<button role="menuitem" class="menu-item ${state[name==='sort'?'sort':'view']===v?'active':''}" data-action="pick-${name}" data-value="${v}">${escapeHTML(label)}</button>`).join('')}</div>`;}
+    function feedToolbar(){const sorts=[['recent','Mais recentes'],['old','Mais antigos'],['points','Mais pontos'],['replies','Mais respostas']];const current=sorts.find(([value])=>value===state.sort)[1];return `<div class="toolbar"><span><span class="link underlined" style="cursor:default">Acompanhe essa questão</span> para saber de novos posts</span><div class="toolbar-right"><span>Exibir: <span class="link underlined" style="cursor:default">Todos os posts</span></span><span>Ordenar por: <span class="dropdown-holder"><button class="link underlined" aria-haspopup="menu" aria-expanded="${state.openMenu==='sort'}" data-action="menu-sort">${current}</button>${renderMenu('sort',sorts)}</span></span></div></div>`;}
+    function discussionToolbar(modal){const options=[['chronological','Cronológica'],['threaded','Encadeada']];const label=state.view==='chronological'?'Cronológica':'Encadeada';return `<div class="toolbar ${modal?'modal-toolbar':''}"><button class="link crumb-btn" data-action="back"><span class="arrow-left">←</span> Voltar para o fórum</button><div class="toolbar-right">${state.policy==='both'?`<span class="muted">Visualização: <span class="dropdown-holder"><button class="link underlined" aria-haspopup="menu" aria-expanded="${state.openMenu==='view'}" data-action="menu-view">${label}</button>${renderMenu('view',options)}</span></span>`:''}${modal?`<button class="link modal-close" aria-label="Fechar discussão" title="Fechar discussão" data-action="back">×</button>`:''}</div></div>`;}
+    function avatar(){return '<span class="avatar" aria-hidden="true"></span>';}
+    function renderPreview(c){const parent=getComment(c.parent);if(!parent||!state.expandedParents.has(c.id))return'';return `<div class="parent-preview"><div class="parent-preview-top">${avatar()}<strong>${escapeHTML(parent.author)}</strong><span style="margin-left:auto;color:#949aa2">${formatTime(parent.at)}</span></div><div class="parent-copy">${parent.body}</div><div class="parent-preview-bottom"><button class="link" data-action="jump-parent" data-value="${parent.id}">Ir ao comentário na discussão →</button></div></div>`;}
+    function renderComposer(c){if(state.composerFor!==c.id)return'';return `<form class="composer" data-reply-to="${c.id}" autocomplete="off"><div class="composer-heading">Respondendo a ${escapeHTML(c.author)}</div><textarea name="reply" placeholder="Escreva sua resposta..." required maxlength="2200">${escapeHTML(state.editingText)}</textarea><div class="composer-footer"><button type="submit" class="btn">Publicar resposta</button><button type="button" class="btn secondary" data-action="cancel-compose">Cancelar</button><span class="composer-note">Demonstração local</span></div></form>`;}
+    function renderPost(c,thread=false){const ref=c.parent!=null?getComment(c.parent):null;const discussionLink=!thread&&(c.parent!=null||descendants(c)>0);const selected=state.votes.get(c.id)||0;return `<article class="post" id="${thread?(state.presentation==='modal'?'modal-':'thread-'):'feed-'}post-${c.id}" data-post-id="${c.id}"><div class="post-header"><div class="vote-stack" aria-label="Pontuação ${voteScore(c)}"><button class="vote up ${selected===1?'active':''}" title="Voto positivo" aria-label="Voto positivo" data-action="vote-up" data-value="${c.id}"><i class="vote-arrow"></i></button><span class="score">${voteScore(c)}</span><button class="vote down ${selected===-1?'active':''}" title="Voto negativo" aria-label="Voto negativo" data-action="vote-down" data-value="${c.id}"><i class="vote-arrow"></i></button></div>${avatar()}<div class="author"><strong>${escapeHTML(c.author)}</strong><span class="reputation"><strong>+${c.reputation}</strong> pontos</span></div><div class="date-actions"><time datetime="${c.at}">${formatTime(c.at)}</time><br><button class="link" data-action="demo-link">silenciar</button><span class="between"> · </span><button class="link" data-action="demo-link">bloquear</button></div></div>${ref?`<div class="reply-ref"><button class="link" data-action="preview-parent" data-value="${c.id}" aria-expanded="${state.expandedParents.has(c.id)}"><span class="reply-symbol">↳</span> Em resposta a <strong>${escapeHTML(ref.author)}</strong><span class="mini-chevron ${state.expandedParents.has(c.id)?'up':''}">⌄</span></button>${renderPreview(c)}</div>`:''}<div class="post-copy">${c.body}</div><div class="post-actions"><div class="post-action-left">${discussionLink?`<button class="link" data-action="open-thread" data-value="${c.id}">Ver discussão</button><span class="dot">·</span>`:''}<button class="link" data-action="compose" data-value="${c.id}">Responder</button><span class="dot">·</span><button class="link" data-action="pin" data-value="${c.id}">${state.pinned.has(c.id)?'Fixado ✓':'Fixar'}</button></div><button class="link report" data-action="report" data-value="${c.id}">Denunciar</button></div>${renderComposer(c)}</article>`;}
+    function renderFlatThread(root){return `<div class="post-list thread-list">${threadOf(root).sort((a,b)=>new Date(a.at)-new Date(b.at)||a.id-b.id).map(c=>renderPost(c,true)).join('')}</div>`;}
+    function renderBranch(c,depth=0){const kids=childrenOf(c.id);const collapsed=depth>=3&&kids.length>0&&!state.expandedContinuations.has(c.id);return `<div class="thread-node">${renderPost(c,true)}${collapsed?`<div class="continuation"><button class="link" data-action="continue" data-value="${c.id}">Ver a continuação desta conversa → <span style="color:#8b959d">(${kids.length} ${kids.length===1?'resposta':'respostas'} direta${kids.length===1?'':'s'})</span></button></div>`:kids.length?`<div class="thread-children">${kids.map(child=>renderBranch(child,depth+1)).join('')}</div>`:''}</div>`;}
+    function renderDiscussion(){const root=getComment(state.threadId);if(!root)return'<div class="empty-state">Discussão não encontrada.</div>';return state.view==='chronological'?renderFlatThread(rootOf(root).id):`<div class="thread-tree">${renderBranch(rootOf(root),0)}</div>`;}
+    function renderFeed(){const all=sortedFeed(),posts=all.slice(0,state.visibleCount);return `${feedToolbar()}<div class="post-list">${posts.map(c=>renderPost(c,false)).join('')}${all.length>posts.length?`<div class="load-more"><button class="link" data-action="show-more">Mostrar mais posts (${all.length-posts.length} restantes) ↓</button></div>`:''}</div><div class="footer-action"><button class="btn" data-action="new-post">Adicionar post</button></div>`;}
+    function renderPage(){return `${discussionToolbar(false)}${renderDiscussion()}<div class="footer-action"><button class="btn" data-action="new-post">Adicionar post</button></div>`;}
+    function renderReview(){for(const b of document.querySelectorAll('[data-action="set-presentation"]')){const selected=b.dataset.value===state.presentation;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected));}for(const b of document.querySelectorAll('[data-action="set-policy"]')){const selected=b.dataset.value===state.policy;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected));}$('#review-panel').hidden=!state.reviewVisible;$('#review-tab').hidden=state.reviewVisible;}
+    function render({retainScroll=false}={}){const modalScroll=retainScroll?modalBody.scrollTop:0;const modalOpen=state.threadId!=null&&state.presentation==='modal';viewRoot.innerHTML=state.threadId!=null&&state.presentation==='page'?renderPage():renderFeed();modalLayer.hidden=!modalOpen;modalLayer.setAttribute('aria-hidden',String(!modalOpen));document.body.classList.toggle('modal-open',modalOpen);if(modalOpen){$('#modal-toolbar').innerHTML=discussionToolbar(true);modalBody.innerHTML=renderDiscussion();modalBody.scrollTop=retainScroll?modalScroll:0;}else{$('#modal-toolbar').innerHTML='';modalBody.innerHTML='';}const addingRoot=state.composerFor==='new';const rootComposer=document.querySelector('#new-post-composer');if(addingRoot&&!rootComposer){const area=document.createElement('div');area.id='new-post-composer';area.className='composer';area.innerHTML=`<form data-reply-to="new"><div class="composer-heading">Adicionar post ao fórum</div><textarea name="reply" placeholder="Escreva seu post..." required maxlength="2200">${escapeHTML(state.editingText)}</textarea><div class="composer-footer"><button class="btn" type="submit">Publicar post</button><button class="btn secondary" type="button" data-action="cancel-compose">Cancelar</button><span class="composer-note">Demonstração local</span></div></form>`;const target=modalOpen?$('#modal-body'):viewRoot;target.append(area);}renderReview();}
+    function scrollToComment(id){const prefix=state.threadId!=null?(state.presentation==='modal'?'modal-':'thread-'):'feed-';const el=document.getElementById(`${prefix}post-${id}`);if(!el)return;el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('emphasized');setTimeout(()=>el.classList.remove('emphasized'),1700);}
+    function openThread(id){const comment=getComment(id);if(!comment)return;state.threadId=rootOf(comment).id;state.view=state.policy==='threaded'?'threaded':'chronological';state.openMenu=null;state.composerFor=null;state.editingText='';render();if(state.presentation==='page')requestAnimationFrame(()=>$('#forum-region').scrollIntoView({block:'start',behavior:'smooth'}));}
+    function closeThread(){state.threadId=null;state.openMenu=null;state.composerFor=null;state.editingText='';render();}
+    function toast(message){const node=$('#toast');node.textContent=message;node.hidden=false;clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>{node.hidden=true;},3100);}
+    function focusEditor(){const t=state.presentation==='modal'&&state.threadId!=null?modalBody.querySelector('textarea[name="reply"]'):viewRoot.querySelector('textarea[name="reply"]');if(t){t.focus();t.scrollIntoView({block:'nearest',behavior:'smooth'});}}
+    document.addEventListener('click',event=>{const button=event.target.closest('[data-action]');if(!button){if(state.openMenu){state.openMenu=null;render({retainScroll:true});}return;}const action=button.dataset.action;const val=button.dataset.value;const inModal=state.threadId!=null&&state.presentation==='modal';if(action==='demo-link'){event.preventDefault();toast('Este elemento faz parte do contexto visual. A demonstração se concentra no fórum.');return;}
+      if(action==='open-thread'){openThread(val);return;}
+      if(action==='back'){closeThread();return;}
+      if(action==='menu-sort'||action==='menu-view'){state.openMenu=state.openMenu===action.replace('menu-','')?null:action.replace('menu-','');render({retainScroll:true});return;}
+      if(action==='pick-sort'){state.sort=val;state.visibleCount=8;state.openMenu=null;render({retainScroll:true});return;}
+      if(action==='pick-view'){state.view=val;state.openMenu=null;render();if(inModal)modalBody.scrollTop=0;return;}
+      if(action==='show-more'){state.visibleCount+=8;render({retainScroll:true});return;}
+      if(action==='set-presentation'){state.presentation=val;state.openMenu=null;render();if(state.threadId!=null&&val==='page')requestAnimationFrame(()=>$('#forum-region').scrollIntoView({block:'start',behavior:'smooth'}));return;}
+      if(action==='set-policy'){state.policy=val;if(val==='chronological')state.view='chronological';if(val==='threaded')state.view='threaded';if(val==='both')state.view='chronological';state.openMenu=null;render();return;}
+      if(action==='preview-parent'){const id=Number(val);if(state.expandedParents.has(id))state.expandedParents.delete(id);else state.expandedParents.add(id);render({retainScroll:true});return;}
+      if(action==='jump-parent'){const c=getComment(val);if(!c)return;if(state.threadId==null)openThread(val);requestAnimationFrame(()=>scrollToComment(c.id));return;}
+      if(action==='continue'){state.expandedContinuations.add(Number(val));render({retainScroll:true});requestAnimationFrame(()=>scrollToComment(val));return;}
+      if(action==='compose'){state.composerFor=Number(val);state.editingText='';state.openMenu=null;render({retainScroll:true});requestAnimationFrame(focusEditor);return;}
+      if(action==='new-post'){state.composerFor='new';state.editingText='';state.openMenu=null;render({retainScroll:true});requestAnimationFrame(focusEditor);return;}
+      if(action==='cancel-compose'){state.composerFor=null;state.editingText='';render({retainScroll:true});return;}
+      if(action==='vote-up'||action==='vote-down'){const id=Number(val),dir=action==='vote-up'?1:-1;state.votes.set(id,state.votes.get(id)===dir?0:dir);render({retainScroll:true});return;}
+      if(action==='pin'){const id=Number(val);if(state.pinned.has(id))state.pinned.delete(id);else state.pinned.add(id);render({retainScroll:true});toast(state.pinned.has(id)?'Post fixado para esta demonstração.':'Post desafixado.');return;}
+      if(action==='report'){toast('Fluxo de denúncia fora do escopo deste protótipo.');return;}
+      if(action==='hide-review'){state.reviewVisible=false;renderReview();return;}
+      if(action==='show-review'){state.reviewVisible=true;renderReview();return;}
+    });
+    document.addEventListener('input',event=>{if(event.target.matches('textarea[name="reply"]'))state.editingText=event.target.value;});
+    document.addEventListener('submit',event=>{
+      const form=event.target.closest('form[data-reply-to]');
+      if(!form)return;
+      event.preventDefault();
+      const value=String(new FormData(form).get('reply')||'').trim();
+      if(!value){toast('Escreva o conteúdo antes de publicar.');return;}
+      const id=Math.max(...state.comments.map(c=>c.id))+1;
+      const parent=form.dataset.replyTo==='new'?null:Number(form.dataset.replyTo);
+      const safeBody=escapeHTML(value).split(/\n\s*\n/).map(x=>`<p>${x.replace(/\n/g,'<br>')}</p>`).join('');
+      state.comments.push({id,parent,author:'Você (demonstração)',reputation:0,points:1,at:new Date().toISOString(),body:safeBody});
+      state.composerFor=null;
+      state.editingText='';
+      state.openMenu=null;
+      if(parent!==null){
+        state.threadId=rootOf(getComment(parent)).id;
+        // Reveal deep branches containing the new reply, if the threaded view was selected.
+        let ancestor=getComment(parent);
+        while(ancestor){state.expandedContinuations.add(ancestor.id);ancestor=ancestor.parent===null?null:getComment(ancestor.parent);}
+      }else{
+        state.threadId=null;
+        state.sort='recent';
+        state.visibleCount=8;
+      }
+      render();
+      toast(parent!==null?'Resposta publicada neste protótipo.':'Post publicado neste protótipo.');
+      requestAnimationFrame(()=>{
+        if(parent!==null)scrollToComment(id);
+        else window.scrollTo({top:$('#forum-region').getBoundingClientRect().top+window.scrollY,behavior:'smooth'});
+      });
+    });
+    modalLayer.addEventListener('click',event=>{if(event.target===modalLayer)closeThread();});
+    document.addEventListener('keydown',event=>{if(event.key==='Escape'){if(state.openMenu){state.openMenu=null;render({retainScroll:true});}else if(state.threadId!=null&&state.presentation==='modal'){closeThread();}else if(state.composerFor!=null){state.composerFor=null;state.editingText='';render();}}});
+    render();
+  })();
+  </script>
+</body>
+</html>
