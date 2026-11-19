@@ -29,7 +29,7 @@
       localStorage.setItem(key, JSON.stringify(value));
       return true;
     } catch (error) {
-      toast("Não foi possível salvar: o armazenamento do navegador está cheio ou bloqueado.");
+      toast("Could not save: browser storage is full or blocked.");
       return false;
     }
   }
@@ -38,7 +38,7 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[letter];
     });
   }
-  function niceNumber(n) { return Number(n || 0).toLocaleString("pt-BR"); }
+  function niceNumber(n) { return Number(n || 0).toLocaleString("en-US"); }
   function shuffle(list) {
     var result = list.slice();
     for (var i = result.length - 1; i > 0; i--) {
@@ -113,18 +113,18 @@
       var ready = stats.due + stats.newCards;
       var progressPercent = deck.cards.length ? 100 * stats.studied / deck.cards.length : 0;
       var status = ready > 0
-        ? "<strong>" + ready + "</strong> para estudar"
-        : "<strong>✓</strong> em dia · prática extra";
+        ? "<strong>" + ready + "</strong> ready to study"
+        : "<strong>✓</strong> up to date · extra practice";
       return '<button class="deck-card" type="button" data-deck-index="' + index + '">' +
         '<span class="deck-card-top"><span class="deck-symbol" aria-hidden="true">' +
         escapeHTML(deck.symbol || "✳") +
-        '</span><span class="deck-meta">' + deck.cards.length + ' CARTAS' +
-        (deck.imported ? ' · IMPORTADO' : '') + '</span></span>' +
+        '</span><span class="deck-meta">' + deck.cards.length + ' CARDS' +
+        (deck.imported ? ' · IMPORTED' : '') + '</span></span>' +
         '<span class="deck-card-title"><h3>' + escapeHTML(deck.title) + '</h3></span>' +
-        '<span class="deck-description">' + escapeHTML(deck.description || "Coleção pessoal de estudo.") + '</span>' +
+        '<span class="deck-description">' + escapeHTML(deck.description || "Personal study deck.") + '</span>' +
         '<span class="deck-spacer"></span>' +
-        '<span class="deck-progress" aria-label="' + stats.studied + ' de ' + deck.cards.length + ' já estudadas"><span style="width:' + progressPercent + '%"></span></span>' +
-        '<span class="deck-card-foot"><span class="deck-due">' + status + '</span><span class="deck-play">Estudar <span aria-hidden="true">↗</span></span></span>' +
+        '<span class="deck-progress" aria-label="' + stats.studied + ' of ' + deck.cards.length + ' cards studied"><span style="width:' + progressPercent + '%"></span></span>' +
+        '<span class="deck-card-foot"><span class="deck-due">' + status + '</span><span class="deck-play">Study <span aria-hidden="true">↗</span></span></span>' +
       '</button>';
     }).join("");
     document.querySelectorAll("[data-deck-index]").forEach(function (button) {
@@ -139,22 +139,22 @@
   function normalizeDeck(source, filename, imported) {
     var object = Array.isArray(source) ? { title: filename.replace(/\.json$/i, ""), cards: source } : source;
     if (!object || typeof object !== "object" || !Array.isArray(object.cards)) {
-      throw new Error("O JSON precisa conter um campo 'cards' com uma lista de perguntas.");
+      throw new Error("The JSON must contain a 'cards' field with a list of questions.");
     }
     if (object.cards.length < 1 || object.cards.length > 1000) {
-      throw new Error("Use entre 1 e 1.000 flashcards por deck.");
+      throw new Error("Use between 1 and 1,000 flashcards per deck.");
     }
     var ids = new Set();
     var cards = object.cards.map(function (sourceCard, index) {
-      if (!sourceCard || typeof sourceCard !== "object") throw new Error("Carta " + (index + 1) + " inválida.");
+      if (!sourceCard || typeof sourceCard !== "object") throw new Error("Invalid card " + (index + 1) + ".");
       var front = sourceCard.front !== undefined ? sourceCard.front : (sourceCard.question !== undefined ? sourceCard.question : sourceCard.frente);
       var back = sourceCard.back !== undefined ? sourceCard.back : (sourceCard.answer !== undefined ? sourceCard.answer : sourceCard.verso);
       if (typeof front !== "string" || typeof back !== "string" || !front.trim() || !back.trim()) {
-        throw new Error("A carta " + (index + 1) + " precisa ter 'front' e 'back' em texto.");
+        throw new Error("Card " + (index + 1) + " must have text fields 'front' and 'back'.");
       }
-      if (front.length > 1500 || back.length > 1500) throw new Error("A carta " + (index + 1) + " tem texto longo demais.");
+      if (front.length > 1500 || back.length > 1500) throw new Error("Card " + (index + 1) + " has too much text.");
       var id = String(sourceCard.id === undefined ? ("c" + (index + 1)) : sourceCard.id);
-      if (ids.has(id)) throw new Error("Há cartas com o mesmo ID: " + id);
+      if (ids.has(id)) throw new Error("Duplicate card ID: " + id);
       ids.add(id);
       return { id: id, front: front.trim(), back: back.trim() };
     });
@@ -171,6 +171,12 @@
     };
   }
 
+  // English interface labels; deck card content retains its source language.
+  var starterLabels = {
+    "br-estados-capitais": { title: "Brazilian state capitals", description: "The 26 states and Federal District: 27 capitals." },
+    "america-do-sul-paises": { title: "South American countries", description: "Identify 12 sovereign countries from geographic clues." },
+    "america-do-sul-capitais": { title: "South American capitals", description: "The capitals of 12 countries, including Bolivia's special case." }
+  };
   async function loadBuiltins() {
     var results = await Promise.allSettled(BUILTIN_PATHS.map(async function (path) {
       var response = await fetch(path, { cache: "no-store" });
@@ -179,16 +185,23 @@
       return normalizeDeck(parsed, path.split("/").pop(), false);
     }));
     builtins = results.filter(function (item) { return item.status === "fulfilled"; })
-      .map(function (item) { return item.value; });
+      .map(function (item) {
+        var deck = item.value;
+        if (starterLabels[deck.id]) {
+          deck.title = starterLabels[deck.id].title;
+          deck.description = starterLabels[deck.id].description;
+        }
+        return deck;
+      });
     if (results.some(function (item) { return item.status === "rejected"; })) {
-      toast("Alguns decks de exemplo não carregaram. Tente atualizar a página.");
+      toast("Some starter decks could not load. Try refreshing the page.");
     }
     renderLibrary();
   }
 
   async function importFile(file) {
     if (!file) return;
-    if (file.size > 1024 * 1024) { toast("O arquivo precisa ter menos de 1 MB."); return; }
+    if (file.size > 1024 * 1024) { toast("The file must be under 1 MB."); return; }
     try {
       var text = await file.text();
       var parsed = JSON.parse(text);
@@ -197,9 +210,9 @@
       if (!save(STORAGE.imports, updated)) return;
       importedDecks = updated;
       renderLibrary();
-      toast("Deck importado: " + deck.cards.length + " cartas.");
+      toast("Deck imported: " + deck.cards.length + " cards.");
     } catch (error) {
-      toast(error instanceof SyntaxError ? "JSON inválido. Confira a sintaxe do arquivo." : error.message);
+      toast(error instanceof SyntaxError ? "Invalid JSON. Please check the file syntax." : error.message);
     }
   }
 
@@ -232,10 +245,10 @@
     revealed = false;
     ratingLocked = false;
     el("study-title").textContent = deck.title;
-    el("study-mode-label").textContent = practice ? "PRÁTICA EXTRA · SEM XP" : "SESSÃO DE ESTUDO";
+    el("study-mode-label").textContent = practice ? "EXTRA PRACTICE · NO XP" : "STUDY SESSION";
     view("study-view");
     showCard();
-    if (practice) toast("Você está em dia! Prática extra não modifica revisões nem soma XP.");
+    if (practice) toast("All caught up! Extra practice does not change reviews or earn XP.");
   }
 
   function showCard() {
@@ -249,16 +262,16 @@
     el("card-content").textContent = card.front;
     el("card-front-small").hidden = true;
     el("card-front-small").textContent = "";
-    el("card-side-label").textContent = "PERGUNTA";
-    el("card-status-label").textContent = seen > 0 ? "NOVA TENTATIVA" : (record ? "REVISÃO" : "CARTA NOVA");
-    el("card-hint").textContent = "Pense na resposta antes de revelar";
+    el("card-side-label").textContent = "QUESTION";
+    el("card-status-label").textContent = seen > 0 ? "TRY AGAIN" : (record ? "REVIEW" : "NEW CARD");
+    el("card-hint").textContent = "Recall the answer before revealing";
     el("flashcard").classList.remove("is-revealed");
-    el("flashcard").setAttribute("aria-label", "Revelar resposta");
+    el("flashcard").setAttribute("aria-label", "Reveal answer");
     el("rating-area").hidden = true;
     el("reveal-button").hidden = false;
     el("card-counter").textContent = String(session.index + 1).padStart(2, "0") + " / " + String(session.queue.length).padStart(2, "0");
     el("progress-fill").style.width = (100 * session.index / session.queue.length) + "%";
-    el("remaining-text").textContent = (session.queue.length - session.index) + " carta(s) restantes";
+    el("remaining-text").textContent = (session.queue.length - session.index) + " card(s) remaining";
     updateXP();
   }
   function reveal() {
@@ -268,30 +281,76 @@
     el("card-front-small").textContent = card.front;
     el("card-front-small").hidden = false;
     el("card-content").textContent = card.back;
-    el("card-side-label").textContent = "RESPOSTA";
-    el("card-hint").textContent = "Marque como foi sua lembrança";
-    el("flashcard").setAttribute("aria-label", "Resposta: " + card.back);
+    el("card-side-label").textContent = "ANSWER";
+    el("card-hint").textContent = "Rate your recall";
+    el("flashcard").setAttribute("aria-label", "Answer: " + card.back);
     el("flashcard").classList.add("is-revealed");
     el("reveal-button").hidden = true;
     el("rating-area").hidden = false;
+    var old = getRecord(session.deck.id, card.id) || {};
+    el("good-review-label").textContent = session.practice ?
+      "No schedule changes" : intervalLabel(nextIntervalDays(old));
+    el("xp-preview").textContent = session.practice ?
+      "Extra practice changes neither the review schedule nor XP." :
+      "Good: +" + niceNumber(xpForSuccess(old, session.seen[card.id] || 0)) +
+      " XP. Your score never affects the next review.";
   }
 
+  // Simple two-grade SM-2-inspired scheduler. Never reads XP.
+  function nextIntervalDays(old) {
+    var streak = safeInt(old.streak);
+    var last = safeInt(old.intervalDays);
+    if (!streak || !last) return 1;
+    if (streak === 1) return Math.max(3, last + 1);
+    return Math.max(last + 1, Math.round(last * 2.5));
+  }
+  function reviewSchedule(old, rating) {
+    var success = rating === "good";
+    var record = {
+      reviews: safeInt(old.reviews) + 1,
+      correct: safeInt(old.correct) + (success ? 1 : 0),
+      misses: safeInt(old.misses) + (success ? 0 : 1),
+      streak: success ? safeInt(old.streak) + 1 : 0,
+      intervalDays: success ? nextIntervalDays(old) : 0,
+      lastRating: rating,
+      lastReviewedAt: new Date().toISOString(),
+      dueAt: ""
+    };
+    record.dueAt = success ? nextDate(record.intervalDays) :
+      new Date(Date.now() + TEN_MINUTES).toISOString();
+    return record;
+  }
+  // Engagement only: never reads due dates or review intervals.
+  function xpForSuccess(old, attemptsThisSession) {
+    var bonus = 1 + Math.min(0.60, safeInt(old.misses) * 0.15);
+    var repeat = attemptsThisSession > 0 ? 0.25 : 1;
+    return Math.max(5, Math.round(100 * bonus * repeat / 5) * 5);
+  }
+  function intervalLabel(days) {
+    return days === 1 ? "Review tomorrow" : "Review in " + days + " days";
+  }
   function rate(rating) {
     if (!session || !revealed || ratingLocked) return;
-    if (["again", "hard", "easy"].indexOf(rating) === -1) return;
+    if (rating !== "again" && rating !== "good") return;
     ratingLocked = true;
     var card = session.queue[session.index];
     var old = getRecord(session.deck.id, card.id) || {};
     var seen = session.seen[card.id] || 0;
-    var previouslyDue = safeInt(old.reviews) > 0 && isDue(old);
+    var success = rating === "good";
     var score = 0;
-    if (rating !== "again") {
+    // Record the learning result independently of rewards.
+    if (!session.practice) {
+      setRecord(session.deck.id, card.id, reviewSchedule(old, rating));
+      if (!success && seen < 2) {
+        var insertAt = Math.min(session.queue.length, session.index + 4);
+        session.queue.splice(insertAt, 0, card);
+      }
+    }
+    // XP is calculated separately and never feeds scheduling.
+    if (success) {
       session.correct++;
       if (!session.practice) {
-        var base = rating === "hard" ? 130 : 100;
-        var difficulty = 1 + Math.min(0.60, safeInt(old.misses) * 0.15);
-        var raw = (base * difficulty + (previouslyDue ? 20 : 0)) * (seen > 0 ? 0.25 : 1);
-        score = Math.max(5, Math.round(raw / 5) * 5);
+        score = xpForSuccess(old, seen);
         session.xp += score;
         totalXP += score;
         save(STORAGE.xp, totalXP);
@@ -299,42 +358,14 @@
     } else {
       session.wrong++;
     }
-
-    if (!session.practice) {
-      var record = {
-        reviews: safeInt(old.reviews) + 1,
-        correct: safeInt(old.correct) + (rating === "again" ? 0 : 1),
-        misses: safeInt(old.misses) + (rating === "again" ? 1 : 0),
-        streak: rating === "again" ? 0 : safeInt(old.streak) + 1,
-        intervalDays: 0,
-        lastRating: rating,
-        lastReviewedAt: new Date().toISOString(),
-        dueAt: ""
-      };
-      if (rating === "again") {
-        record.dueAt = new Date(Date.now() + TEN_MINUTES).toISOString();
-        if (seen < 2) {
-          var insertAt = Math.min(session.queue.length, session.index + 4);
-          session.queue.splice(insertAt, 0, card);
-        }
-      } else {
-        var previousInterval = safeInt(old.intervalDays);
-        record.intervalDays = rating === "hard"
-          ? (previousInterval ? Math.max(1, Math.round(previousInterval * 1.5)) : 1)
-          : (previousInterval ? Math.max(3, Math.round(previousInterval * 2.5)) : 3);
-        record.dueAt = nextDate(record.intervalDays);
-      }
-      setRecord(session.deck.id, card.id, record);
-    }
-
     session.seen[card.id] = seen + 1;
     updateXP();
-    if (rating === "again") {
-      toast(session.practice ? "Erro anotado (prática extra)." : "Errou · carta volta mais adiante.");
+    if (!success) {
+      toast(session.practice ? "Not recalled (extra practice)." : "Not recalled. This card will come back soon.");
     } else if (session.practice) {
-      toast("Acertou! Prática extra não soma XP.");
+      toast("Good recall! Extra practice does not earn XP.");
     } else {
-      toast("+" + niceNumber(score) + " XP · " + (rating === "hard" ? "lembrou com esforço" : "lembrou facilmente"));
+      toast("+" + niceNumber(score) + " XP · Good recall");
     }
     session.index++;
     window.setTimeout(function () { showCard(); }, 330);
@@ -344,17 +375,17 @@
     if (!session) return;
     var finished = session;
     el("summary-deck-title").textContent = finished.deck.title +
-      (finished.practice ? " · prática extra" : " · revisão do dia");
+      (finished.practice ? " · extra practice" : " · daily review");
     el("summary-xp").textContent = niceNumber(finished.xp);
     el("summary-correct").textContent = niceNumber(finished.correct);
     el("summary-wrong").textContent = niceNumber(finished.wrong);
     var stats = deckStats(finished.deck);
     if (finished.practice) {
-      el("summary-next").textContent = "Você já estava em dia. Essa prática não modificou seu agendamento de revisão.";
+      el("summary-next").textContent = "You were already up to date. Extra practice did not change your review schedule.";
     } else if (stats.due + stats.newCards > 0) {
-      el("summary-next").textContent = "Ainda há " + (stats.due + stats.newCards) + " carta(s) disponíveis para estudar neste deck.";
+      el("summary-next").textContent = "There are still " + (stats.due + stats.newCards) + " cards available to study in this deck.";
     } else {
-      el("summary-next").textContent = "Tudo revisado por enquanto. Volte quando houver cartas agendadas.";
+      el("summary-next").textContent = "All caught up for now. Come back when your next reviews are due.";
     }
     session = null;
     view("summary-view");
@@ -390,9 +421,9 @@
     var tag = event.target && event.target.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA") return;
     if (event.code === "Space" && !revealed) { event.preventDefault(); reveal(); }
-    if (revealed && !ratingLocked && (event.key === "1" || event.key === "2" || event.key === "3")) {
+    if (revealed && !ratingLocked && (event.key === "1" || event.key === "2")) {
       event.preventDefault();
-      rate({ "1": "again", "2": "hard", "3": "easy" }[event.key]);
+      rate({ "1": "again", "2": "good" }[event.key]);
     }
     if (event.key === "Escape") backHome();
   });
