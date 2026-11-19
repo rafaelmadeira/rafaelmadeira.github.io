@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f3ed">
+  <meta name="description" content="A flashcard study prototype with XP and spaced repetition.">
+  <title>Flashcards Lab — Recall & XP</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="site-shell">
+    <header class="topbar">
+      <button class="brand" id="brand-home" type="button" aria-label="Back to decks">
+        <span class="brand-symbol" aria-hidden="true">F<span class="brand-dot">·</span></span>
+        <span class="brand-wordmark">flashcards<span class="brand-light">/lab</span></span>
+      </button>
+      <div class="topbar-right">
+        <span class="prototype-tag">EXPERIMENT 003</span>
+        <div class="global-score" aria-label="Total XP">
+          <span class="score-star" aria-hidden="true">✳</span>
+          <strong id="total-xp">0</strong>
+          <span>XP</span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="library-view" class="view" aria-labelledby="library-title">
+        <div class="library-heading">
+          <div>
+            <p class="eyebrow"><span class="eyebrow-line"></span> YOUR LIBRARY</p>
+            <h1 id="library-title">One card<br><em>at a time.</em></h1>
+            <p class="intro">Practice what matters to you. Every successful recall counts — and spaced repetition brings each card back when it needs reviewing.</p>
+          </div>
+          <div class="library-action">
+            <button id="import-button" class="button button-primary" type="button">
+              <span aria-hidden="true">↥</span> Import JSON deck
+            </button>
+            <p class="helper">Your decks and progress stay in this browser.</p>
+          </div>
+        </div>
+
+        <div class="section-heading">
+          <h2>My decks <span id="deck-count" class="count-tag">0</span></h2>
+          <span class="section-note">Choose one to begin</span>
+        </div>
+        <div id="deck-grid" class="deck-grid" aria-live="polite"></div>
+        <div id="library-empty" class="empty-state" hidden>
+          <h3>No decks available</h3>
+          <p>Import a JSON file to start studying.</p>
+        </div>
+
+        <div class="guide">
+          <div class="guide-heading">
+            <span class="guide-icon" aria-hidden="true">✳</span>
+            <div>
+              <p class="eyebrow">HOW IT WORKS</p>
+              <h2>Study first. Score second.</h2>
+            </div>
+          </div>
+          <div class="guide-steps">
+            <div class="guide-step"><span class="step-index">01</span><p>Read the prompt, recall the answer, then <strong>reveal the card</strong>.</p></div>
+            <div class="guide-step"><span class="step-index">02</span><p>Rate your recall as <strong>No recall</strong>, <strong>Incorrect</strong>, <strong>Correct</strong> or <strong>Effortless</strong>.</p></div>
+            <div class="guide-step"><span class="step-index">03</span><p>Score each attempt, recover from setbacks and earn one-time mastery bonuses. Review dates remain independent.</p></div>
+          </div>
+          <button id="show-formula" class="text-link" type="button" aria-expanded="false" aria-controls="formula-details">Scoring and review rules <span aria-hidden="true">↗</span></button>
+          <div id="formula-details" class="formula-details" hidden>
+            <p><strong>XP:</strong> the first correct recall earns 100 base XP; subsequent correct recalls earn progressively less (minimum 20). Each unresolved miss adds +25 comeback XP to the next success, but the miss itself costs 40 XP. <strong>No recall</strong> and <strong>Incorrect</strong> have identical penalties. Reaching a 30-day review interval for the first time earns a one-off +500 mastery bonus. XP does not affect review timing.</p>
+            <p><strong>Spaced repetition:</strong> No recall and Incorrect both repeat soon and become due in about 10 minutes. Correct uses 1 day, then 3 days, then approximately 2.5×; Effortless uses 3 days, then 7 days, then approximately 2.8×. A failed recall resets the successful streak. Extra practice never changes XP or scheduling. This is an experimental simplified scheduler, <em>not</em> Anki FSRS. A 30-day interval is an arbitrary game milestone, not permanent learning.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="study-view" class="view" aria-labelledby="study-title" hidden>
+        <div class="session-head">
+          <button id="back-to-library" class="back-link" type="button"><span aria-hidden="true">←</span> Meus decks</button>
+          <div class="session-xp"><span aria-hidden="true">✳</span> <strong id="session-xp">0</strong> XP this session</div>
+        </div>
+        <div class="session-title-row">
+          <div>
+            <p class="eyebrow" id="study-mode-label">STUDY SESSION</p>
+            <h1 id="study-title">Deck</h1>
+          </div>
+          <span class="counter" id="card-counter">01 / 15</span>
+        </div>
+        <div class="progress-track" aria-label="Session progress"><div id="progress-fill" class="progress-fill"></div></div>
+
+        <button id="flashcard" type="button" class="flashcard" aria-label="Reveal answer">
+          <span class="card-topline">
+            <span id="card-side-label">QUESTION</span>
+            <span id="card-status-label">NEW CARD</span>
+          </span>
+          <span class="card-main">
+            <span id="card-front-small" class="card-front-small" hidden></span>
+            <span id="card-content" class="card-content"></span>
+          </span>
+          <span class="card-bottomline">
+            <span id="card-hint">Recall the answer before revealing</span>
+            <span class="card-corner" aria-hidden="true">↗</span>
+          </span>
+        </button>
+
+        <div class="answer-area">
+          <button id="reveal-button" class="button button-primary reveal-button" type="button">Revelar resposta <span aria-hidden="true">↗</span></button>
+          <div id="rating-area" class="rating-area" hidden>
+            <p>Rate your recall</p>
+            <div class="rating-buttons">
+              <button class="rating-button rating-no-recall" data-rating="norecall" type="button">
+                <span class="rating-mark" aria-hidden="true">—</span>
+                <span><strong>No recall</strong><small>Try again soon</small></span><kbd>1</kbd>
+              </button>
+              <button class="rating-button rating-incorrect" data-rating="incorrect" type="button">
+                <span class="rating-mark" aria-hidden="true">×</span>
+                <span><strong>Incorrect</strong><small>Try again soon</small></span><kbd>2</kbd>
+              </button>
+              <button class="rating-button rating-correct" data-rating="correct" type="button">
+                <span class="rating-mark" aria-hidden="true">✓</span>
+                <span><strong>Correct</strong><small id="correct-review-label">Review tomorrow</small></span><kbd>3</kbd>
+              </button>
+              <button class="rating-button rating-effortless" data-rating="effortless" type="button">
+                <span class="rating-mark" aria-hidden="true">✦</span>
+                <span><strong>Effortless</strong><small id="effortless-review-label">Review in 3 days</small></span><kbd>4</kbd>
+              </button>
+            </div>
+            <p class="rating-footnote" id="xp-preview">Your review schedule is independent of scoring.</p>
+          </div>
+        </div>
+        <div class="study-footer">
+          <span id="remaining-text">15 cards this session</span>
+          <span>Space: reveal <span class="shortcut-divider">·</span> 1–4: rate</span>
+        </div>
+      </section>
+
+      <section id="summary-view" class="view summary-view" aria-labelledby="summary-title" hidden>
+        <p class="eyebrow"><span class="eyebrow-line"></span> SESSION COMPLETE</p>
+        <div class="summary-asterisk" aria-hidden="true">✳</div>
+        <h1 id="summary-title">Well<br><em>remembered.</em></h1>
+        <p id="summary-deck-title" class="summary-subtitle"></p>
+        <div class="summary-stats">
+          <div class="stat-block stat-xp"><span>NET XP</span><strong id="summary-xp">0</strong></div>
+          <div class="stat-block"><span>SUCCESSFUL</span><strong id="summary-correct">0</strong></div>
+          <div class="stat-block"><span>FAILED</span><strong id="summary-wrong">0</strong></div>
+        </div>
+        <div id="summary-recall-counts" class="summary-recall-counts" aria-label="Recall ratings"></div>
+        <section class="score-report" aria-labelledby="score-report-title">
+          <div class="score-report-head">
+            <span class="eyebrow">YOUR SCORE</span>
+            <h2 id="score-report-title">Score breakdown</h2>
+            <p>Every bonus and penalty from this session, separated from your learning schedule.</p>
+          </div>
+          <div id="score-breakdown" class="score-breakdown"></div>
+          <details class="score-events">
+            <summary>View each card's score</summary>
+            <ol id="score-events-list"></ol>
+          </details>
+        </section>
+        <p id="summary-next" class="summary-next"></p>
+        <button id="summary-home" class="button button-primary" type="button">Voltar aos decks <span aria-hidden="true">→</span></button>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>FLASHCARDS / LAB — V0.3</span>
+      <span>An experiment in memory &amp; scoring.</span>
+    </footer>
+  </div>
+  <input id="deck-file" type="file" accept=".json,application/json" hidden>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

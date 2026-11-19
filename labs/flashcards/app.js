@@ -57,7 +57,8 @@
   if (!Array.isArray(importedDecks)) importedDecks = [];
   var progress = read(STORAGE.progress, {});
   if (!progress || typeof progress !== "object" || Array.isArray(progress)) progress = {};
-  var totalXP = safeInt(read(STORAGE.xp, 0));
+  var totalXP = Number(read(STORAGE.xp, 0));
+  if (!Number.isFinite(totalXP)) totalXP = 0;
   var builtins = [];
   var session = null;
   var revealed = false;
@@ -240,6 +241,7 @@
       correct: 0,
       wrong: 0,
       xp: 0,
+      events: [],
       practice: practice
     };
     revealed = false;
@@ -263,7 +265,7 @@
     el("card-front-small").hidden = true;
     el("card-front-small").textContent = "";
     el("card-side-label").textContent = "QUESTION";
-    el("card-status-label").textContent = seen > 0 ? "TRY AGAIN" : (record ? "REVIEW" : "NEW CARD");
+    el("card-status-label").textContent = seen > 0 ? "TRY AGAIN" : (record && record.masteryReachedAt ? "MASTERY MILESTONE" : (record ? "REVIEW" : "NEW CARD"));
     el("card-hint").textContent = "Recall the answer before revealing";
     el("flashcard").classList.remove("is-revealed");
     el("flashcard").setAttribute("aria-label", "Reveal answer");
@@ -288,87 +290,199 @@
     el("reveal-button").hidden = true;
     el("rating-area").hidden = false;
     var old = getRecord(session.deck.id, card.id) || {};
-    el("good-review-label").textContent = session.practice ?
-      "No schedule changes" : intervalLabel(nextIntervalDays(old));
-    el("xp-preview").textContent = session.practice ?
-      "Extra practice changes neither the review schedule nor XP." :
-      "Good: +" + niceNumber(xpForSuccess(old, session.seen[card.id] || 0)) +
-      " XP. Your score never affects the next review.";
+    el("correct-review-label").textContent = session.practice ?
+      "No schedule changes" : intervalLabel(nextIntervalDays(old, "correct"));
+    el("effortless-review-label").textContent = session.practice ?
+      "No schedule changes" : intervalLabel(nextIntervalDays(old, "effortless"));
+    if (session.practice) {
+      el("xp-preview").textContent = "Extra practice: no XP gained or lost and no schedule changes.";
+    } else {
+      var preview = calculateScore(old, "correct", reviewSchedule(old, "correct"));
+      el("xp-preview").textContent =
+        "Correct or Effortless: " + signedPoints(preview.total) +
+        " XP · Failed recall: −40 XP · XP never changes review dates.";
+    }
+
   }
 
-  // Simple two-grade SM-2-inspired scheduler. Never reads XP.
-  function nextIntervalDays(old) {
+  // Ratings feed only the memory scheduler. No XP enters these functions.
+  function isSuccess(rating) { return rating === "correct" || rating === "effortless"; }
+  function unresolvedMisses(record) {
+    if (Number.isFinite(Number(record.unrecoveredMisses))) return safeInt(record.unrecoveredMisses);
+    // Preserve a minimum useful count for v0.1/v0.2 data.
+    return record.lastRating === "again" ? 1 : 0;
+  }
+  function nextIntervalDays(old, rating) {
     var streak = safeInt(old.streak);
-    var last = safeInt(old.intervalDays);
-    if (!streak || !last) return 1;
-    if (streak === 1) return Math.max(3, last + 1);
-    return Math.max(last + 1, Math.round(last * 2.5));
+    var previous = safeInt(old.intervalDays);
+    if (rating === "effortless") {
+      if (!streak || !previous) return 3;
+      if (streak === 1) return Math.max(7, previous + 1);
+      return Math.max(previous + 1, Math.round(previous * 2.8));
+    }
+    if (!streak || !previous) return 1;
+    if (streak === 1) return Math.max(3, previous + 1);
+    return Math.max(previous + 1, Math.round(previous * 2.5));
   }
   function reviewSchedule(old, rating) {
-    var success = rating === "good";
-    var record = {
+    var success = isSuccess(rating);
+    var intervalDays = success ? nextIntervalDays(old, rating) : 0;
+    var next = {
       reviews: safeInt(old.reviews) + 1,
       correct: safeInt(old.correct) + (success ? 1 : 0),
       misses: safeInt(old.misses) + (success ? 0 : 1),
       streak: success ? safeInt(old.streak) + 1 : 0,
-      intervalDays: success ? nextIntervalDays(old) : 0,
+      unrecoveredMisses: success ? 0 : unresolvedMisses(old) + 1,
+      intervalDays: intervalDays,
       lastRating: rating,
       lastReviewedAt: new Date().toISOString(),
-      dueAt: ""
+      dueAt: "",
+      masteryReachedAt: old.masteryReachedAt || null
     };
-    record.dueAt = success ? nextDate(record.intervalDays) :
+    next.dueAt = success ? nextDate(intervalDays) :
       new Date(Date.now() + TEN_MINUTES).toISOString();
-    return record;
+    // "Mastery" is an experimental, one-time game milestone, NOT permanent memory.
+    // A long scheduled interval is only a proxy for retrieval stability.
+    if (success && !next.masteryReachedAt && next.streak >= 4 && intervalDays >= 30) {
+      next.masteryReachedAt = next.lastReviewedAt;
+    }
+    return next;
   }
-  // Engagement only: never reads due dates or review intervals.
-  function xpForSuccess(old, attemptsThisSession) {
-    var bonus = 1 + Math.min(0.60, safeInt(old.misses) * 0.15);
-    var repeat = attemptsThisSession > 0 ? 0.25 : 1;
-    return Math.max(5, Math.round(100 * bonus * repeat / 5) * 5);
+  // Score calculation reads study history but NEVER changes the scheduler.
+  // A deliberate miss costs 40 XP and adds at most 25 XP to the next success.
+  function calculateScore(old, rating, next) {
+    if (!isSuccess(rating)) {
+      return { base: 0, decay: 0, recovery: 0, mastery: 0, penalty: -40, total: -40 };
+    }
+    var priorSuccesses = safeInt(old.correct);
+    var reducedBase = Math.max(20, Math.round((100 / (1 + priorSuccesses * 0.35)) / 5) * 5);
+    var base = 100;
+    var decay = reducedBase - 100;
+    var recovery = 25 * unresolvedMisses(old);
+    var mastery = !old.masteryReachedAt && !!next.masteryReachedAt ? 500 : 0;
+    return {
+      base: base, decay: decay, recovery: recovery, mastery: mastery, penalty: 0,
+      total: base + decay + recovery + mastery
+    };
   }
   function intervalLabel(days) {
     return days === 1 ? "Review tomorrow" : "Review in " + days + " days";
   }
+  function signedPoints(n) {
+    return n > 0 ? "+" + niceNumber(n) : niceNumber(n);
+  }
+  function ratingLabel(rating) {
+    return {
+      norecall: "No recall",
+      incorrect: "Incorrect",
+      correct: "Correct",
+      effortless: "Effortless"
+    }[rating] || rating;
+  }
   function rate(rating) {
     if (!session || !revealed || ratingLocked) return;
-    if (rating !== "again" && rating !== "good") return;
+    if (["norecall", "incorrect", "correct", "effortless"].indexOf(rating) === -1) return;
     ratingLocked = true;
     var card = session.queue[session.index];
     var old = getRecord(session.deck.id, card.id) || {};
     var seen = session.seen[card.id] || 0;
-    var success = rating === "good";
-    var score = 0;
-    // Record the learning result independently of rewards.
+    var success = isSuccess(rating);
+    var next = reviewSchedule(old, rating);
+    var score = session.practice
+      ? { base: 0, decay: 0, recovery: 0, mastery: 0, penalty: 0, total: 0 }
+      : calculateScore(old, rating, next);
+
     if (!session.practice) {
-      setRecord(session.deck.id, card.id, reviewSchedule(old, rating));
-      if (!success && seen < 2) {
+      setRecord(session.deck.id, card.id, next);
+      session.xp += score.total;
+      totalXP += score.total;
+      save(STORAGE.xp, totalXP);
+    }
+    if (success) {
+      session.correct++;
+      // Remove duplicate pending retries after successful recall.
+      session.queue = session.queue.slice(0, session.index + 1).concat(
+        session.queue.slice(session.index + 1).filter(function (queued) {
+          return queued.id !== card.id;
+        })
+      );
+    } else {
+      session.wrong++;
+      if (!session.practice && seen < 2) {
         var insertAt = Math.min(session.queue.length, session.index + 4);
         session.queue.splice(insertAt, 0, card);
       }
     }
-    // XP is calculated separately and never feeds scheduling.
-    if (success) {
-      session.correct++;
-      if (!session.practice) {
-        score = xpForSuccess(old, seen);
-        session.xp += score;
-        totalXP += score;
-        save(STORAGE.xp, totalXP);
-      }
-    } else {
-      session.wrong++;
-    }
+    session.events.push({
+      question: card.front, rating: rating, base: score.base, decay: score.decay,
+      recovery: score.recovery, mastery: score.mastery, penalty: score.penalty,
+      total: score.total
+    });
     session.seen[card.id] = seen + 1;
     updateXP();
-    if (!success) {
-      toast(session.practice ? "Not recalled (extra practice)." : "Not recalled. This card will come back soon.");
-    } else if (session.practice) {
-      toast("Good recall! Extra practice does not earn XP.");
+    if (session.practice) {
+      toast("Extra practice: no XP or schedule changes.");
+    } else if (!success) {
+      toast("−40 XP · " + ratingLabel(rating) + " · Review again soon");
+    } else if (score.mastery) {
+      toast(signedPoints(score.total) + " XP · Mastery milestone unlocked!");
+    } else if (score.recovery) {
+      toast(signedPoints(score.total) + " XP · Comeback bonus!");
     } else {
-      toast("+" + niceNumber(score) + " XP · Good recall");
+      toast(signedPoints(score.total) + " XP · " + ratingLabel(rating));
     }
     session.index++;
     window.setTimeout(function () { showCard(); }, 330);
+  }
+
+  function renderScoreReport(finished) {
+    var sums = { base: 0, decay: 0, recovery: 0, mastery: 0, penalty: 0 };
+    var counts = { norecall: 0, incorrect: 0, correct: 0, effortless: 0 };
+    finished.events.forEach(function (event) {
+      Object.keys(sums).forEach(function (key) { sums[key] += event[key]; });
+      counts[event.rating]++;
+    });
+    var rows = [
+      ["Recall rewards", sums.base],
+      ["Repeated-recall reduction", sums.decay],
+      ["Comeback bonuses", sums.recovery],
+      ["Mastery milestones", sums.mastery],
+      ["Miss penalties", sums.penalty]
+    ];
+    var net = rows.reduce(function (total, row) { return total + row[1]; }, 0);
+    el("score-breakdown").innerHTML = rows.map(function (row) {
+      var cssClass = row[1] > 0 ? "positive" : (row[1] < 0 ? "negative" : "neutral");
+      return '<div class="score-breakdown-row"><span>' + row[0] +
+        '</span><strong class="' + cssClass + '">' + signedPoints(row[1]) +
+        ' XP</strong></div>';
+    }).join("") +
+      '<div class="score-breakdown-row net"><span>Session total</span><strong class="' +
+      (net < 0 ? "negative" : "") + '">' + signedPoints(net) + ' XP</strong></div>';
+    el("summary-recall-counts").innerHTML =
+      '<span>No recall: ' + counts.norecall + '</span>' +
+      '<span>Incorrect: ' + counts.incorrect + '</span>' +
+      '<span>Correct: ' + counts.correct + '</span>' +
+      '<span>Effortless: ' + counts.effortless + '</span>';
+    el("score-events-list").innerHTML = finished.events.map(function (event) {
+      var details = [];
+      if (event.base) details.push("Base +" + niceNumber(event.base));
+      if (event.decay) details.push("Repeat " + signedPoints(event.decay));
+      if (event.recovery) details.push("Comeback +" + niceNumber(event.recovery));
+      if (event.mastery) details.push("Mastery +" + niceNumber(event.mastery));
+      if (event.penalty) details.push("Miss " + signedPoints(event.penalty));
+      if (!details.length) details.push("Extra practice");
+      return '<li><div class="score-event-content">' +
+        '<span class="score-event-rating">' + ratingLabel(event.rating) + '</span>' +
+        '<strong>' + escapeHTML(event.question) + '</strong>' +
+        '<small>' + escapeHTML(details.join(" · ")) + '</small></div>' +
+        '<span class="score-event-points ' + (event.total < 0 ? "negative" : "") + '">' +
+        signedPoints(event.total) + ' XP</span></li>';
+    }).join("");
+    var details = document.querySelector(".score-events");
+    if (details) details.open = false;
+    if (net !== finished.xp) {
+      console.warn("Score breakdown total differs from session XP", net, finished.xp);
+    }
   }
 
   function finishSession() {
@@ -379,6 +493,7 @@
     el("summary-xp").textContent = niceNumber(finished.xp);
     el("summary-correct").textContent = niceNumber(finished.correct);
     el("summary-wrong").textContent = niceNumber(finished.wrong);
+    renderScoreReport(finished);
     var stats = deckStats(finished.deck);
     if (finished.practice) {
       el("summary-next").textContent = "You were already up to date. Extra practice did not change your review schedule.";
@@ -421,9 +536,9 @@
     var tag = event.target && event.target.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA") return;
     if (event.code === "Space" && !revealed) { event.preventDefault(); reveal(); }
-    if (revealed && !ratingLocked && (event.key === "1" || event.key === "2")) {
+    if (revealed && !ratingLocked && (event.key === "1" || event.key === "2" || event.key === "3" || event.key === "4")) {
       event.preventDefault();
-      rate({ "1": "again", "2": "good" }[event.key]);
+      rate({ "1": "norecall", "2": "incorrect", "3": "correct", "4": "effortless" }[event.key]);
     }
     if (event.key === "Escape") backHome();
   });
