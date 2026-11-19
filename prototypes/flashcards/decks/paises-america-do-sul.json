@@ -1,0 +1,68 @@
+{
+  "id": "america-do-sul-paises",
+  "title": "Países da América do Sul",
+  "description": "Os 12 países soberanos do continente, aprendidos por pistas geográficas.",
+  "symbol": "SA",
+  "cards": [
+    {
+      "id": "argentina",
+      "front": "Que país da América do Sul ocupa a maior parte da Patagônia a leste dos Andes?",
+      "back": "Argentina"
+    },
+    {
+      "id": "bolivia",
+      "front": "Qual país sul-americano sem litoral tem Sucre e La Paz como centros políticos?",
+      "back": "Bolívia"
+    },
+    {
+      "id": "brasil",
+      "front": "Qual é o maior país da América do Sul em extensão territorial?",
+      "back": "Brasil"
+    },
+    {
+      "id": "chile",
+      "front": "Que país se estende por uma longa faixa entre os Andes e o oceano Pacífico?",
+      "back": "Chile"
+    },
+    {
+      "id": "colombia",
+      "front": "Qual país sul-americano tem costa no mar do Caribe e no oceano Pacífico?",
+      "back": "Colômbia"
+    },
+    {
+      "id": "equador",
+      "front": "Que país sul-americano recebeu o nome da linha imaginária que o atravessa?",
+      "back": "Equador"
+    },
+    {
+      "id": "guiana",
+      "front": "Qual país da América do Sul tem o inglês como língua oficial e faz fronteira com o Suriname?",
+      "back": "Guiana"
+    },
+    {
+      "id": "paraguai",
+      "front": "Que país sem litoral faz fronteira com o Brasil, a Bolívia e a Argentina?",
+      "back": "Paraguai"
+    },
+    {
+      "id": "peru",
+      "front": "Em qual país sul-americano fica Machu Picchu?",
+      "back": "Peru"
+    },
+    {
+      "id": "suriname",
+      "front": "Qual país da América do Sul tem o neerlandês como língua oficial?",
+      "back": "Suriname"
+    },
+    {
+      "id": "uruguai",
+      "front": "Que país fica ao sul do Brasil e a leste da Argentina?",
+      "back": "Uruguai"
+    },
+    {
+      "id": "venezuela",
+      "front": "Em qual país da América do Sul fica o Salto Ángel?",
+      "back": "Venezuela"
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+{
+  "id": "br-estados-capitais",
+  "title": "Capitais dos estados do Brasil",
+  "description": "26 estados + Distrito Federal. Perguntas sobre as 27 capitais.",
+  "symbol": "BR",
+  "cards": [
+    {
+      "id": "AC",
+      "front": "Qual é a capital do Acre?",
+      "back": "Rio Branco"
+    },
+    {
+      "id": "AL",
+      "front": "Qual é a capital de Alagoas?",
+      "back": "Maceió"
+    },
+    {
+      "id": "AP",
+      "front": "Qual é a capital do Amapá?",
+      "back": "Macapá"
+    },
+    {
+      "id": "AM",
+      "front": "Qual é a capital do Amazonas?",
+      "back": "Manaus"
+    },
+    {
+      "id": "BA",
+      "front": "Qual é a capital da Bahia?",
+      "back": "Salvador"
+    },
+    {
+      "id": "CE",
+      "front": "Qual é a capital do Ceará?",
+      "back": "Fortaleza"
+    },
+    {
+      "id": "DF",
+      "front": "Qual é a capital do Distrito Federal?",
+      "back": "Brasília"
+    },
+    {
+      "id": "ES",
+      "front": "Qual é a capital do Espírito Santo?",
+      "back": "Vitória"
+    },
+    {
+      "id": "GO",
+      "front": "Qual é a capital de Goiás?",
+      "back": "Goiânia"
+    },
+    {
+      "id": "MA",
+      "front": "Qual é a capital do Maranhão?",
+      "back": "São Luís"
+    },
+    {
+      "id": "MT",
+      "front": "Qual é a capital de Mato Grosso?",
+      "back": "Cuiabá"
+    },
+    {
+      "id": "MS",
+      "front": "Qual é a capital de Mato Grosso do Sul?",
+      "back": "Campo Grande"
+    },
+    {
+      "id": "MG",
+      "front": "Qual é a capital de Minas Gerais?",
+      "back": "Belo Horizonte"
+    },
+    {
+      "id": "PA",
+      "front": "Qual é a capital do Pará?",
+      "back": "Belém"
+    },
+    {
+      "id": "PB",
+      "front": "Qual é a capital da Paraíba?",
+      "back": "João Pessoa"
+    },
+    {
+      "id": "PR",
+      "front": "Qual é a capital do Paraná?",
+      "back": "Curitiba"
+    },
+    {
+      "id": "PE",
+      "front": "Qual é a capital de Pernambuco?",
+      "back": "Recife"
+    },
+    {
+      "id": "PI",
+      "front": "Qual é a capital do Piauí?",
+      "back": "Teresina"
+    },
+    {
+      "id": "RJ",
+      "front": "Qual é a capital do Rio de Janeiro?",
+      "back": "Rio de Janeiro"
+    },
+    {
+      "id": "RN",
+      "front": "Qual é a capital do Rio Grande do Norte?",
+      "back": "Natal"
+    },
+    {
+      "id": "RS",
+      "front": "Qual é a capital do Rio Grande do Sul?",
+      "back": "Porto Alegre"
+    },
+    {
+      "id": "RO",
+      "front": "Qual é a capital de Rondônia?",
+      "back": "Porto Velho"
+    },
+    {
+      "id": "RR",
+      "front": "Qual é a capital de Roraima?",
+      "back": "Boa Vista"
+    },
+    {
+      "id": "SC",
+      "front": "Qual é a capital de Santa Catarina?",
+      "back": "Florianópolis"
+    },
+    {
+      "id": "SP",
+      "front": "Qual é a capital de São Paulo?",
+      "back": "São Paulo"
+    },
+    {
+      "id": "SE",
+      "front": "Qual é a capital de Sergipe?",
+      "back": "Aracaju"
+    },
+    {
+      "id": "TO",
+      "front": "Qual é a capital do Tocantins?",
+      "back": "Palmas"
+    }
+  ]
+}

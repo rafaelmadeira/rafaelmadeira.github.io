@@ -1,0 +1,68 @@
+{
+  "id": "america-do-sul-capitais",
+  "title": "Capitais da América do Sul",
+  "description": "Os 12 países soberanos e suas capitais. Bolívia tem uma distinção importante.",
+  "symbol": "C",
+  "cards": [
+    {
+      "id": "ARG",
+      "front": "Qual é a capital da Argentina?",
+      "back": "Buenos Aires"
+    },
+    {
+      "id": "BOL",
+      "front": "Qual é a capital da Bolívia?",
+      "back": "Sucre (capital constitucional); La Paz (sede do governo)."
+    },
+    {
+      "id": "BRA",
+      "front": "Qual é a capital do Brasil?",
+      "back": "Brasília"
+    },
+    {
+      "id": "CHL",
+      "front": "Qual é a capital do Chile?",
+      "back": "Santiago"
+    },
+    {
+      "id": "COL",
+      "front": "Qual é a capital da Colômbia?",
+      "back": "Bogotá"
+    },
+    {
+      "id": "ECU",
+      "front": "Qual é a capital do Equador?",
+      "back": "Quito"
+    },
+    {
+      "id": "GUY",
+      "front": "Qual é a capital da Guiana?",
+      "back": "Georgetown"
+    },
+    {
+      "id": "PRY",
+      "front": "Qual é a capital do Paraguai?",
+      "back": "Assunção"
+    },
+    {
+      "id": "PER",
+      "front": "Qual é a capital do Peru?",
+      "back": "Lima"
+    },
+    {
+      "id": "SUR",
+      "front": "Qual é a capital do Suriname?",
+      "back": "Paramaribo"
+    },
+    {
+      "id": "URY",
+      "front": "Qual é a capital do Uruguai?",
+      "back": "Montevidéu"
+    },
+    {
+      "id": "VEN",
+      "front": "Qual é a capital da Venezuela?",
+      "back": "Caracas"
+    }
+  ]
+}
