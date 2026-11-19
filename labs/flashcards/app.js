@@ -85,8 +85,10 @@
     var stats = { due: 0, newCards: 0, studied: 0, upcoming: 0 };
     deck.cards.forEach(function (card) {
       var record = getRecord(deck.id, card.id);
-      if (!record) stats.newCards++;
-      else {
+      if (!record || !safeInt(record.reviews)) {
+        stats.newCards++;
+        if (record && record.firstSeenAt) stats.studied++;
+      } else {
         stats.studied++;
         if (isDue(record)) stats.due++;
         else stats.upcoming++;
@@ -109,31 +111,11 @@
     var decks = allDecks();
     el("deck-count").textContent = decks.length;
     el("library-empty").hidden = decks.length > 0;
-    el("deck-grid").innerHTML = decks.map(function (deck, index) {
-      var stats = deckStats(deck);
-      var ready = stats.due + stats.newCards;
-      var progressPercent = deck.cards.length ? 100 * stats.studied / deck.cards.length : 0;
-      var status = ready > 0
-        ? "<strong>" + ready + "</strong> ready to study"
-        : "<strong>✓</strong> up to date · extra practice";
-      return '<button class="deck-card" type="button" data-deck-index="' + index + '">' +
-        '<span class="deck-card-top"><span class="deck-symbol" aria-hidden="true">' +
-        escapeHTML(deck.symbol || "✳") +
-        '</span><span class="deck-meta">' + deck.cards.length + ' CARDS' +
-        (deck.imported ? ' · IMPORTED' : '') + '</span></span>' +
-        '<span class="deck-card-title"><h3>' + escapeHTML(deck.title) + '</h3></span>' +
-        '<span class="deck-description">' + escapeHTML(deck.description || "Personal study deck.") + '</span>' +
-        '<span class="deck-spacer"></span>' +
-        '<span class="deck-progress" aria-label="' + stats.studied + ' of ' + deck.cards.length + ' cards studied"><span style="width:' + progressPercent + '%"></span></span>' +
-        '<span class="deck-card-foot"><span class="deck-due">' + status + '</span><span class="deck-play">Study <span aria-hidden="true">↗</span></span></span>' +
-      '</button>';
-    }).join("");
-    document.querySelectorAll("[data-deck-index]").forEach(function (button) {
-      button.addEventListener("click", function () {
-        var deck = allDecks()[Number(button.getAttribute("data-deck-index"))];
-        if (deck) startSession(deck);
-      });
-    });
+    if (window.FlashcardsGarden) {
+      window.FlashcardsGarden.render(decks, getRecord, deckStats, startSession);
+    } else {
+      el("deck-grid").textContent = "Could not load the garden interface. Please refresh.";
+    }
     updateXP();
   }
 
@@ -217,40 +199,52 @@
     }
   }
 
-  function startSession(deck) {
+  function startSession(deck, cardId) {
+    var single = typeof cardId === "string";
     var due = [];
     var fresh = [];
+    var selected = null;
     deck.cards.forEach(function (card) {
       var record = getRecord(deck.id, card.id);
-      if (!record) fresh.push(card);
+      if (single && card.id === cardId) selected = card;
+      if (!record || !safeInt(record.reviews)) fresh.push(card);
       else if (isDue(record)) due.push(card);
     });
+    if (single && !selected) return;
     due.sort(function (a, b) {
       var ra = getRecord(deck.id, a.id);
       var rb = getRecord(deck.id, b.id);
       return new Date(ra.dueAt || 0) - new Date(rb.dueAt || 0);
     });
     var candidates = due.concat(shuffle(fresh));
-    var practice = candidates.length === 0;
+    var practice = !single && candidates.length === 0;
     if (practice) candidates = shuffle(deck.cards);
+    if (single) candidates = [selected];
+    var selectedRecord = single ? getRecord(deck.id, selected.id) : null;
+    var early = Boolean(single && selectedRecord && safeInt(selectedRecord.reviews) && !isDue(selectedRecord));
     session = {
       deck: deck,
-      queue: candidates.slice(0, LIMIT),
+      queue: candidates.slice(0, single ? 1 : LIMIT),
       index: 0,
       seen: Object.create(null),
       correct: 0,
       wrong: 0,
       xp: 0,
       events: [],
+      single: single,
+      early: early,
       practice: practice
     };
     revealed = false;
     ratingLocked = false;
     el("study-title").textContent = deck.title;
-    el("study-mode-label").textContent = practice ? "EXTRA PRACTICE · NO XP" : "STUDY SESSION";
+    el("study-mode-label").textContent = single
+      ? (early ? "EARLY REVIEW · NO XP" : "SINGLE-CARD REVIEW")
+      : (practice ? "EXTRA PRACTICE · NO XP" : "STUDY SESSION");
     view("study-view");
     showCard();
     if (practice) toast("All caught up! Extra practice does not change reviews or earn XP.");
+    if (early) toast("Early review: learning updates, no XP gained or lost.");
   }
 
   function showCard() {
@@ -265,7 +259,7 @@
     el("card-front-small").hidden = true;
     el("card-front-small").textContent = "";
     el("card-side-label").textContent = "QUESTION";
-    el("card-status-label").textContent = seen > 0 ? "TRY AGAIN" : (record && record.masteryReachedAt ? "MASTERY MILESTONE" : (record ? "REVIEW" : "NEW CARD"));
+    el("card-status-label").textContent = seen > 0 ? "TRY AGAIN" : (record && record.masteryReachedAt ? "MASTERY MILESTONE" : (record && safeInt(record.reviews) ? "REVIEW" : "NEW CARD"));
     el("card-hint").textContent = "Recall the answer before revealing";
     el("flashcard").classList.remove("is-revealed");
     el("flashcard").setAttribute("aria-label", "Reveal answer");
@@ -280,6 +274,11 @@
     if (!session || revealed || ratingLocked) return;
     revealed = true;
     var card = session.queue[session.index];
+    var existing = getRecord(session.deck.id, card.id) || {};
+    if (!existing.firstSeenAt && !existing.lastReviewedAt) {
+      existing.firstSeenAt = new Date().toISOString();
+      setRecord(session.deck.id, card.id, existing);
+    }
     el("card-front-small").textContent = card.front;
     el("card-front-small").hidden = false;
     el("card-content").textContent = card.back;
@@ -295,7 +294,9 @@
     el("effortless-review-label").textContent = session.practice ?
       "No schedule changes" : intervalLabel(nextIntervalDays(old, "effortless"));
     if (session.practice) {
-      el("xp-preview").textContent = "Extra practice: no XP gained or lost and no schedule changes.";
+      el("xp-preview").textContent = "Extra practice: no XP and no schedule changes.";
+    } else if (session.early) {
+      el("xp-preview").textContent = "Early study: health and review dates update, with no XP changes.";
     } else {
       var preview = calculateScore(old, "correct", reviewSchedule(old, "correct"));
       el("xp-preview").textContent =
@@ -337,7 +338,14 @@
       lastRating: rating,
       lastReviewedAt: new Date().toISOString(),
       dueAt: "",
-      masteryReachedAt: old.masteryReachedAt || null
+      masteryReachedAt: old.masteryReachedAt || null,
+      firstSeenAt: old.firstSeenAt || old.lastReviewedAt || new Date().toISOString(),
+      peakStabilityDays: Math.max(
+        Number(old.peakStabilityDays) || 0,
+        Number(old.intervalDays) || 0,
+        old.masteryReachedAt ? 30 : 0,
+        intervalDays
+      )
     };
     next.dueAt = success ? nextDate(intervalDays) :
       new Date(Date.now() + TEN_MINUTES).toISOString();
@@ -388,7 +396,7 @@
     var seen = session.seen[card.id] || 0;
     var success = isSuccess(rating);
     var next = reviewSchedule(old, rating);
-    var score = session.practice
+    var score = (session.practice || session.early)
       ? { base: 0, decay: 0, recovery: 0, mastery: 0, penalty: 0, total: 0 }
       : calculateScore(old, rating, next);
 
@@ -422,6 +430,8 @@
     updateXP();
     if (session.practice) {
       toast("Extra practice: no XP or schedule changes.");
+    } else if (session.early) {
+      toast(ratingLabel(rating) + " · Early review recorded · No XP");
     } else if (!success) {
       toast("−40 XP · " + ratingLabel(rating) + " · Review again soon");
     } else if (score.mastery) {
@@ -489,7 +499,7 @@
     if (!session) return;
     var finished = session;
     el("summary-deck-title").textContent = finished.deck.title +
-      (finished.practice ? " · extra practice" : " · daily review");
+      (finished.practice ? " · extra practice" : finished.early ? " · early review" : finished.single ? " · single-card review" : " · daily review");
     el("summary-xp").textContent = niceNumber(finished.xp);
     el("summary-correct").textContent = niceNumber(finished.correct);
     el("summary-wrong").textContent = niceNumber(finished.wrong);
@@ -497,6 +507,8 @@
     var stats = deckStats(finished.deck);
     if (finished.practice) {
       el("summary-next").textContent = "You were already up to date. Extra practice did not change your review schedule.";
+    } else if (finished.early) {
+      el("summary-next").textContent = "Early recall recorded. Health and next review were updated, without any XP change.";
     } else if (stats.due + stats.newCards > 0) {
       el("summary-next").textContent = "There are still " + (stats.due + stats.newCards) + " cards available to study in this deck.";
     } else {

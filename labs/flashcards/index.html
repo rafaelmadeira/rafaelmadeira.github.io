@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f5f3ed">
   <meta name="description" content="A flashcard study prototype with XP and spaced repetition.">
-  <title>Flashcards Lab — Recall & XP</title>
+  <title>Flashcards Lab — Memory Garden</title>
   <link rel="stylesheet" href="./style.css">
+  <script src="./garden.js" defer></script>
   <script src="./app.js" defer></script>
 </head>
 <body>
@@ -17,7 +18,7 @@
         <span class="brand-wordmark">flashcards<span class="brand-light">/lab</span></span>
       </button>
       <div class="topbar-right">
-        <span class="prototype-tag">EXPERIMENT 003</span>
+        <span class="prototype-tag">EXPERIMENT 004</span>
         <div class="global-score" aria-label="Total XP">
           <span class="score-star" aria-hidden="true">✳</span>
           <strong id="total-xp">0</strong>
@@ -31,22 +32,31 @@
         <div class="library-heading">
           <div>
             <p class="eyebrow"><span class="eyebrow-line"></span> YOUR LIBRARY</p>
-            <h1 id="library-title">One card<br><em>at a time.</em></h1>
-            <p class="intro">Practice what matters to you. Every successful recall counts — and spaced repetition brings each card back when it needs reviewing.</p>
+            <h1 id="library-title">Grow what<br><em>you know.</em></h1>
+            <p class="intro">Every square is a memory. See what you know, watch it grow, and revisit any card whenever you like.</p>
           </div>
           <div class="library-action">
             <button id="import-button" class="button button-primary" type="button">
               <span aria-hidden="true">↥</span> Import JSON deck
             </button>
-            <p class="helper">Your decks and progress stay in this browser.</p>
+            <p class="helper">Your decks and learning history stay in this browser.</p>
           </div>
         </div>
 
         <div class="section-heading">
-          <h2>My decks <span id="deck-count" class="count-tag">0</span></h2>
-          <span class="section-note">Choose one to begin</span>
+          <h2>Your plots <span id="deck-count" class="count-tag">0</span></h2>
+          <span class="section-note">Click a square to study its card</span>
         </div>
         <div id="deck-grid" class="deck-grid" aria-live="polite"></div>
+        <div class="garden-legend" aria-label="Memory health color scale">
+          <span>Never opened</span>
+          <i style="background:#e8ecee"></i><i style="background:#e8f6eb"></i>
+          <i style="background:#c7ebd0"></i><i style="background:#88d5a0"></i>
+          <i style="background:#42b76a"></i><i style="background:#16884b"></i>
+          <i style="background:#0c6739"></i>
+          <span>Stronger estimated recall</span>
+        </div>
+        <p class="garden-disclaimer">Health is a provisional forgetting-curve estimate, not a calibrated FSRS probability. A fading square is a suggestion, not an obligation.</p>
         <div id="library-empty" class="empty-state" hidden>
           <h3>No decks available</h3>
           <p>Import a JSON file to start studying.</p>
@@ -56,26 +66,26 @@
           <div class="guide-heading">
             <span class="guide-icon" aria-hidden="true">✳</span>
             <div>
-              <p class="eyebrow">HOW IT WORKS</p>
-              <h2>Study first. Score second.</h2>
+              <p class="eyebrow">READING YOUR GARDEN</p>
+              <h2>Every memory has a season.</h2>
             </div>
           </div>
           <div class="guide-steps">
-            <div class="guide-step"><span class="step-index">01</span><p>Read the prompt, recall the answer, then <strong>reveal the card</strong>.</p></div>
-            <div class="guide-step"><span class="step-index">02</span><p>Rate your recall as <strong>No recall</strong>, <strong>Incorrect</strong>, <strong>Correct</strong> or <strong>Effortless</strong>.</p></div>
-            <div class="guide-step"><span class="step-index">03</span><p>Score each attempt, recover from setbacks and earn one-time mastery bonuses. Review dates remain independent.</p></div>
+            <div class="guide-step"><span class="step-index">01</span><p>Each square is a card. <strong>Gray</strong> means never opened; green indicates estimated recall health.</p></div>
+            <div class="guide-step"><span class="step-index">02</span><p>Hover or focus on a square for its <strong>age, growth stage, health, stability and next review</strong>.</p></div>
+            <div class="guide-step"><span class="step-index">03</span><p>Click a square for one card, or <strong>Study deck</strong> for a session. Health fades with time and recovers after recall.</p></div>
           </div>
-          <button id="show-formula" class="text-link" type="button" aria-expanded="false" aria-controls="formula-details">Scoring and review rules <span aria-hidden="true">↗</span></button>
+          <button id="show-formula" class="text-link" type="button" aria-expanded="false" aria-controls="formula-details">How memory health works <span aria-hidden="true">↗</span></button>
           <div id="formula-details" class="formula-details" hidden>
             <p><strong>XP:</strong> the first correct recall earns 100 base XP; subsequent correct recalls earn progressively less (minimum 20). Each unresolved miss adds +25 comeback XP to the next success, but the miss itself costs 40 XP. <strong>No recall</strong> and <strong>Incorrect</strong> have identical penalties. Reaching a 30-day review interval for the first time earns a one-off +500 mastery bonus. XP does not affect review timing.</p>
-            <p><strong>Spaced repetition:</strong> No recall and Incorrect both repeat soon and become due in about 10 minutes. Correct uses 1 day, then 3 days, then approximately 2.5×; Effortless uses 3 days, then 7 days, then approximately 2.8×. A failed recall resets the successful streak. Extra practice never changes XP or scheduling. This is an experimental simplified scheduler, <em>not</em> Anki FSRS. A 30-day interval is an arbitrary game milestone, not permanent learning.</p>
+            <p><strong>Review:</strong> No recall and Incorrect both repeat soon. Correct and Effortless progressively increase intervals. The existing schedule is preserved; it is simplified and is <em>not</em> Anki FSRS.</p><p><strong>Health:</strong> a provisional forgetting-curve estimate based on the scheduled review interval as a stability proxy, not a calibrated prediction. Exposures and failed recalls use conservative display-only starting values. A square never turns gray again once opened. Growth stage reflects the longest interval reached; a lapse does not erase the history.</p><p><strong>Early study:</strong> individual cards can be reviewed before they are due. Those ratings update the study record but have no XP reward or penalty. Full-deck extra practice remains optional and does not change the schedule.</p>
           </div>
         </div>
       </section>
 
       <section id="study-view" class="view" aria-labelledby="study-title" hidden>
         <div class="session-head">
-          <button id="back-to-library" class="back-link" type="button"><span aria-hidden="true">←</span> Meus decks</button>
+          <button id="back-to-library" class="back-link" type="button"><span aria-hidden="true">←</span> Your plots</button>
           <div class="session-xp"><span aria-hidden="true">✳</span> <strong id="session-xp">0</strong> XP this session</div>
         </div>
         <div class="session-title-row">
@@ -103,7 +113,7 @@
         </button>
 
         <div class="answer-area">
-          <button id="reveal-button" class="button button-primary reveal-button" type="button">Revelar resposta <span aria-hidden="true">↗</span></button>
+          <button id="reveal-button" class="button button-primary reveal-button" type="button">Reveal answer <span aria-hidden="true">↗</span></button>
           <div id="rating-area" class="rating-area" hidden>
             <p>Rate your recall</p>
             <div class="rating-buttons">
@@ -157,16 +167,17 @@
           </details>
         </section>
         <p id="summary-next" class="summary-next"></p>
-        <button id="summary-home" class="button button-primary" type="button">Voltar aos decks <span aria-hidden="true">→</span></button>
+        <button id="summary-home" class="button button-primary" type="button">Back to your plots <span aria-hidden="true">→</span></button>
       </section>
     </main>
 
     <footer class="site-footer">
-      <span>FLASHCARDS / LAB — V0.3</span>
-      <span>An experiment in memory &amp; scoring.</span>
+      <span>FLASHCARDS / LAB — V0.4</span>
+      <span>A living picture of what you know.</span>
     </footer>
   </div>
   <input id="deck-file" type="file" accept=".json,application/json" hidden>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="plant-tooltip" class="plant-tooltip" role="tooltip" hidden></div>
 </body>
 </html>
