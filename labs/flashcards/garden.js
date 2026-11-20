@@ -111,8 +111,8 @@
     var top = rect.top > h + 16 ? rect.top - h - 10 : rect.bottom + 10;
     tip.style.top = Math.round(Math.max(8, Math.min(window.innerHeight - h - 8, top))) + "px";
   }
-  function render(decks, getRecord, deckStats, startSession) {
-    cached = { decks: decks, getRecord: getRecord, deckStats: deckStats, startSession: startSession };
+  function render(decks, getRecord, deckStats, startSession, game) {
+    cached = { decks: decks, getRecord: getRecord, deckStats: deckStats, startSession: startSession, game: game };
     hideTooltip();
     var container = document.getElementById("deck-grid");
     if (!container) return;
@@ -122,6 +122,7 @@
       var stats = deckStats(deck);
       var ready = stats.due + stats.newCards;
       var healthyCount = 0, healthTotal = 0, unseen = 0;
+      var earnings = game ? game.plotEarnings(deck, getRecord) : 0;
       var article = document.createElement("article");
       article.className = "deck-card garden-deck";
       article.innerHTML =
@@ -135,10 +136,18 @@
         '<div class="garden-plot-stats"><span class="garden-average"></span>' +
           '<span class="garden-unseen"></span></div>' +
         '<div class="deck-spacer"></div>' +
+        '<div class="garden-income"><div><small>PLOT EARNINGS</small><strong class="earnings-amount">◈ ' + fmt(earnings) + '</strong></div>' +
+          '<button type="button" class="plot-collect" ' + (earnings ? '' : 'disabled') + '>Collect</button>' +
+          '<div class="harvest-numbers" aria-live="polite" hidden>◈ 0</div></div>' +
         '<div class="deck-card-foot"><span class="deck-due">' +
           (ready ? '<strong>' + ready + '</strong> ready to study' : '<strong>✓</strong> Up to date') +
-          '</span><button class="deck-play-button" type="button">' +
-          (ready ? "Study deck" : "Practice deck") + ' ↗</button></div>';
+          '</span></div>' +
+        '<div class="plot-play-actions">' +
+          '<button class="deck-play-button study-free" type="button">' +
+          (ready ? 'Study free' : 'Practice free') + '</button>' +
+          '<button class="deck-play-button play-coins" type="button" ' +
+          (ready ? '' : 'disabled title="No cards due; free practice is available"') + '>Play for coins ◈</button>' +
+        '</div>';
       var grid = article.querySelector(".garden-grid");
       deck.cards.forEach(function (card) {
         var m = metrics(deck.id, card.id, getRecord, now);
@@ -164,8 +173,47 @@
         ? "Avg. health ~" + Math.round(healthTotal / healthyCount) + "%"
         : "No cards opened yet";
       article.querySelector(".garden-unseen").textContent = unseen + " unopened";
-      article.querySelector(".deck-play-button").addEventListener("click", function () {
-        hideTooltip(); startSession(deck);
+      article.querySelector(".study-free").addEventListener("click", function () {
+        hideTooltip(); startSession(deck, null, "free");
+      });
+      article.querySelector(".play-coins").addEventListener("click", function () {
+        hideTooltip(); startSession(deck, null, "wager");
+      });
+      var collectButton = article.querySelector(".plot-collect");
+      collectButton.addEventListener("click", function () {
+        if (!game || collectButton.disabled) return;
+        var amount = game.collectPlot(deck, getRecord);
+        if (!amount) { collectButton.disabled = true; return; }
+        collectButton.disabled = true;
+        var countNode = article.querySelector(".harvest-numbers");
+        var valueNode = article.querySelector(".earnings-amount");
+        countNode.hidden = false;
+        countNode.classList.remove("float-away");
+        countNode.textContent = "◈ 0";
+        var cells = Array.prototype.slice.call(grid.querySelectorAll(".garden-cell"));
+        var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (!reduce) cells.forEach(function (cell, index) {
+          window.setTimeout(function () {
+            cell.classList.add("harvest-sweep");
+            window.setTimeout(function () { cell.classList.remove("harvest-sweep"); }, 320);
+          }, index * (780 / Math.max(1, cells.length)));
+        });
+        var start = performance.now(), duration = reduce ? 0 : 940;
+        function tick(now) {
+          var p = duration ? Math.min(1, (now - start) / duration) : 1;
+          countNode.textContent = "◈ " + fmt(Math.floor(amount * p));
+          if (p < 1) window.requestAnimationFrame(tick);
+          else {
+            countNode.textContent = "◈ +" + fmt(amount);
+            valueNode.textContent = "◈ " + fmt(game.plotEarnings(deck, getRecord));
+            countNode.classList.add("float-away");
+            window.setTimeout(function () {
+              countNode.hidden = true;
+              collectButton.disabled = game.plotEarnings(deck, getRecord) < 1;
+            }, reduce ? 0 : 690);
+          }
+        }
+        window.requestAnimationFrame(tick);
       });
       container.appendChild(article);
     });
@@ -175,6 +223,6 @@
   window.addEventListener("resize", hideTooltip);
   document.addEventListener("visibilitychange", function () {
     if (!document.hidden && cached && !document.getElementById("library-view").hidden)
-      render(cached.decks, cached.getRecord, cached.deckStats, cached.startSession);
+      render(cached.decks, cached.getRecord, cached.deckStats, cached.startSession, cached.game);
   });
 })();

@@ -1,0 +1,92 @@
+/* Experiment 005 — a deliberately small deck-draw game layered on recall. */
+.coin-balance { display:flex;align-items:center;gap:7px;border:1px solid #e0d5bd;background:#fffaf0;border-radius:100px;padding:10px 14px;font-size:12px;white-space:nowrap; }
+.coin-balance > span:first-child { font-size:18px;color:#b18736; }
+.coin-balance strong { font-size:17px;font-variant-numeric:tabular-nums; }
+.coin-balance > span:last-child { font-size:10px;color:#9c8a6c;letter-spacing:.6px; }
+.garden-income { position:relative;display:flex;justify-content:space-between;align-items:center;gap:8px;background:#f6f4e9;border:1px solid #ece6d3;padding:12px 13px;border-radius:9px;margin:0 0 14px; }
+.garden-income > div:first-child { display:grid;gap:4px; }
+.garden-income small { font:10px "DM Mono",monospace;color:#a39570;letter-spacing:.75px; }
+.garden-income strong { color:#836425;font-size:20px;font-variant-numeric:tabular-nums; }
+.plot-collect { border:1px solid #dfcd9e;background:#fef8e9;color:#906c28;border-radius:7px;font-weight:700;font-size:12px;min-height:36px;padding:7px 13px; }
+.plot-collect:not(:disabled):hover { background:#ffefd1; }
+.plot-collect:disabled { opacity:.5;cursor:default; }
+.harvest-numbers { position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-weight:800;font-size:25px;color:#a4781f;z-index:4;pointer-events:none;text-shadow:0 2px 7px #fffefa;white-space:nowrap; }
+.harvest-numbers.float-away { animation:harvestLift .7s ease-out both; }
+@keyframes harvestLift { from {opacity:1;transform:translate(-50%,-50%)} to {opacity:0;transform:translate(-50%,-105%)} }
+@keyframes harvestSweep { 0% {filter:brightness(1);box-shadow:none;transform:scale(1)} 45% {filter:brightness(1.35);box-shadow:0 0 8px #deb95a;transform:scale(1.16)} 100% {filter:brightness(1);box-shadow:none;transform:scale(1)} }
+.garden-cell.harvest-sweep { animation:harvestSweep .32s ease-in-out; }
+.garden-deck .deck-card-foot { margin:0 0 10px;padding-bottom:9px;border-bottom:0; }
+.plot-play-actions { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
+.plot-play-actions .deck-play-button { min-width:0;font-size:11px;padding:10px 7px;text-align:center; }
+.plot-play-actions .play-coins { background:#f9f0d8;border-color:#e7d4a4;color:#896820; }
+.plot-play-actions .play-coins:not(:disabled):hover { background:#f4e4bd;border-color:#caa65d; }
+.plot-play-actions .play-coins:disabled { opacity:.48;cursor:default; }
+.game-table { max-width:830px;margin:28px auto 0;border:1px solid #d7ddcd;border-radius:16px;background:linear-gradient(150deg,#f2f3e9,#eaf0e4);padding:22px 24px 17px;box-shadow:0 12px 33px rgba(41,58,38,.06); }
+.game-table-heading { display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:20px; }
+.game-overline { display:block;font:10px "DM Mono",monospace;letter-spacing:1.5px;color:#678168;margin-bottom:8px; }
+.game-table-heading h2 { margin:0;font-size:20px;letter-spacing:-.65px; }
+.game-table-heading h2 span { color:#9ba697;font-size:11px;font-weight:500;letter-spacing:0; }
+.table-wallet { color:#8a6b2d;font-size:12px;background:#fff7e5;border-radius:100px;padding:7px 11px;white-space:nowrap; }
+.table-wallet strong { font-size:16px; }
+.game-board { display:flex;gap:22px;align-items:flex-start;margin-bottom:21px; }
+.draw-area { width:88px;flex:none;display:flex;align-items:center;flex-direction:column;gap:12px; }
+.draw-pile { width:78px;height:116px;border-radius:9px;background:#375e48;border:4px double #bad2b9;color:#e2eddd;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;box-shadow:3px 3px 0 #dce4d5,6px 6px 0 #b9cbb6;transform:rotate(-3deg); }
+.draw-ornament { font-size:32px; }
+.draw-pile small { font:9px "DM Mono",monospace;letter-spacing:2px; }
+.pile-label { color:#859486;font:10px "DM Mono",monospace; }
+.hand-area { flex:1;min-width:0; }
+.special-hand { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px; }
+.special-card { position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;color:#334936;background:#fffefa;border:1px solid #c6d4c2;border-radius:10px;padding:11px 8px 10px;min-height:147px;min-width:0;box-shadow:0 3px 0 #dce6d6;transition:transform .15s,border-color .15s,box-shadow .15s; }
+.special-card:not(:disabled):hover { transform:translateY(-3px);border-color:#628e69; }
+.special-card.selected { border:2px solid #426e49;background:#f4faed;box-shadow:0 3px 0 #84ae81;transform:translateY(-3px); }
+.special-family { font:9px "DM Mono",monospace;letter-spacing:.65px;color:#829184; }
+.special-symbol { display:grid;place-items:center;width:46px;height:40px;color:#47744b;font-family:Georgia,serif;font-size:29px;font-weight:700;margin-top:6px; }
+.special-card strong { font-size:13px; }
+.special-card small { color:#7b8a7c;font-size:10px;line-height:1.35;max-width:115px; }
+.special-tag { position:absolute;right:7px;top:7px;background:#477a4c;color:#fff;font:8px "DM Mono",monospace;border-radius:3px;padding:3px 4px;letter-spacing:.1px; }
+.hand-actions { display:flex;gap:12px;justify-content:center;margin-top:14px;flex-wrap:wrap; }
+.game-action { padding:5px 2px;border:0;background:none;color:#477147;text-decoration:underline;text-underline-offset:3px;font-size:12px;font-weight:600; }
+.game-action span { font-size:10px;color:#92a092;margin-left:2px; }
+.game-action:disabled { opacity:.48;text-decoration:none; }
+.wager-row { display:flex;justify-content:space-between;align-items:center;gap:17px;padding:15px 0;border-top:1px solid #d8dfd4;border-bottom:1px solid #d8dfd4; }
+.wager-heading { display:flex;flex-direction:column;gap:3px;min-width:130px; }
+.wager-heading strong { font-size:13px; }
+.wager-heading small { font-size:10px;color:#89968a; }
+.wager-options { display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end; }
+.wager-options button { border:1px solid #d0d9ce;background:#fffefa;color:#536a55;padding:9px 12px;min-width:43px;border-radius:7px;font-size:12px;font-weight:700; }
+.wager-options button[aria-pressed="true"] { background:#496d48;border-color:#496d48;color:#fff; }
+.wager-options button:disabled:not([aria-pressed="true"]) { opacity:.32; }
+.round-preview { color:#3f6547;font-size:13px;font-weight:700;padding-top:13px;text-align:center; }
+.game-instruction { text-align:center;font-size:11px;line-height:1.5;color:#859486;margin:9px auto 0;max-width:570px; }
+.summary-stats.with-coins { max-width:690px;grid-template-columns:repeat(4,minmax(0,1fr)); }
+.stat-coins strong { color:#9c792e; }
+@media(max-width:680px) {
+  .topbar-right { gap:8px; }
+  .coin-balance,.global-score { padding:8px 9px;gap:4px; }
+  .coin-balance > span:last-child,.global-score > span:last-child { display:none; }
+  .coin-balance strong,.global-score strong { font-size:14px; }
+  .game-table { padding:17px 11px 13px;margin-top:19px; }
+  .game-board { gap:11px; }
+  .draw-area { width:54px;gap:9px; }
+  .draw-pile { width:48px;height:86px;box-shadow:2px 2px 0 #dce4d5,4px 4px 0 #b9cbb6; }
+  .draw-ornament { font-size:23px; }
+  .special-hand { gap:5px; }
+  .special-card { padding:8px 3px;min-height:137px; }
+  .special-family { font-size:7px;letter-spacing:0; }
+  .special-symbol { font-size:25px;width:35px;height:35px; }
+  .special-card strong { font-size:11px; }
+  .special-card small { font-size:9px; }
+  .special-tag { font-size:7px;right:2px;top:2px; }
+  .game-action { font-size:11px; }
+  .wager-row { align-items:flex-start;flex-direction:column;gap:10px; }
+  .wager-heading { flex-direction:row;align-items:center;gap:9px; }
+  .wager-options { justify-content:flex-start; }
+  .wager-options button { padding:8px 10px; }
+  .round-preview { font-size:12px;line-height:1.6; }
+  .summary-stats.with-coins { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .summary-stats.with-coins .stat-block:nth-child(2) { border-right:0; }
+  .summary-stats.with-coins .stat-block:nth-child(-n+2) { border-bottom:1px solid var(--line); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .garden-cell.harvest-sweep,.harvest-numbers.float-away { animation:none; }
+}

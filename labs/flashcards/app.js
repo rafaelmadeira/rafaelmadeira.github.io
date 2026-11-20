@@ -112,11 +112,12 @@
     el("deck-count").textContent = decks.length;
     el("library-empty").hidden = decks.length > 0;
     if (window.FlashcardsGarden) {
-      window.FlashcardsGarden.render(decks, getRecord, deckStats, startSession);
+      window.FlashcardsGarden.render(decks, getRecord, deckStats, startSession, window.FlashcardsGame);
     } else {
       el("deck-grid").textContent = "Could not load the garden interface. Please refresh.";
     }
     updateXP();
+    if (window.FlashcardsGame) window.FlashcardsGame.updateBalance();
   }
 
   function normalizeDeck(source, filename, imported) {
@@ -199,7 +200,7 @@
     }
   }
 
-  function startSession(deck, cardId) {
+  function startSession(deck, cardId, requestedMode) {
     var single = typeof cardId === "string";
     var due = [];
     var fresh = [];
@@ -233,14 +234,17 @@
       events: [],
       single: single,
       early: early,
-      practice: practice
+      practice: practice,
+      mode: requestedMode === "wager" && !single && !practice ? "wager" : "free",
+      coins: 0
     };
     revealed = false;
     ratingLocked = false;
+    if (window.FlashcardsGame) window.FlashcardsGame.startSession(session.mode === "wager");
     el("study-title").textContent = deck.title;
     el("study-mode-label").textContent = single
       ? (early ? "EARLY REVIEW · NO XP" : "SINGLE-CARD REVIEW")
-      : (practice ? "EXTRA PRACTICE · NO XP" : "STUDY SESSION");
+      : (practice ? "EXTRA PRACTICE · NO XP" : (session.mode === "wager" ? "PLAY FOR COINS · SPECIAL CARDS" : "FREE STUDY · XP ONLY"));
     view("study-view");
     showCard();
     if (practice) toast("All caught up! Extra practice does not change reviews or earn XP.");
@@ -269,10 +273,12 @@
     el("progress-fill").style.width = (100 * session.index / session.queue.length) + "%";
     el("remaining-text").textContent = (session.queue.length - session.index) + " card(s) remaining";
     updateXP();
+    if (window.FlashcardsGame) window.FlashcardsGame.beginRound();
   }
   function reveal() {
     if (!session || revealed || ratingLocked) return;
     revealed = true;
+    if (window.FlashcardsGame) window.FlashcardsGame.lockRound();
     var card = session.queue[session.index];
     var existing = getRecord(session.deck.id, card.id) || {};
     if (!existing.firstSeenAt && !existing.lastReviewedAt) {
@@ -399,6 +405,10 @@
     var score = (session.practice || session.early)
       ? { base: 0, decay: 0, recovery: 0, mastery: 0, penalty: 0, total: 0 }
       : calculateScore(old, rating, next);
+    var gameOutcome = window.FlashcardsGame ? window.FlashcardsGame.resolveRound(success) : { delta: 0, bonusXP: 0, special: "" };
+    score.bonusXP = gameOutcome.bonusXP || 0;
+    score.total += score.bonusXP;
+    session.coins += gameOutcome.delta;
 
     if (!session.practice) {
       setRecord(session.deck.id, card.id, next);
@@ -424,6 +434,7 @@
     session.events.push({
       question: card.front, rating: rating, base: score.base, decay: score.decay,
       recovery: score.recovery, mastery: score.mastery, penalty: score.penalty,
+      bonusXP: score.bonusXP, coins: gameOutcome.delta, special: gameOutcome.special,
       total: score.total
     });
     session.seen[card.id] = seen + 1;
@@ -441,12 +452,16 @@
     } else {
       toast(signedPoints(score.total) + " XP · " + ratingLabel(rating));
     }
+    if (session.mode === "wager") {
+      var coinText = (gameOutcome.delta > 0 ? "+" : "") + gameOutcome.delta + " coins";
+      toast(coinText + (gameOutcome.special ? " · " + gameOutcome.special : "") + " · " + signedPoints(score.total) + " XP");
+    }
     session.index++;
     window.setTimeout(function () { showCard(); }, 330);
   }
 
   function renderScoreReport(finished) {
-    var sums = { base: 0, decay: 0, recovery: 0, mastery: 0, penalty: 0 };
+    var sums = { base: 0, decay: 0, recovery: 0, mastery: 0, penalty: 0, bonusXP: 0 };
     var counts = { norecall: 0, incorrect: 0, correct: 0, effortless: 0 };
     finished.events.forEach(function (event) {
       Object.keys(sums).forEach(function (key) { sums[key] += event[key]; });
@@ -457,7 +472,8 @@
       ["Repeated-recall reduction", sums.decay],
       ["Comeback bonuses", sums.recovery],
       ["Mastery milestones", sums.mastery],
-      ["Miss penalties", sums.penalty]
+      ["Miss penalties", sums.penalty],
+      ["Special-card XP", sums.bonusXP]
     ];
     var net = rows.reduce(function (total, row) { return total + row[1]; }, 0);
     el("score-breakdown").innerHTML = rows.map(function (row) {
@@ -480,6 +496,9 @@
       if (event.recovery) details.push("Comeback +" + niceNumber(event.recovery));
       if (event.mastery) details.push("Mastery +" + niceNumber(event.mastery));
       if (event.penalty) details.push("Miss " + signedPoints(event.penalty));
+      if (event.bonusXP) details.push("Special +" + niceNumber(event.bonusXP));
+      if (event.special) details.push("Played " + event.special);
+      if (finished.mode === "wager") details.push("Coins " + signedPoints(event.coins || 0));
       if (!details.length) details.push("Extra practice");
       return '<li><div class="score-event-content">' +
         '<span class="score-event-rating">' + ratingLabel(event.rating) + '</span>' +
@@ -503,6 +522,7 @@
     el("summary-xp").textContent = niceNumber(finished.xp);
     el("summary-correct").textContent = niceNumber(finished.correct);
     el("summary-wrong").textContent = niceNumber(finished.wrong);
+    if (window.FlashcardsGame) window.FlashcardsGame.renderSummary(finished);
     renderScoreReport(finished);
     var stats = deckStats(finished.deck);
     if (finished.practice) {
@@ -520,6 +540,7 @@
   }
 
   function backHome() {
+    if (window.FlashcardsGame) window.FlashcardsGame.endSession();
     session = null;
     renderLibrary();
     view("library-view");
