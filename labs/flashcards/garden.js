@@ -143,10 +143,8 @@
           (ready ? '<strong>' + ready + '</strong> ready to study' : '<strong>✓</strong> Up to date') +
           '</span></div>' +
         '<div class="plot-play-actions">' +
-          '<button class="deck-play-button study-free" type="button">' +
-          (ready ? 'Study free' : 'Practice free') + '</button>' +
-          '<button class="deck-play-button play-coins" type="button" ' +
-          (ready ? '' : 'disabled title="No cards due; free practice is available"') + '>Play for coins ◈</button>' +
+          '<button class="deck-play-button study-deck" type="button">' +
+          (ready ? 'Study deck' : 'Practice deck') + ' ↗</button>' +
         '</div>';
       var grid = article.querySelector(".garden-grid");
       deck.cards.forEach(function (card) {
@@ -173,11 +171,8 @@
         ? "Avg. health ~" + Math.round(healthTotal / healthyCount) + "%"
         : "No cards opened yet";
       article.querySelector(".garden-unseen").textContent = unseen + " unopened";
-      article.querySelector(".study-free").addEventListener("click", function () {
-        hideTooltip(); startSession(deck, null, "free");
-      });
-      article.querySelector(".play-coins").addEventListener("click", function () {
-        hideTooltip(); startSession(deck, null, "wager");
+      article.querySelector(".study-deck").addEventListener("click", function () {
+        hideTooltip(); startSession(deck);
       });
       var collectButton = article.querySelector(".plot-collect");
       collectButton.addEventListener("click", function () {

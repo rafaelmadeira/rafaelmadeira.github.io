@@ -20,7 +20,7 @@
         <span class="brand-wordmark">flashcards<span class="brand-light">/lab</span></span>
       </button>
       <div class="topbar-right">
-        <span class="prototype-tag">EXPERIMENT 005</span>
+        <span class="prototype-tag">EXPERIMENT 006</span>
         <div class="coin-balance" aria-label="Coin balance"><span aria-hidden="true">◈</span><strong id="total-coins">30</strong><span>coins</span></div>
         <div class="global-score" aria-label="Total XP">
           <span class="score-star" aria-hidden="true">✳</span>
@@ -36,7 +36,7 @@
           <div>
             <p class="eyebrow"><span class="eyebrow-line"></span> YOUR LIBRARY</p>
             <h1 id="library-title">Grow what<br><em>you know.</em></h1>
-            <p class="intro">Every square is a memory. Grow your plots, collect coins and choose between free study and card-powered rounds.</p>
+            <p class="intro">Every square is a memory. Study, collect coins and decide whether to play it safe — or risk them all on your next answer.</p>
           </div>
           <div class="library-action">
             <button id="import-button" class="button button-primary" type="button">
@@ -76,12 +76,12 @@
           <div class="guide-steps">
             <div class="guide-step"><span class="step-index">01</span><p>Each square is a card. <strong>Gray</strong> means never opened; green indicates estimated recall health.</p></div>
             <div class="guide-step"><span class="step-index">02</span><p>Hover or focus on a square for its <strong>age, growth stage, health, stability and next review</strong>.</p></div>
-            <div class="guide-step"><span class="step-index">03</span><p><strong>Study free</strong> for XP only. <strong>Play for coins</strong> to bet and use special cards. Each plot earns passive coins from opened memories.</p></div>
+            <div class="guide-step"><span class="step-index">03</span><p>Study a deck for XP and coins. Each question has only two reveal choices: <strong>normal</strong> (+1/−1 coin) or <strong>double or nothing</strong> (double the wallet or lose it all).</p></div>
           </div>
           <button id="show-formula" class="text-link" type="button" aria-expanded="false" aria-controls="formula-details">How memory health works <span aria-hidden="true">↗</span></button>
           <div id="formula-details" class="formula-details" hidden>
             <p><strong>XP:</strong> the first correct recall earns 100 base XP; subsequent correct recalls earn progressively less (minimum 20). Each unresolved miss adds +25 comeback XP to the next success, but the miss itself costs 40 XP. <strong>No recall</strong> and <strong>Incorrect</strong> have identical penalties. Reaching a 30-day review interval for the first time earns a one-off +500 mastery bonus. XP does not affect review timing.</p>
-            <p><strong>Review:</strong> No recall and Incorrect both repeat soon. Correct and Effortless progressively increase intervals. The existing schedule is preserved; it is simplified and is <em>not</em> Anki FSRS.</p><p><strong>Health:</strong> a provisional forgetting-curve estimate based on the scheduled review interval as a stability proxy, not a calibrated prediction. Exposures and failed recalls use conservative display-only starting values. A square never turns gray again once opened. Growth stage reflects the longest interval reached; a lapse does not erase the history.</p><p><strong>Early study:</strong> individual cards can be reviewed before they are due. Those ratings update the study record but have no XP reward or penalty. Full-deck extra practice remains optional and does not change the schedule.</p><p><strong>Coins:</strong> free study earns XP, never wagers. In the optional coin mode, choose a stake (0 = base ±1 coin), then optionally play one special card. Draw three random cards to start; use, keep or discard one per flashcard. Special-card XP bonuses affect score but do not alter review timing. Coins are capped at zero; no real money is involved.</p>
+            <p><strong>Review:</strong> No recall and Incorrect both repeat soon. Correct and Effortless progressively increase intervals. The existing schedule is preserved; it is simplified and is <em>not</em> Anki FSRS.</p><p><strong>Health:</strong> a provisional forgetting-curve estimate based on the scheduled review interval as a stability proxy, not a calibrated prediction. Exposures and failed recalls use conservative display-only starting values. A square never turns gray again once opened. Growth stage reflects the longest interval reached; a lapse does not erase the history.</p><p><strong>Early study:</strong> individual cards can be reviewed before they are due. Those ratings update the study record but have no XP reward or penalty. Full-deck extra practice remains optional and does not change the schedule.</p><p><strong>Coins:</strong> before revealing an eligible card, choose <strong>Reveal answer</strong> (correct/effortless: +1 coin; no recall/incorrect: −1, floored at zero) or <strong>Double or nothing</strong> (correct/effortless: double your full balance; no recall/incorrect: balance becomes zero). Wagers have no real-money value. Extra practice and early reviews grant no coins, to avoid repeat farming. XP and spaced repetition work exactly as before.</p>
           </div>
         </div>
       </section>
@@ -115,40 +115,18 @@
           </span>
         </button>
 
-        <section id="game-table" class="game-table" aria-label="Special cards and coin wager" hidden>
-          <div class="game-table-heading">
-            <div><span class="game-overline">PLAY FOR COINS</span><h2>Your hand <span id="hand-count">3 / 3</span></h2></div>
-            <span class="table-wallet">◈ <strong id="session-coins">30</strong> coins</span>
-          </div>
-          <div class="game-board">
-            <div class="draw-area">
-              <div class="draw-pile" aria-label="Draw deck"><span class="draw-ornament">✳</span><small>DRAW</small></div>
-              <span id="draw-count" class="pile-label">15 left</span>
-            </div>
-            <div class="hand-area">
-              <div id="special-hand" class="special-hand" role="group" aria-label="Choose one special card"></div>
-              <div class="hand-actions">
-                <button id="discard-and-draw" class="game-action" type="button" disabled>Discard selected + draw <span id="swap-count">1 left</span></button>
-                <button id="deselect-card" class="game-action" type="button" disabled>Keep all cards</button>
-              </div>
-            </div>
-          </div>
-          <div class="wager-row">
-            <div class="wager-heading"><strong>Your bet</strong><small>Choose before revealing</small></div>
-            <div id="wager-options" class="wager-options" role="group" aria-label="Coin wager">
-              <button type="button" data-wager="0" aria-pressed="true">No bet</button>
-              <button type="button" data-wager="1">1</button>
-              <button type="button" data-wager="3">3</button>
-              <button type="button" data-wager="5">5</button>
-              <button type="button" data-wager="10">10</button>
-            </div>
-          </div>
-          <div id="round-preview" class="round-preview" aria-live="polite">Correct: +1 coin · Miss: −1 coin</div>
-          <p id="game-instruction" class="game-instruction">Choose a card to play, swap one, or keep your hand. Your choice locks when you reveal the answer.</p>
-        </section>
-
         <div class="answer-area">
-          <button id="reveal-button" class="button button-primary reveal-button" type="button">Reveal answer <span aria-hidden="true">↗</span></button>
+          <div id="reveal-actions" class="reveal-actions">
+            <button id="reveal-button" class="button button-primary reveal-button" type="button">
+              <strong>Reveal answer <span aria-hidden="true">↗</span></strong>
+              <small id="normal-reveal-hint">Correct +1 coin · Miss −1 coin</small>
+            </button>
+            <button id="double-reveal-button" class="button double-reveal-button" type="button">
+              <strong>Double or nothing <span aria-hidden="true">✦</span></strong>
+              <small id="double-reveal-hint">Double your balance or lose it all</small>
+            </button>
+          </div>
+          <p id="reveal-explainer" class="reveal-explainer">Choose before seeing the answer. Both buttons reveal the same flashcard.</p>
           <div id="rating-area" class="rating-area" hidden>
             <p>Rate your recall</p>
             <div class="rating-buttons">
@@ -208,7 +186,7 @@
     </main>
 
     <footer class="site-footer">
-      <span>FLASHCARDS / LAB — V0.5</span>
+      <span>FLASHCARDS / LAB — V0.6</span>
       <span>A living picture of what you know.</span>
     </footer>
   </div>

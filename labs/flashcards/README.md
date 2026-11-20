@@ -1,51 +1,32 @@
-# Flashcards Lab v0.5 — Memory Garden + card draws
+# Flashcards Lab v0.6 — Double or nothing
 
 Live: https://rafaelmadeira.com/labs/flashcards/
 
-This is a locally persisted, single-player design prototype; no real-money gambling, account, cloud sync, shop or upgrades.
+Single-player prototype. In-game coins have no monetary value. No accounts, cloud sync, shops, buildable decks or special cards.
 
-## Your plots
-- Each deck is a plot. Each square represents one memory/card, retaining the v0.4 health gradient, stages and tooltips.
-- Each **exposed** card passively earns 0.025 game coin/hour for its plot. An initial *demo* harvest of 8/6/6 coins is seeded on the three built-in plots so harvesting can be tested immediately. New imports start at zero.
-- **Collect** runs a left-to-right sweep through the squares and animates the total, then banks the coins. Fractional unclaimed earnings carry forward. Coins start at 30 so the wagering mode can be tested without waiting.
-- These are illustrative economy numbers, not a claim about memory retention.
+## The whole study decision
+Every normal scheduled flashcard presents precisely two ways to reveal the answer:
+- **Reveal answer**: if rated Correct or Effortless, **+1 coin**. If No recall or Incorrect, **−1 coin**, never below zero.
+- **Double or nothing**: commits your **whole current coin balance** before reveal. If Correct or Effortless, doubles that balance (+N); if No recall or Incorrect, loses the whole amount (−N, balance zero).
 
-## Study modes
-- **Study free**: same memory scheduler and XP as v0.4. No bets, hand or coin changes from answers.
-- **Play for coins**: same scheduler and XP, plus a stake and special card choices. Available only when some cards are due or new (no farming coins by endlessly repeating extra practice).
-- Clicking a square individually runs an ordinary free review; an early review earns no XP.
-- When nothing is due, **Practice free** is score-free and schedule-free, just like v0.4.
+At zero coins, Double or nothing is disabled until at least one coin is earned or harvested. Neither reveal choice changes XP or the spaced-repetition algorithm. The front of the flashcard and Space keyboard shortcut use **normal reveal**.
 
-## Special-card deck
-- Each coin session starts with a freshly shuffled deck of 18 special cards and **three cards in hand**.
-- Before revealing each flashcard, you may select **one card** to play (or none), and optionally discard **one selected card** to draw a replacement. Only one discard/draw per flashcard.
-- Chosen card and bet are locked as soon as the flashcard is revealed. A selected special card is played only when you rate the answer; it then moves to discard, and a random card is drawn to refill the hand to three. If you keep your cards, your hand remains intact.
-- When the draw pile empties, discarded specials are shuffled back into a new pile. **No deckbuilding**.
-- Multiplier cards: Double (×2) and Triple (×3) affect both coin wins and losses.
-- Protection cards: Shield (zero loss), Half Loss (loss halves, rounded up), Safe Bet (double gain, lose at most one).
-- Modifier cards: Lucky (+3 coins on success), XP Boost (+50 XP on success).
-- All cards are game modifiers; they **never** change spaced repetition.
+For early single-card review and extra practice when there are no new/due cards, only ordinary reveal is available; the existing study rules mean no coins, no XP, and (in extra practice) no schedule changes. This prevents repeatedly farming known cards.
 
-## Wagers
-- Before revealing: choose No bet, 1, 3, 5 or 10 coins, capped by available wallet.
-- No bet settles ±1 coin on a correct/incorrect answer; any bet of N coins settles ±N, then applies optional card effects.
-- 'Correct' and 'Effortless' count as success; 'No recall' and 'Incorrect' as failure.
-- Losses are capped at the current wallet (balance never below zero). XP rewards and penalties retain the v0.4 formula; XP Boost is listed separately in the summary ledger.
-- Session summary shows earned/lost coins and XP.
+## Plots and harvest
+All 3 starter plots remain. Cards become green based on a provisional, non-calibrated forgetfulness/health heuristic and opened cards yield 0.025 game coin/hour per plot. Plot Collection animates a left-to-right sweep and transfers pending earnings into your wallet. Prior starter harvests 8/6/6 coins are preserved (not reset). The wallet initially starts with 30 coins.
 
-## Study schedule and data
-- Scheduler remains unchanged from v0.4, inspired by spaced repetition but NOT validated FSRS.
-- Green health indicator is a display-only estimated forgetting curve with scheduled interval as a heuristic proxy, not a calibrated probability.
-- Old progress, XP and imports are read from the same v0.4 localStorage keys. The coin wallet/plot earnings use an additional `flashlab-game-v1` key.
-- Three bundled Portuguese decks: 27 Brazilian state capitals, 12 South American countries and 12 South American capitals. JSON import is supported.
-- Keyboard: Space reveal, 1–4 rating, Escape back to garden.
+## Existing behavior retained
+- 27 Brazilian state/Federal District capitals, 12 South American countries, and 12 South American capitals; JSON deck imports supported.
+- Same review scheduler, XP earning and scoring ledger, memory visualization and tooltip.
+- Previous v0.4 study data and v0.5 game wallet/plot earnings preserved using the same localStorage keys.
+- Keyboard: Space to reveal normally; 1–4 grade; Escape leave session.
+- End-of-session ledger now reports both XP and net coins. Each question shows whether Normal or Double or nothing was chosen.
 
-## Quick testing checklist
-1. Check that existing XP, memory health and imported decks remain unchanged.
-2. Collect from all three built-in plots; confirm coins increase only once and totals animate.
-3. Start Play for coins: hand of three random cards and a draw pile.
-4. Select a special; discard/draw once (second swap must be disabled); choose bet; reveal locks decisions.
-5. Grade correct and incorrect, confirm multiplier/protection outcomes and hand replenishment.
-6. Complete a session: verify net coins, XP ledger and spaced repetition dates.
-7. Study free: no special cards, bets or change in coins from ratings.
-8. Reload: coins, plots and progress persist, while a new session shuffles a new special-card deck.
+## Testing
+1. Start Study deck. Confirm two reveal buttons and no extra card-hand panel or bet picker.
+2. At balance N, test Normal +1 and −1. At balance N, test Double or nothing: win yields 2N, miss yields zero.
+3. Check that a double bet is chosen before reveal and cannot be switched after seeing the answer.
+4. When balance is zero, Double or nothing is disabled; Normal success recovers one coin.
+5. Complete a session, see XP and coin totals, and reload: wallet, schedule and plots persist.
+6. Early direct-card study and extra practice allow no score farming.
