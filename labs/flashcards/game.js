@@ -1,8 +1,8 @@
 (function () {
   "use strict";
-
-  var STORAGE_KEY = "flashlab-game-v1"; // Keep v0.5 balances and plot earnings.
+  var STORAGE_KEY = "flashlab-game-v1"; // Keep balance/plot data from v0.5 onward.
   var HOUR = 3600000;
+  var BUY_IN = 20;
   var START_COINS = 30;
   var STARTER_PLOTS = {
     "br-estados-capitais": 8,
@@ -10,24 +10,29 @@
     "america-do-sul-capitais": 6
   };
   function el(id) { return document.getElementById(id); }
-  function read() {
+  function fmt(n) { return Number(n || 0).toLocaleString("en-US"); }
+  function load() {
     try {
-      var existing = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      if (existing && typeof existing === "object" && Number.isFinite(existing.coins) &&
-        existing.plots && typeof existing.plots === "object") return existing;
-    } catch (_) { /* Default to starter wallet. */ }
+      var result = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (result && typeof result === "object" && Number.isFinite(result.coins) &&
+          result.plots && typeof result.plots === "object") return result;
+    } catch (_) { /* Default below */ }
     return { coins: START_COINS, plots: {} };
   }
-  var wallet = read();
+  var wallet = load();
   wallet.coins = Math.max(0, Math.floor(wallet.coins));
-  var sessionActive = false;
-  var currentRound = null;
-
+  // A page reload while studying should never strand a previous session's escrow.
+  if (wallet.active && Number.isFinite(wallet.active.bankroll)) {
+    wallet.coins += Math.max(0, wallet.active.bankroll);
+    delete wallet.active;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(wallet)); } catch (_) {}
+  }
+  var game = null;
+  var round = null;
   function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(wallet)); }
-    catch (error) { console.warn("Unable to save coin progress", error); }
+    catch (error) { console.warn("Could not persist coin progress", error); }
   }
-  function fmt(value) { return Number(value).toLocaleString("en-US"); }
   function seedPlot(deck) {
     if (!Object.prototype.hasOwnProperty.call(wallet.plots, deck.id)) {
       wallet.plots[deck.id] = {
@@ -40,9 +45,8 @@
   }
   function plantedCount(deck, getRecord) {
     return deck.cards.reduce(function (sum, card) {
-      var record = getRecord(deck.id, card.id);
-      return sum + (record &&
-        (record.firstSeenAt || record.lastReviewedAt || Number(record.reviews) > 0) ? 1 : 0);
+      var r = getRecord(deck.id, card.id);
+      return sum + (r && (r.firstSeenAt || r.lastReviewedAt || Number(r.reviews) > 0) ? 1 : 0);
     }, 0);
   }
   function earningsWithFraction(deck, getRecord) {
@@ -51,12 +55,9 @@
     return Math.max(0, Number(plot.pending) || 0) +
       (elapsed / HOUR) * plantedCount(deck, getRecord) * 0.025;
   }
-  function plotEarnings(deck, getRecord) {
-    return Math.floor(earningsWithFraction(deck, getRecord));
-  }
+  function plotEarnings(deck, getRecord) { return Math.floor(earningsWithFraction(deck, getRecord)); }
   function collectPlot(deck, getRecord) {
-    var total = earningsWithFraction(deck, getRecord);
-    var amount = Math.floor(total);
+    var total = earningsWithFraction(deck, getRecord), amount = Math.floor(total);
     if (amount <= 0) return 0;
     wallet.plots[deck.id] = { pending: total - amount, since: Date.now() };
     wallet.coins += amount;
@@ -64,85 +65,123 @@
     updateBalance();
     return amount;
   }
+  function resetPlotAccrual(deck, getRecord) {
+    // Keep already-earned coins (including fractional) on deck-learning reset.
+    var retained = earningsWithFraction(deck, getRecord);
+    wallet.plots[deck.id] = { pending: retained, since: Date.now() };
+    save();
+  }
+  function getBuyIn() { return BUY_IN; }
+  function walletBalance() { return wallet.coins; }
   function updateBalance() {
     if (el("total-coins")) el("total-coins").textContent = fmt(wallet.coins);
   }
+  function updateTable() {
+    var box = el("session-money");
+    if (!box) return;
+    box.hidden = !game;
+    if (!game) return;
+    el("session-buyin").textContent = "◈ " + fmt(game.buyin);
+    el("session-bankroll").textContent = "◈ " + fmt(game.bankroll);
+    var difference = game.bankroll - game.buyin;
+    el("session-profit").textContent = (difference > 0 ? "+" : "") + "◈ " + fmt(difference);
+    el("session-profit").classList.toggle("profit", difference > 0);
+    el("session-profit").classList.toggle("loss", difference < 0);
+  }
   function startSession(eligible) {
-    sessionActive = Boolean(eligible);
-    currentRound = null;
+    endSession();
+    if (eligible && wallet.coins >= BUY_IN) {
+      wallet.coins -= BUY_IN;
+      game = { buyin: BUY_IN, bankroll: BUY_IN };
+      wallet.active = { bankroll: game.bankroll };
+      save();
+    }
+    round = null;
     updateBalance();
+    updateTable();
+    return !!game;
   }
   function endSession() {
-    sessionActive = false;
-    currentRound = null;
-  }
-  function beginRound() {
-    currentRound = null;
-    var doubleButton = el("double-reveal-button");
-    var revealButton = el("reveal-button");
-    if (!doubleButton || !revealButton) return;
-    doubleButton.hidden = !sessionActive;
-    el("reveal-actions").classList.toggle("only-one", !sessionActive);
-    el("normal-reveal-hint").textContent = sessionActive ?
-      "Correct: +1 coin · Miss: −1 coin" : "Practice · no coin changes";
-    if (!sessionActive) {
-      el("reveal-explainer").textContent = "Extra practice and early reviews do not change your coin balance.";
-    } else {
-      el("reveal-explainer").textContent = "Choose before seeing the answer. Correct and Effortless count as wins.";
-      el("double-reveal-hint").textContent = wallet.coins > 0 ?
-        "Win +" + fmt(wallet.coins) + " · Miss −" + fmt(wallet.coins) + " (all coins)" :
-        "Earn a coin with normal recall to unlock";
-      doubleButton.disabled = wallet.coins === 0;
+    if (game) {
+      wallet.coins += game.bankroll;
+      delete wallet.active;
+      save();
     }
+    game = null; round = null;
+    updateBalance(); updateTable();
+  }
+  function cardValue(record) {
+    // More lapses and overdue reviews make a memory more valuable, still with a small bounded range.
+    var failures = Math.min(3, Math.max(0, Number(record && record.misses) || 0));
+    var overdue = record && record.dueAt ?
+      Math.max(0, (Date.now() - Date.parse(record.dueAt)) / 86400000) : 0;
+    return Math.min(12, 4 + failures * 2 + (overdue > 3 ? 2 : 0));
+  }
+  function beginRound(record) {
+    round = null;
+    updateTable();
+    var stake = cardValue(record);
+    var double = el("double-reveal-button");
+    var hint = el("normal-reveal-hint");
+    var value = el("card-stake");
+    var doubleHint = el("double-reveal-hint");
+    var lifelineHint = el("lifeline-hint");
+    var enabled = !!game && game.bankroll > 0;
+    value.hidden = !game;
+    value.innerHTML = "CARD VALUE <strong>◈ " + fmt(stake) + "</strong>";
+    hint.textContent = enabled ? "Win +" + stake + " · Miss −" + stake + " coins" : "Free review · no coins";
+    double.hidden = !enabled;
+    el("reveal-actions").classList.toggle("only-one", !enabled);
+    double.disabled = !enabled || game.bankroll < stake * 2;
+    doubleHint.textContent = "Win +" + (stake * 2) + " · Miss −" + (stake * 2) + " coins";
+    lifelineHint.textContent = enabled ?
+      "4 choices · win +" + Math.max(1, Math.round(stake / 4)) + ", lose −" + Math.max(1, Math.round(stake / 4)) :
+      "4 choices · assisted recall";
+    el("reveal-explainer").textContent = enabled ?
+      "Coins at risk come from this session's table, never your whole wallet." :
+      "Reviewing without coins; your learning schedule still works.";
   }
   function lockRound(choice) {
-    if (currentRound) return false;
-    if (!sessionActive) {
-      currentRound = { mode: "practice", balance: wallet.coins };
+    if (round) return false;
+    if (!game || game.bankroll <= 0) {
+      round = { mode:"practice", stake:0 };
       return true;
     }
-    if (choice === "double" && wallet.coins <= 0) return false;
-    currentRound = {
-      mode: choice === "double" ? "double" : "normal",
-      balance: wallet.coins
-    };
+    var stake = cardValue(game.currentRecord);
+    var multiplier = choice === "double" ? 2 : 1;
+    if (choice === "double" && game.bankroll < stake * 2) return false;
+    round = { mode: ["normal","double","lifeline"].includes(choice) ? choice : "normal", stake:stake };
     return true;
   }
+  function setCardRecord(record) {
+    if (game) game.currentRecord = record || null;
+    beginRound(record || null);
+  }
   function resolveRound(success) {
-    if (!currentRound) return { delta: 0, choice: "" };
-    var round = currentRound;
-    currentRound = null; // A reveal choice can settle exactly once.
-    if (round.mode === "practice") return { delta: 0, choice: "" };
-    var delta;
-    if (round.mode === "double") {
-      // All-in, not ±2 coins: success doubles the entire wallet; failure wipes it.
-      delta = success ? round.balance : -round.balance;
-    } else {
-      delta = success ? 1 : -Math.min(1, round.balance);
-    }
-    wallet.coins = Math.max(0, wallet.coins + delta);
+    if (!round) return { delta:0,choice:"" };
+    var r = round; round = null;
+    if (r.mode === "practice" || !game) return { delta:0,choice:"" };
+    var amount = r.mode === "double" ? r.stake * 2 :
+      r.mode === "lifeline" ? Math.max(1, Math.round(r.stake / 4)) : r.stake;
+    var delta = success ? amount : -Math.min(amount, game.bankroll);
+    game.bankroll = Math.max(0, game.bankroll + delta);
+    wallet.active = { bankroll:game.bankroll };
     save();
-    updateBalance();
-    return { delta: delta, choice: round.mode };
+    updateTable();
+    return { delta:delta, choice:r.mode };
   }
   function renderSummary(finished) {
-    var enabled = finished.mode === "coins";
+    var visible = finished.mode === "coins";
     var block = el("summary-coin-block");
-    block.hidden = !enabled;
-    document.querySelector(".summary-stats").classList.toggle("with-coins", enabled);
-    el("summary-coins").textContent =
-      (finished.coins > 0 ? "+" : "") + fmt(finished.coins);
+    block.hidden = !visible;
+    document.querySelector(".summary-stats").classList.toggle("with-coins", visible);
+    el("summary-coins").textContent = (finished.coins > 0 ? "+" : "") + fmt(finished.coins);
   }
   window.FlashcardsGame = {
-    plotEarnings: plotEarnings,
-    collectPlot: collectPlot,
-    updateBalance: updateBalance,
-    startSession: startSession,
-    endSession: endSession,
-    beginRound: beginRound,
-    lockRound: lockRound,
-    resolveRound: resolveRound,
-    renderSummary: renderSummary
+    plotEarnings:plotEarnings,collectPlot:collectPlot,resetPlotAccrual:resetPlotAccrual,
+    updateBalance:updateBalance,getBuyIn:getBuyIn,walletBalance:walletBalance,
+    startSession:startSession,endSession:endSession,beginRound:setCardRecord,
+    lockRound:lockRound,resolveRound:resolveRound,renderSummary:renderSummary
   };
   updateBalance();
 })();

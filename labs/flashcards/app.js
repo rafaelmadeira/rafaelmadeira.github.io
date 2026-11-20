@@ -235,16 +235,19 @@
       single: single,
       early: early,
       practice: practice,
-      mode: !early && !practice ? "coins" : "practice",
+      mode: "practice",
       coins: 0
     };
     revealed = false;
     ratingLocked = false;
-    if (window.FlashcardsGame) window.FlashcardsGame.startSession(session.mode === "coins");
+    var canPlay = window.FlashcardsGame &&
+      window.FlashcardsGame.startSession(!early && !practice);
+    session.mode = canPlay ? "coins" : (practice ? "practice" : "free");
     el("study-title").textContent = deck.title;
     el("study-mode-label").textContent = single
       ? (early ? "EARLY REVIEW · NO XP" : "SINGLE-CARD REVIEW")
-      : (practice ? "EXTRA PRACTICE · NO XP / COINS" : "STUDY SESSION · XP + COINS");
+      : (practice ? "EXTRA PRACTICE · NO XP / COINS" :
+          (session.mode === "coins" ? "STUDY SESSION · XP + COINS" : "STUDY SESSION · XP ONLY"));
     view("study-view");
     showCard();
     if (practice) toast("All caught up! Extra practice does not change reviews or earn XP.");
@@ -270,11 +273,18 @@
     el("rating-area").hidden = true;
     el("reveal-actions").hidden = false;
     el("reveal-explainer").hidden = false;
+    el("lifeline-start").hidden = false;
+    el("lifeline-panel").hidden = true;
+    el("lifeline-options").replaceChildren();
+    el("lifeline-feedback").textContent = "";
     el("card-counter").textContent = String(session.index + 1).padStart(2, "0") + " / " + String(session.queue.length).padStart(2, "0");
     el("progress-fill").style.width = (100 * session.index / session.queue.length) + "%";
     el("remaining-text").textContent = (session.queue.length - session.index) + " card(s) remaining";
     updateXP();
-    if (window.FlashcardsGame) window.FlashcardsGame.beginRound();
+    if (window.FlashcardsGame) window.FlashcardsGame.beginRound(record);
+    el("lifeline-button").disabled = uniqueAnswers(session.deck, card).length < 4;
+    el("lifeline-hint").textContent = el("lifeline-button").disabled ?
+      "Needs at least 4 distinct answers in this deck" : el("lifeline-hint").textContent;
   }
   function reveal(choice) {
     if (!session || revealed || ratingLocked) return;
@@ -295,6 +305,7 @@
     el("flashcard").classList.add("is-revealed");
     el("reveal-actions").hidden = true;
     el("reveal-explainer").hidden = true;
+    el("lifeline-start").hidden = true;
     el("rating-area").hidden = false;
     var old = getRecord(session.deck.id, card.id) || {};
     el("correct-review-label").textContent = session.practice ?
@@ -314,8 +325,70 @@
 
   }
 
+  function uniqueAnswers(deck, currentCard) {
+    var seen = new Set();
+    return deck.cards.map(function (card) { return card.back.trim(); })
+      .filter(function (answer) {
+        var key = answer.toLocaleLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }
+  function useLifeline() {
+    if (!session || revealed || ratingLocked) return;
+    var card = session.queue[session.index];
+    var choices = uniqueAnswers(session.deck, card);
+    if (choices.length < 4) return;
+    if (window.FlashcardsGame && !window.FlashcardsGame.lockRound("lifeline")) return;
+    var normalized = card.back.trim().toLocaleLowerCase();
+    var other = shuffle(choices.filter(function (item) {
+      return item.toLocaleLowerCase() !== normalized;
+    })).slice(0, 3);
+    var answers = shuffle([card.back.trim()].concat(other));
+    var panel = el("lifeline-options");
+    panel.replaceChildren();
+    el("reveal-actions").hidden = true;
+    el("lifeline-start").hidden = true;
+    el("reveal-explainer").hidden = true;
+    el("lifeline-panel").hidden = false;
+    answers.forEach(function (answer, i) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "lifeline-option";
+      button.textContent = String.fromCharCode(65 + i) + "  " + answer;
+      button.addEventListener("click", function () {
+        if (revealed || ratingLocked) return;
+        revealed = true;
+        var correct = answer.toLocaleLowerCase() === normalized;
+        panel.querySelectorAll("button").forEach(function (option) {
+          option.disabled = true;
+          var label = option.textContent.slice(3).toLocaleLowerCase();
+          option.classList.toggle("is-correct", label === normalized);
+        });
+        if (!correct) button.classList.add("is-incorrect");
+        var existing = getRecord(session.deck.id, card.id) || {};
+        if (!existing.firstSeenAt && !existing.lastReviewedAt) {
+          existing.firstSeenAt = new Date().toISOString();
+          setRecord(session.deck.id, card.id, existing);
+        }
+        el("card-front-small").textContent = card.front;
+        el("card-front-small").hidden = false;
+        el("card-content").textContent = card.back;
+        el("card-side-label").textContent = "ANSWER";
+        el("card-hint").textContent = correct ? "Recognized with a lifeline" : "The correct answer is shown";
+        el("flashcard").classList.add("is-revealed");
+        el("lifeline-feedback").textContent = correct ?
+          "✓ Lifeline worked · partial XP · earlier review" :
+          "× Missed · shorter penalty · review again soon";
+        rate(correct ? "assisted" : "incorrect", true);
+      });
+      panel.appendChild(button);
+    });
+  }
+
   // Ratings feed only the memory scheduler. No XP enters these functions.
-  function isSuccess(rating) { return rating === "correct" || rating === "effortless"; }
+  function isSuccess(rating) { return rating === "correct" || rating === "effortless" || rating === "assisted"; }
   function unresolvedMisses(record) {
     if (Number.isFinite(Number(record.unrecoveredMisses))) return safeInt(record.unrecoveredMisses);
     // Preserve a minimum useful count for v0.1/v0.2 data.
@@ -335,12 +408,14 @@
   }
   function reviewSchedule(old, rating) {
     var success = isSuccess(rating);
-    var intervalDays = success ? nextIntervalDays(old, rating) : 0;
+    // Lifeline recognition is weaker evidence than unaided recall: review after 6 hours.
+    var intervalDays = rating === "assisted" ? 0.25 :
+      (success ? nextIntervalDays(old, rating) : 0);
     var next = {
       reviews: safeInt(old.reviews) + 1,
       correct: safeInt(old.correct) + (success ? 1 : 0),
       misses: safeInt(old.misses) + (success ? 0 : 1),
-      streak: success ? safeInt(old.streak) + 1 : 0,
+      streak: rating === "assisted" ? 0 : (success ? safeInt(old.streak) + 1 : 0),
       unrecoveredMisses: success ? 0 : unresolvedMisses(old) + 1,
       intervalDays: intervalDays,
       lastRating: rating,
@@ -392,12 +467,13 @@
       norecall: "No recall",
       incorrect: "Incorrect",
       correct: "Correct",
-      effortless: "Effortless"
+      effortless: "Effortless",
+      assisted: "Lifeline"
     }[rating] || rating;
   }
-  function rate(rating) {
+  function rate(rating, usedLifeline) {
     if (!session || !revealed || ratingLocked) return;
-    if (["norecall", "incorrect", "correct", "effortless"].indexOf(rating) === -1) return;
+    if (["norecall", "incorrect", "correct", "effortless", "assisted"].indexOf(rating) === -1) return;
     ratingLocked = true;
     var card = session.queue[session.index];
     var old = getRecord(session.deck.id, card.id) || {};
@@ -406,7 +482,13 @@
     var next = reviewSchedule(old, rating);
     var score = (session.practice || session.early)
       ? { base: 0, decay: 0, recovery: 0, mastery: 0, penalty: 0, total: 0 }
-      : calculateScore(old, rating, next);
+      : usedLifeline ?
+        (success ?
+          { base: Math.max(5, Math.round(calculateScore(old, "correct", next).total / 4)),
+            decay: 0, recovery: 0, mastery: 0, penalty: 0, total: 0 } :
+          { base: 0, decay: 0, recovery: 0, mastery: 0, penalty: -10, total: -10 }) :
+        calculateScore(old, rating, next);
+    if (usedLifeline && success && !session.practice && !session.early) score.total = score.base;
     var gameOutcome = window.FlashcardsGame ? window.FlashcardsGame.resolveRound(success) : { delta: 0, choice: "" };
     session.coins += gameOutcome.delta;
 
@@ -454,15 +536,16 @@
     }
     if (session.mode === "coins") {
       var coinText = (gameOutcome.delta > 0 ? "+" : "") + gameOutcome.delta + " coins";
-      toast(coinText + (gameOutcome.choice === "double" ? " · Double or nothing" : "") + " · " + signedPoints(score.total) + " XP");
+      toast(coinText + (usedLifeline ? " · Lifeline" : gameOutcome.choice === "double" ? " · Double bet" : "") +
+        " · " + signedPoints(score.total) + " XP");
     }
     session.index++;
-    window.setTimeout(function () { showCard(); }, 330);
+    window.setTimeout(function () { showCard(); }, usedLifeline ? 1100 : 330);
   }
 
   function renderScoreReport(finished) {
     var sums = { base: 0, decay: 0, recovery: 0, mastery: 0, penalty: 0 };
-    var counts = { norecall: 0, incorrect: 0, correct: 0, effortless: 0 };
+    var counts = { norecall: 0, incorrect: 0, correct: 0, effortless: 0, assisted: 0 };
     finished.events.forEach(function (event) {
       Object.keys(sums).forEach(function (key) { sums[key] += event[key]; });
       counts[event.rating]++;
@@ -487,7 +570,8 @@
       '<span>No recall: ' + counts.norecall + '</span>' +
       '<span>Incorrect: ' + counts.incorrect + '</span>' +
       '<span>Correct: ' + counts.correct + '</span>' +
-      '<span>Effortless: ' + counts.effortless + '</span>';
+      '<span>Effortless: ' + counts.effortless + '</span>' +
+      '<span>Lifeline: ' + counts.assisted + '</span>';
     el("score-events-list").innerHTML = finished.events.map(function (event) {
       var details = [];
       if (event.base) details.push("Base +" + niceNumber(event.base));
@@ -495,7 +579,9 @@
       if (event.recovery) details.push("Comeback +" + niceNumber(event.recovery));
       if (event.mastery) details.push("Mastery +" + niceNumber(event.mastery));
       if (event.penalty) details.push("Miss " + signedPoints(event.penalty));
-      if (finished.mode === "coins") details.push((event.choice === "double" ? "Double or nothing" : "Normal") + ": " + signedPoints(event.coins || 0) + " coins");
+      if (finished.mode === "coins") details.push((event.choice === "double" ? "Double bet" :
+        event.choice === "lifeline" ? "Lifeline" : "Normal") + ": " +
+        signedPoints(event.coins || 0) + " coins");
       if (!details.length) details.push("Extra practice");
       return '<li><div class="score-event-content">' +
         '<span class="score-event-rating">' + ratingLabel(event.rating) + '</span>' +
@@ -514,6 +600,7 @@
   function finishSession() {
     if (!session) return;
     var finished = session;
+    if (window.FlashcardsGame) window.FlashcardsGame.endSession(); // Cash out remaining buy-in.
     el("summary-deck-title").textContent = finished.deck.title +
       (finished.practice ? " · extra practice" : finished.early ? " · early review" : finished.single ? " · single-card review" : " · daily review");
     el("summary-xp").textContent = niceNumber(finished.xp);
@@ -543,6 +630,15 @@
     view("library-view");
   }
 
+  window.FlashcardsResetDeck = function (deck) {
+    if (!window.confirm("Reset all " + deck.cards.length + " card reviews in \"" +
+      deck.title + "\"?\n\nThis removes its review schedule and memory-health colors. XP, coins, and other decks are kept.")) return;
+    if (window.FlashcardsGame) window.FlashcardsGame.resetPlotAccrual(deck, getRecord);
+    delete progress[deck.id];
+    if (!save(STORAGE.progress, progress)) return;
+    renderLibrary();
+    toast("Study progress reset for " + deck.title + ".");
+  };
   el("import-button").addEventListener("click", function () { el("deck-file").click(); });
   el("deck-file").addEventListener("change", async function () {
     await importFile(this.files && this.files[0]);
@@ -554,13 +650,9 @@
   el("flashcard").addEventListener("click", function () { reveal("normal"); });
   el("reveal-button").addEventListener("click", function () { reveal("normal"); });
   el("double-reveal-button").addEventListener("click", function () { reveal("double"); });
+  el("lifeline-button").addEventListener("click", useLifeline);
   document.querySelectorAll("[data-rating]").forEach(function (button) {
     button.addEventListener("click", function () { rate(button.getAttribute("data-rating")); });
-  });
-  el("show-formula").addEventListener("click", function () {
-    var details = el("formula-details");
-    details.hidden = !details.hidden;
-    this.setAttribute("aria-expanded", String(!details.hidden));
   });
   window.addEventListener("keydown", function (event) {
     if (!session || event.altKey || event.ctrlKey || event.metaKey) return;

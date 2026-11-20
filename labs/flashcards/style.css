@@ -344,3 +344,26 @@ h1, h2, h3, p { margin-top: 0; }
   .legend-swatches { gap:4px; }
   .legend-swatches i { width:14px;height:14px;flex-basis:14px; }
 }
+
+/* V0.8 — library opens directly on plots; static, dense 8px memory pixels. */
+#library-view { padding-top:33px; }
+#library-view > .section-heading { border-top:0;padding-top:0;margin-bottom:20px;align-items:center; }
+.plots-title { margin:0;font-size:23px;font-weight:650;letter-spacing:-.7px;display:flex;align-items:center;gap:10px; }
+.top-import { display:inline-flex;gap:7px;align-items:center;white-space:nowrap;background:transparent;color:#5b755b;font-weight:700;font-size:12px;border:1px solid #c6d7c0;border-radius:7px;padding:10px 13px; }
+.top-import:hover { background:#e7efe3; }
+.garden-grid { display:grid;grid-template-columns:repeat(auto-fill,8px);grid-auto-rows:8px;gap:2px;width:min(100%,278px);max-height:none;overflow:visible;align-content:start;padding:0;margin:0 0 15px; }
+.garden-cell { display:block;width:8px;height:8px;min-height:8px;border-radius:2px;pointer-events:none;transform:none!important;box-shadow:none!important;filter:none!important; }
+.garden-cell:hover,.garden-cell:focus { transform:none;filter:none;box-shadow:none; }
+.garden-deck .deck-card-top { margin-bottom:15px; }
+.garden-deck .deck-description { margin-bottom:17px; }
+.garden-deck .deck-card-foot { margin:0 0 10px; }
+.reset-deck-progress { appearance:none;background:none;border:0;padding:4px;color:#9b9f95;font-size:10px;text-decoration:underline;text-underline-offset:3px; }
+.reset-deck-progress:hover { color:#a55243; }
+.garden-legend { margin-top:21px; }
+@media(max-width:680px) {
+  #library-view { padding-top:22px; }
+  #library-view > .section-heading { flex-wrap:wrap;row-gap:15px; }
+  .top-import { padding:8px 9px;font-size:11px; }
+  .topbar-right { gap:5px; }
+  .garden-grid { grid-template-columns:repeat(auto-fill,8px);gap:2px;width:min(100%,278px); }
+}

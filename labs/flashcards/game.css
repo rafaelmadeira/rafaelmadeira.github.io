@@ -48,3 +48,36 @@
 @media(prefers-reduced-motion:reduce) {
   .garden-cell.harvest-sweep,.harvest-numbers.float-away { animation:none; }
 }
+/* v0.8 — light decision UX, local table bankroll, and fallback recognition. */
+.session-money { max-width:830px;margin:15px auto 0;border:1px solid #dadfce;border-radius:9px;background:#f7f8f1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:hidden; }
+.session-money > div { padding:12px 15px;display:flex;flex-direction:column;gap:7px;align-items:center; }
+.session-money > div + div { border-left:1px solid #e3e8dc; }
+.session-money span { font:10px "DM Mono",monospace;color:#81917d;letter-spacing:.7px; }
+.session-money strong { font-size:20px;font-variant-numeric:tabular-nums;color:#557053; }
+.session-money strong.profit { color:#2d8a59; }
+.session-money strong.loss { color:#c05a4b; }
+.card-stake { text-align:center;color:#7c8b77;font:11px "DM Mono",monospace;letter-spacing:.6px;margin:-10px 0 14px; }
+.card-stake strong { color:#a68236;font-size:16px;margin-left:7px; }
+.lifeline-start { display:flex;flex-direction:column;gap:5px;align-items:center;justify-content:center;padding:18px 0 4px; }
+.lifeline-link { background:none;border:0;font-weight:700;color:#9b7136;font-size:14px;text-decoration:underline;text-underline-offset:4px;padding:5px 9px; }
+.lifeline-link:hover { color:#6c4b22; }
+.lifeline-link:disabled { opacity:.4;text-decoration:none; }
+.lifeline-start span { color:#9c9f93;font-size:11px; }
+.lifeline-panel { border:1px solid #e7d6b2;background:#fffaf0;border-radius:11px;padding:18px;margin-top:8px; }
+.lifeline-top { display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;color:#8b6e35; }
+.lifeline-top strong { font-size:16px; }
+.lifeline-top span { font-size:11px; }
+.lifeline-options { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px; }
+.lifeline-option { min-height:53px;text-align:left;white-space:normal;overflow-wrap:anywhere;background:#fff;border:1px solid #e4d7b7;color:#584d37;font-size:13px;font-weight:600;padding:13px 14px;border-radius:7px; }
+.lifeline-option:hover:not(:disabled) { background:#fff3d9;border-color:#c4a16c; }
+.lifeline-option:disabled { opacity:.52;cursor:default; }
+.lifeline-option.is-correct { background:#e5f4e4;border-color:#78b98b;color:#2d6d46;opacity:1; }
+.lifeline-option.is-incorrect { background:#fde6e2;border-color:#d59686;color:#a2473f;opacity:1; }
+.lifeline-feedback { min-height:13px;font-size:12px;text-align:center;color:#6c785e;margin:13px 0 0; }
+@media(max-width:680px) {
+  .session-money span { font-size:8px; }
+  .session-money strong { font-size:15px; }
+  .session-money > div { padding:10px 5px; }
+  .lifeline-options { gap:7px; }
+  .lifeline-option { padding:12px 10px;font-size:12px; }
+}

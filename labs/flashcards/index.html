@@ -20,7 +20,8 @@
         <span class="brand-wordmark">flashcards<span class="brand-light">/lab</span></span>
       </button>
       <div class="topbar-right">
-        <span class="prototype-tag">EXPERIMENT 007</span>
+        <span class="prototype-tag">EXPERIMENT 008</span>
+        <button id="import-button" class="top-import" type="button"><span aria-hidden="true">↥</span> Import JSON deck</button>
         <div class="coin-balance" aria-label="Coin balance"><span aria-hidden="true">◈</span><strong id="total-coins">30</strong><span>coins</span></div>
         <div class="global-score" aria-label="Total XP">
           <span class="score-star" aria-hidden="true">✳</span>
@@ -31,23 +32,9 @@
     </header>
 
     <main>
-      <section id="library-view" class="view" aria-labelledby="library-title">
-        <div class="library-heading">
-          <div>
-            <p class="eyebrow"><span class="eyebrow-line"></span> YOUR LIBRARY</p>
-            <h1 id="library-title">Grow what<br><em>you know.</em></h1>
-            <p class="intro">Every square is a memory. Study, collect coins and decide whether to play it safe — or risk them all on your next answer.</p>
-          </div>
-          <div class="library-action">
-            <button id="import-button" class="button button-primary" type="button">
-              <span aria-hidden="true">↥</span> Import JSON deck
-            </button>
-            <p class="helper">Your decks and learning history stay in this browser.</p>
-          </div>
-        </div>
-
+      <section id="library-view" class="view" aria-labelledby="plots-title">
         <div class="section-heading">
-          <h2>Your plots <span id="deck-count" class="count-tag">0</span></h2>
+          <h1 id="plots-title" class="plots-title">Your plots <span id="deck-count" class="count-tag">0</span></h1>
           <div class="palette-control">
             <span class="palette-caption">PLOT COLORS</span>
             <div class="palette-toggle" role="group" aria-label="Plot color palette">
@@ -66,31 +53,12 @@
           </span>
           <span>Stronger estimated recall</span>
         </div>
-        <p class="garden-disclaimer">Health is an experimental estimate, not a calibrated FSRS probability. Earnings accrue from opened cards. Starter harvests are included so you can test the mechanic immediately.</p>
+        <p class="garden-disclaimer">Color is an experimental estimate of memory health, not a calibrated recall probability. Each square is a snapshot, not an individual study button.</p>
         <div id="library-empty" class="empty-state" hidden>
           <h3>No decks available</h3>
           <p>Import a JSON file to start studying.</p>
         </div>
 
-        <div class="guide">
-          <div class="guide-heading">
-            <span class="guide-icon" aria-hidden="true">✳</span>
-            <div>
-              <p class="eyebrow">READING YOUR GARDEN</p>
-              <h2>Every memory has a season.</h2>
-            </div>
-          </div>
-          <div class="guide-steps">
-            <div class="guide-step"><span class="step-index">01</span><p>Each square is a card. <strong>Gray</strong> means never opened; green indicates estimated recall health.</p></div>
-            <div class="guide-step"><span class="step-index">02</span><p>Hover or focus on a square for its <strong>age, growth stage, health, stability and next review</strong>.</p></div>
-            <div class="guide-step"><span class="step-index">03</span><p>Study a deck for XP and coins. Each question has only two reveal choices: <strong>normal</strong> (+1/−1 coin) or <strong>double or nothing</strong> (double the wallet or lose it all).</p></div>
-          </div>
-          <button id="show-formula" class="text-link" type="button" aria-expanded="false" aria-controls="formula-details">How memory health works <span aria-hidden="true">↗</span></button>
-          <div id="formula-details" class="formula-details" hidden>
-            <p><strong>XP:</strong> the first correct recall earns 100 base XP; subsequent correct recalls earn progressively less (minimum 20). Each unresolved miss adds +25 comeback XP to the next success, but the miss itself costs 40 XP. <strong>No recall</strong> and <strong>Incorrect</strong> have identical penalties. Reaching a 30-day review interval for the first time earns a one-off +500 mastery bonus. XP does not affect review timing.</p>
-            <p><strong>Review:</strong> No recall and Incorrect both repeat soon. Correct and Effortless progressively increase intervals. The existing schedule is preserved; it is simplified and is <em>not</em> Anki FSRS.</p><p><strong>Health:</strong> a provisional forgetting-curve estimate based on the scheduled review interval as a stability proxy, not a calibrated prediction. Exposures and failed recalls use conservative display-only starting values. A square never turns gray again once opened. Growth stage reflects the longest interval reached; a lapse does not erase the history.</p><p><strong>Early study:</strong> individual cards can be reviewed before they are due. Those ratings update the study record but have no XP reward or penalty. Full-deck extra practice remains optional and does not change the schedule.</p><p><strong>Coins:</strong> before revealing an eligible card, choose <strong>Reveal answer</strong> (correct/effortless: +1 coin; no recall/incorrect: −1, floored at zero) or <strong>Double or nothing</strong> (correct/effortless: double your full balance; no recall/incorrect: balance becomes zero). Wagers have no real-money value. Extra practice and early reviews grant no coins, to avoid repeat farming. XP and spaced repetition work exactly as before.</p>
-          </div>
-        </div>
       </section>
 
       <section id="study-view" class="view" aria-labelledby="study-title" hidden>
@@ -122,18 +90,33 @@
           </span>
         </button>
 
+        <div class="session-money" id="session-money" hidden>
+          <div><span>BUY-IN</span><strong id="session-buyin">◈ 20</strong></div>
+          <div><span>ON THE TABLE</span><strong id="session-bankroll">◈ 20</strong></div>
+          <div><span>SESSION P/L</span><strong id="session-profit">◈ 0</strong></div>
+        </div>
         <div class="answer-area">
+          <div id="card-stake" class="card-stake" hidden>CARD VALUE <strong>◈ 4</strong></div>
           <div id="reveal-actions" class="reveal-actions">
             <button id="reveal-button" class="button button-primary reveal-button" type="button">
               <strong>Reveal answer <span aria-hidden="true">↗</span></strong>
               <small id="normal-reveal-hint">Correct +1 coin · Miss −1 coin</small>
             </button>
             <button id="double-reveal-button" class="button double-reveal-button" type="button">
-              <strong>Double or nothing <span aria-hidden="true">✦</span></strong>
-              <small id="double-reveal-hint">Double your balance or lose it all</small>
+              <strong>Double bet <span aria-hidden="true">✦</span></strong>
+              <small id="double-reveal-hint">Correct +8 · Miss −8 coins</small>
             </button>
           </div>
-          <p id="reveal-explainer" class="reveal-explainer">Choose before seeing the answer. Both buttons reveal the same flashcard.</p>
+          <div id="lifeline-start" class="lifeline-start">
+            <button id="lifeline-button" class="lifeline-link" type="button">✳ Use a lifeline</button>
+            <span id="lifeline-hint">4 choices · lower risk & reward</span>
+          </div>
+          <p id="reveal-explainer" class="reveal-explainer">The bet is locked when you reveal your answer.</p>
+          <div id="lifeline-panel" class="lifeline-panel" hidden>
+            <div class="lifeline-top"><strong>✳ Lifeline</strong><span>Pick the right answer</span></div>
+            <div id="lifeline-options" class="lifeline-options" role="group" aria-label="Four answer choices"></div>
+            <p id="lifeline-feedback" class="lifeline-feedback" aria-live="polite"></p>
+          </div>
           <div id="rating-area" class="rating-area" hidden>
             <p>Rate your recall</p>
             <div class="rating-buttons">
@@ -193,12 +176,12 @@
     </main>
 
     <footer class="site-footer">
-      <span>FLASHCARDS / LAB — V0.7</span>
+      <span>FLASHCARDS / LAB — V0.8</span>
       <span>A living picture of what you know.</span>
     </footer>
   </div>
   <input id="deck-file" type="file" accept=".json,application/json" hidden>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <div id="plant-tooltip" class="plant-tooltip" role="tooltip" hidden></div>
+  
 </body>
 </html>

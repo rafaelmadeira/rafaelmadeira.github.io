@@ -41,11 +41,12 @@
     var reviews = number(r.reviews);
     var lastMs = Date.parse(r.lastReviewedAt || born || "");
     var elapsedDays = Number.isFinite(lastMs) ? Math.max(0, (now - lastMs) / DAY) : 0;
-    var lastSuccess = ["correct","effortless","good","easy","hard"].indexOf(r.lastRating) >= 0;
+    var assisted = r.lastRating === "assisted";
+    var lastSuccess = assisted || ["correct","effortless","good","easy","hard"].indexOf(r.lastRating) >= 0;
     var stability = reviews && lastSuccess
       ? Math.max(1 / 144, Number(r.intervalDays) || 1)
       : (reviews ? 10 / 1440 : 0.08);
-    var startHealth = reviews ? (lastSuccess ? 1 : 0.38) : 0.30;
+    var startHealth = reviews ? (assisted ? 0.65 : lastSuccess ? 1 : 0.38) : 0.30;
     var health = Math.max(0, Math.min(100,
       Math.round(100 * startHealth * Math.pow(1 + FACTOR * elapsedDays / stability, -0.5))
     ));
@@ -133,36 +134,7 @@
     if (days < 10) return days.toFixed(1) + " days";
     return fmt(Math.round(days)) + " days";
   }
-  function hideTooltip() {
-    var tip = document.getElementById("plant-tooltip");
-    if (tip) tip.hidden = true;
-  }
-  function showTooltip(tile, deck, card, getRecord) {
-    var m = metrics(deck.id, card.id, getRecord, Date.now());
-    var tip = document.getElementById("plant-tooltip");
-    if (!tip) return;
-    var ageText = m.age === null ? "—" : m.age + (m.age === 1 ? " day" : " days") +
-      (m.legacyAge ? " (minimum)" : "");
-    tip.innerHTML =
-      '<div class="plant-tip-kicker">' + escapeHTML(deck.title) + '</div>' +
-      '<div class="plant-tip-question">' + escapeHTML(card.front) + '</div>' +
-      '<div class="plant-tip-status"><i style="background:' + color(m) + '"></i>' +
-        escapeHTML(m.stage) + (m.studied ? ' · ' + escapeHTML(m.phase) : '') + '</div>' +
-      '<div class="plant-tip-stats">' +
-        '<span>Age<strong>' + ageText + '</strong></span>' +
-        '<span>Stability <em>(proxy)</em><strong>' + stabilityText(m.stability) + '</strong></span>' +
-        '<span>Health <em>(est.)</em><strong>' +
-          (m.health === null ? "—" : m.health + "%") + '</strong></span>' +
-        '<span>Next review<strong>' + escapeHTML(m.due) + '</strong></span>' +
-      '</div><div class="plant-tip-note">Experimental estimate, not calibrated FSRS. Click to recall.</div>';
-    tip.hidden = false;
-    var rect = tile.getBoundingClientRect();
-    var w = tip.offsetWidth, h = tip.offsetHeight;
-    tip.style.left = Math.round(Math.max(12, Math.min(window.innerWidth - w - 12,
-      rect.left + rect.width / 2 - w / 2))) + "px";
-    var top = rect.top > h + 16 ? rect.top - h - 10 : rect.bottom + 10;
-    tip.style.top = Math.round(Math.max(8, Math.min(window.innerHeight - h - 8, top))) + "px";
-  }
+  function hideTooltip() {} // Intentionally no interactive overlays on the garden.
   function render(decks, getRecord, deckStats, startSession, game) {
     cached = { decks: decks, getRecord: getRecord, deckStats: deckStats, startSession: startSession, game: game };
     hideTooltip();
@@ -193,8 +165,11 @@
           '<div class="harvest-numbers" aria-live="polite" hidden>◈ 0</div></div>' +
         '<div class="deck-card-foot"><span class="deck-due">' +
           (ready ? '<strong>' + ready + '</strong> ready to study' : '<strong>✓</strong> Up to date') +
-          '</span></div>' +
+          '</span><button type="button" class="reset-deck-progress" title="Reset only this deck’s learning history">Reset progress</button></div>' +
         '<div class="plot-play-actions">' +
+          '<div class="plot-entry">BUY-IN <strong>◈ ' + fmt(game ? game.getBuyIn() : 20) +
+          '</strong><span>' + ((game && game.walletBalance() < game.getBuyIn()) ?
+            'Not enough coins · study for XP' : 'Moves to your session table') + '</span></div>' +
           '<button class="deck-play-button study-deck" type="button">' +
           (ready ? 'Study deck' : 'Practice deck') + ' ↗</button>' +
         '</div>';
@@ -202,21 +177,10 @@
       deck.cards.forEach(function (card) {
         var m = metrics(deck.id, card.id, getRecord, now);
         if (m.studied) { healthyCount++; healthTotal += m.health; } else unseen++;
-        var tile = document.createElement("button");
-        tile.type = "button";
+        var tile = document.createElement("span");
         tile.className = "garden-cell";
         tile.style.backgroundColor = color(m);
-        tile.setAttribute("aria-label", card.front + ". " +
-          (m.studied ? m.stage + ", estimated health " + m.health + "%" : "Never opened") +
-          ". Click to study.");
-        tile.addEventListener("click", function () {
-          hideTooltip();
-          startSession(deck, card.id);
-        });
-        tile.addEventListener("pointerenter", function () { showTooltip(tile, deck, card, getRecord); });
-        tile.addEventListener("pointerleave", hideTooltip);
-        tile.addEventListener("focus", function () { showTooltip(tile, deck, card, getRecord); });
-        tile.addEventListener("blur", hideTooltip);
+        tile.setAttribute("aria-hidden", "true");
         grid.appendChild(tile);
       });
       article.querySelector(".garden-average").textContent = healthyCount
@@ -224,7 +188,10 @@
         : "No cards opened yet";
       article.querySelector(".garden-unseen").textContent = unseen + " unopened";
       article.querySelector(".study-deck").addEventListener("click", function () {
-        hideTooltip(); startSession(deck);
+        startSession(deck);
+      });
+      article.querySelector(".reset-deck-progress").addEventListener("click", function () {
+        if (typeof window.FlashcardsResetDeck === "function") window.FlashcardsResetDeck(deck);
       });
       var collectButton = article.querySelector(".plot-collect");
       collectButton.addEventListener("click", function () {
@@ -271,8 +238,6 @@
   refreshPaletteControls();
   window.FlashcardsGarden = { render: render, metrics: metrics, color: color, hideTooltip: hideTooltip,
     changePalette: changePalette, currentPalette: function () { return palette; } };
-  window.addEventListener("scroll", hideTooltip, true);
-  window.addEventListener("resize", hideTooltip);
   document.addEventListener("visibilitychange", function () {
     if (!document.hidden && cached && !document.getElementById("library-view").hidden)
       render(cached.decks, cached.getRecord, cached.deckStats, cached.startSession, cached.game);
