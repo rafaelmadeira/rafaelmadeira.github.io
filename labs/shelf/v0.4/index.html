@@ -940,7 +940,7 @@
         case 'item-menu':openItemMenu(el,id);break;
         case 'view-details':closeMenus();ui.detail=id;renderDetail();break;
         case 'visit-link':visitLink(one(id));closeMenus();break;
-        case 'open-shortcut':{const target=one(id);if(target){ui.detail=id;ui.mobile=false;renderSidebar();renderDetail();}break;}
+        case 'open-shortcut':{const target=one(id);if(target){ui.mobile=false;renderSidebar();if(target.type==='bookmark'&&!target.deleted)visitLink(target);else{ui.detail=id;renderDetail();}}break;}
         case 'editor-trash':{const target=ui.editor?.id;$('scrim').classList.remove('open');ui.editor=null;ui.editReturn=null;if(target)putInTrash(target);break;}
         case 'toggle-pin':togglePinned(id);closeMenus();break;
         case 'pin-context':toggleContextPin(id);closeMenus();break;
