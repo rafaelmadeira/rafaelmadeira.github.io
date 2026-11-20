@@ -1073,7 +1073,7 @@
          if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime)){
            toast('Enter a start and end time, or choose All-day.');return;
          }
-         if(endDate+'T'+endTime<startDate+'T'+startTime){toast('Event must end after it begins.');return;}
+         if(endDate+'T'+endTime<=startDate+'T'+startTime){toast('Event must end after it begins.');return;}
        }
      }
      item.title=title;item.url=url;item.body=String(data.get('body')||'');
