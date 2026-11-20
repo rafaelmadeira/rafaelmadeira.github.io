@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="dark" />
-  <title>Shelf — Pinning & sections (v0.3)</title>
+  <title>Shelf — Everything library v0.4</title>
   <style>
     :root { --bg:#111113; --sidebar:#202023; --card:#171719; --panel:#1d1d20; --surface:#29292d; --surface2:#323237; --line:#333338; --text:#ececef; --muted:#85858e; --muted2:#63636b; --blue:#2485d7; --blue2:#339df5; --focus:#5baff5; --radius:11px; color-scheme:dark }
     * { box-sizing:border-box }
@@ -283,6 +283,34 @@
     .space-nav {padding-left:14px}
     .tree-folder .nav-item {transition:background .11s; }
     @media(max-width:660px){.list-pin{opacity:1}.content-section-heading{margin-bottom:12px}.content-section{margin-bottom:27px}}
+
+    /* Shelf v0.4: centered object detail and quiet item actions */
+    .detail {inset:0;width:100%;height:100%;z-index:24;background:#0009;backdrop-filter:blur(2px);
+      border:0;box-shadow:none;display:none;align-items:center;justify-content:center;
+      padding:20px;overflow:auto;transform:none;transition:none}
+    .detail.open {display:flex;transform:none}
+    .detail-dialog {background:#232327;border:1px solid #47474d;border-radius:13px;width:min(570px,100%);
+      max-height:min(92vh,850px);min-height:0;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 25px 80px #000a}
+    .detail-top {padding:13px 20px;min-height:57px;height:auto}
+    .detail-body {padding:20px 22px 28px;overflow-y:auto;min-height:0}
+    .detail-hero {height:200px;margin-bottom:23px}
+    .detail-title {font-size:22px}
+    .detail-top .icon-btn {width:30px;height:30px}
+    .detail-top .detail-type {margin-right:7px}
+    .item-popover {z-index:30;min-width:225px;max-width:min(280px,95vw)}
+    .item-popover .pop-item {font-size:12.5px}
+    .card-tools {top:8px;right:8px}
+    .more-tool {width:30px;height:29px}
+    .list-more {border:1px solid #ffffff25;background:#2b2b3099;color:#dedee4;
+      border-radius:6px;width:29px;height:28px;display:grid;place-items:center;flex-shrink:0;opacity:0}
+    .list-card:hover .list-more,.list-card:focus-within .list-more,.list-more:focus-visible {opacity:1}
+    .list-more:hover {background:#41414a}
+    .sub-external {display:inline-flex;vertical-align:-2px;margin-left:4px;color:#929299}
+    .sub-external svg {width:11px;height:11px}
+    #scrim {z-index:26}
+    @media (hover:none){.item-card .card-tools,.list-more {opacity:1}}
+    @media(max-width:660px){.detail {padding:12px}.detail-dialog {max-height:calc(100dvh - 24px)}.detail-hero {height:170px}
+      .detail-body {padding:17px}.detail-top {padding:10px 13px;gap:4px}}
   </style>
 </head>
 <body>
@@ -294,7 +322,7 @@
         <button class="head-btn" data-action="toggle-create" title="Create new item" aria-label="Create new item" data-icon="plus"></button>
       </div>
       <div class="side-content" id="nav-content"></div>
-      <div class="side-bottom"><span class="demo-badge">LOCAL PROTOTYPE · v0.3</span><a class="bottom-action" href="/labs/shelf/v0.2/" title="Return to version 0.2">v0.2</a><button class="bottom-action" data-action="export" title="Export all items as JSON">Export</button></div>
+      <div class="side-bottom"><span class="demo-badge">LOCAL PROTOTYPE · v0.4</span><a class="bottom-action" href="/labs/shelf/v0.3/" title="Return to version 0.3">v0.3</a><button class="bottom-action" data-action="export" title="Export all items as JSON">Export</button></div>
     </aside>
     <main class="main" id="main">
       <div class="main-content">
@@ -317,6 +345,7 @@
   </div>
   <div id="create-popover" class="popover" aria-label="Create menu"></div>
   <div id="filter-popover" class="popover filter-popover" aria-label="Filters"></div>
+  <div id="item-popover" class="popover item-popover" aria-label="Item actions"></div>
   <section class="detail" id="detail" aria-label="Item details"></section>
   <div id="scrim" class="scrim" role="presentation"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><span id="modal-title">New item</span><span class="grow"></span><button class="icon-btn" data-action="close-modal" aria-label="Close editor" data-icon="x"></button></div><form id="editor-form" novalidate><div class="modal-content" id="modal-content"></div><div class="modal-footer"><span class="subtle" id="modal-hint"></span><button type="button" class="danger" id="editor-trash" data-action="editor-trash" hidden>Move to Trash</button><button type="button" data-action="close-modal">Cancel</button><button type="submit" class="save">Save item</button></div></form></div></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -361,9 +390,10 @@
     svgPath.hash='<path d="M10 3 6 21M18 3l-4 18M4 9h17M3 15h17"/>';
     svgPath.pushpin='<path d="m16 3 5 5-2.5 1-2.5 4 .5 2.5-2 2-8-8 2-2 2.5.5 4-2.5z"/><path d="m4 20 6.5-6.5"/>';
     const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-    const storage = 'shelf-everything-v0-3';
-    const legacyStorages = ['shelf-everything-v0-2','shelf-everything-v0-1'];
+    const storage = 'shelf-everything-v0-4';
+    const legacyStorages = ['shelf-everything-v0-3','shelf-everything-v0-2','shelf-everything-v0-1'];
     const sidebarPrefsKey = storage+'-sidebar';
+    const legacySidebarPrefsKey = 'shelf-everything-v0-3-sidebar';
     const palettes = {slate:'#475465', blue:'#41658f', red:'#97585b', amber:'#997b4e', green:'#597b67', violet:'#76648e', charcoal:'#45464c'};
     const types = {bookmark:'Bookmark',note:'Note',checklist:'Checklist',collection:'Collection',space:'Space',image:'Image',file:'File'};
     const now = Date.now();
@@ -430,12 +460,12 @@
         }catch(e){}
       }
       const library=adaptLibrary(source||seed());
-      try{localStorage.setItem(storage,JSON.stringify({version:3,items:library}));}catch(e){}
+      try{localStorage.setItem(storage,JSON.stringify({version:4,items:library}));}catch(e){}
       return library;
     }
     function loadSidebarPrefs(){
       try{
-        const raw=JSON.parse(localStorage.getItem(sidebarPrefsKey));
+        const raw=JSON.parse(localStorage.getItem(sidebarPrefsKey)||localStorage.getItem(legacySidebarPrefsKey));
         if(raw&&typeof raw==='object'){
           const valid=Array.isArray(raw.expandedSpaces)?raw.expandedSpaces.filter(x=>typeof x==='string'):[];
           const base={bookmarks:true,spaces:true,filters:true,tags:true};
@@ -448,10 +478,10 @@
 
     let items = load();
     const savedSidebar = loadSidebarPrefs();
-    const ui = {view:'all',search:'',type:'all',tag:'',color:'',sort:'recent',layout:'grid',detail:null,editor:null,filterOpen:false,createOpen:false,mobile:false,expandedSpaces:new Set(savedSidebar.expandedSpaces),sections:savedSidebar.sections};
+    const ui = {view:'all',search:'',type:'all',tag:'',color:'',sort:'recent',layout:'grid',detail:null,editor:null,editReturn:null,menuItem:null,filterOpen:false,createOpen:false,mobile:false,expandedSpaces:new Set(savedSidebar.expandedSpaces),sections:savedSidebar.sections};
     const persistSidebar = () => {try{localStorage.setItem(sidebarPrefsKey,JSON.stringify({expandedSpaces:[...ui.expandedSpaces],sections:ui.sections}));}catch(e){}};
     const $ = id => document.getElementById(id);
-    const persist = () => { try {localStorage.setItem(storage,JSON.stringify({version:3,items}));}catch(e){toast('Storage is unavailable; changes may not persist.')} };
+    const persist = () => { try {localStorage.setItem(storage,JSON.stringify({version:4,items}));}catch(e){toast('Storage is unavailable; changes may not persist.')} };
     const one = id => items.find(i=>i.id===id);
     const active = () => items.filter(i=>!i.deleted);
     const count = ids => active().filter(i=>ids.includes(i.id)).length;
@@ -489,7 +519,7 @@
   });
 }
     function filtered(){
-  let list=items.filter(i=>ui.view==='trash'?i.deleted:!i.deleted);
+  let list=items.filter(i=>ui.view==='trash'?i.deleted:!i.deleted&&i.type!=='space');
   if(ui.view==='unsorted')list=list.filter(i=>i.type!=='space'&&!hasLiveParent(i));
   else if(ui.view==='favorites')list=list.filter(i=>i.favorite);
   else if(ui.view==='untagged')list=list.filter(i=>!i.tags?.length);
@@ -524,14 +554,14 @@
   const live=active();
   const scroll=$('nav-content').scrollTop;
   let html='<div class="nav-group main-nav">';
-  html+=navButton('all','All items','layers',live.length);
+  html+=navButton('all','All items','layers',live.filter(i=>i.type!=='space').length);
   html+=navButton('unsorted','Unsorted','inbox',live.filter(i=>i.type!=='space'&&!hasLiveParent(i)).length);
   html+=navButton('trash','Trash','trash',items.filter(i=>i.deleted).length);
   html+='</div>';
   html+='<div class="nav-group">';
   html+=navSection('bookmarks','Bookmarks');
   if(ui.sections.bookmarks){
-    const pinned=live.filter(i=>i.pinned).sort((a,b)=>a.title.localeCompare(b.title));
+    const pinned=live.filter(i=>i.pinned&&i.type!=='space').sort((a,b)=>a.title.localeCompare(b.title));
     html+=pinned.length?pinned.map(i=>{
       if(i.type==='space'||i.type==='collection'){
         return navButton(`${i.type}:${i.id}`,i.title,i.type==='space'?'space':'folder',null,'',`data-origin="bookmark" title="Open bookmarked ${esc(i.type)} (without expanding its tree)"`);
@@ -553,19 +583,19 @@
   html+=navSection('filters','Filters');
   if(ui.sections.filters){
     const num=type=>live.filter(i=>i.type===type).length;
-    html+=navButton('favorites','Favorites','heart',live.filter(i=>i.favorite).length);
+    html+=navButton('favorites','Favorites','heart',live.filter(i=>i.type!=='space'&&i.favorite).length);
     html+=navButton('type:bookmark','Links','link',num('bookmark'));
     html+=navButton('type:note','Notes','note',num('note'));
     html+=navButton('type:checklist','Checklists','checklist',num('checklist'));
     html+=navButton('type:image','Images','image',num('image'));
     html+=navButton('type:file','Files','file',num('file'));
-    html+=navButton('untagged','Without tags','tag',live.filter(i=>!i.tags?.length).length);
+    html+=navButton('untagged','Without tags','tag',live.filter(i=>i.type!=='space'&&!i.tags?.length).length);
   }
   html+='</div><div class="nav-group">';
   html+=navSection('tags','Tags');
   if(ui.sections.tags){
     const tags={};
-    live.forEach(i=>(i.tags||[]).forEach(tag=>tags[tag]=(tags[tag]||0)+1));
+    live.filter(i=>i.type!=='space').forEach(i=>(i.tags||[]).forEach(tag=>tags[tag]=(tags[tag]||0)+1));
     html+=Object.entries(tags).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(([tag,n])=>
       `<button class="nav-item tag-text-row ${ui.tag===tag?'active':''}" data-action="tag" data-tag="${esc(tag)}"><span class="nav-icon tag-hash">${icon('hash',17)}</span><span class="nav-label">${esc(tag)}</span><span class="count">${n}</span></button>`
     ).join('')||'<div class="section-empty">Tags you add will appear here.</div>';
@@ -628,30 +658,41 @@
   return `<button class="card-tool ${selected?'context-pinned':''}" data-action="pin-context" data-id="${esc(item.id)}" title="${label}" aria-label="${label}">${icon('pushpin',15)}</button>`;
 }
     function card(i){
-      const bookmark=`<button class="card-tool ${i.pinned?'pinned':''}" data-action="toggle-pin" data-id="${esc(i.id)}" title="${i.pinned?'Remove from sidebar bookmarks':'Bookmark in sidebar'}" aria-label="${i.pinned?'Remove bookmark':'Bookmark'}">${icon('bookmark',15)}</button>`;
-      const trash=(i.type==='collection'||i.type==='space')&&!i.deleted?`<button class="card-tool" data-action="trash" data-id="${esc(i.id)}" title="Move ${esc(i.type)} to Trash" aria-label="Move to Trash">${icon('trash',15)}</button>`:'';
-      const pinnedHere=isContextPinned(i)&&!!currentPinContext(i);
-      return `<article class="item-card" tabindex="0" role="button" aria-label="Open ${esc(i.title)}" draggable="${ui.view==='trash'?'false':'true'}" data-item-id="${esc(i.id)}" data-action="open-item"><div class="card-tools">${ui.view==='trash'?'':contextPinButton(i)+bookmark+`<button class="card-tool" data-action="favorite" data-id="${esc(i.id)}" title="${i.favorite?'Remove from favorites':'Add to favorites'}" aria-label="Favorite">${icon('heart',15)}</button>`+trash}<button class="card-tool" data-action="edit" data-id="${esc(i.id)}" title="Edit item" aria-label="Edit">${icon('pencil',15)}</button></div>${makeThumb(i)}<div class="card-title-row"><div class="card-title">${esc(i.title)}</div>${pinnedHere?`<span class="card-in-context-pin" title="Pinned here">${icon('pushpin',13)}</span>`:''}${i.pinned?`<span class="card-pinned" title="Bookmarked">${icon('bookmark',13)}</span>`:''}${i.favorite?`<span class="card-fave">${icon('heart',14)}</span>`:''}</div><div class="card-sub">${esc(summary(i)||typeLabel(i))}</div></article>`;
+     const menu=`<button class="card-tool more-tool" data-action="item-menu" data-id="${esc(i.id)}" title="More actions for ${esc(i.title)}" aria-label="More actions for ${esc(i.title)}">${icon('more',18)}</button>`;
+     const pinnedHere=isContextPinned(i)&&!!currentPinContext(i);
+     const direct=i.type==='bookmark'&&!i.deleted;
+     return `<article class="item-card" tabindex="0" role="${direct?'link':'button'}" aria-label="${direct?'Visit':'Open'} ${esc(i.title)}" title="${direct?'Visit link · Use more actions to see details':''}" draggable="${ui.view==='trash'?'false':'true'}" data-item-id="${esc(i.id)}" data-action="open-item"><div class="card-tools">${menu}</div>${makeThumb(i)}<div class="card-title-row"><div class="card-title">${esc(i.title)}</div>${pinnedHere?`<span class="card-in-context-pin" title="Pinned here">${icon('pushpin',13)}</span>`:''}${i.pinned?`<span class="card-pinned" title="Bookmarked">${icon('bookmark',13)}</span>`:''}${i.favorite?`<span class="card-fave">${icon('heart',14)}</span>`:''}</div><div class="card-sub">${esc(summary(i)||typeLabel(i))}${direct?` <span class="sub-external" aria-hidden="true">${icon('external-link',12)}</span>`:''}</div></article>`;
     }
     function listCard(i){
-      const here=isContextPinned(i)&&!!currentPinContext(i);
-      return `<div class="list-card" tabindex="0" role="button" draggable="${ui.view==='trash'?'false':'true'}" data-item-id="${esc(i.id)}" data-action="open-item"><div class="list-thumb" style="color:${palettes[i.color]||'#aab'}">${icon(i.type,22)}</div><div style="min-width:0"><div class="list-title">${esc(i.title)} ${here?`<span class="inline-pin" title="Pinned here">${icon('pushpin',13)}</span>`:''}${i.favorite?'<span style="color:#d78a95">♥</span>':''}</div><div class="list-desc">${esc(typeLabel(i))} · ${esc(summary(i))}</div></div><div class="list-spacer"></div>${contextPinButton(i,'list')}<div class="list-date">${friendlyDate(i.updated)}</div></div>`;
+     const pinnedHere=isContextPinned(i)&&!!currentPinContext(i);
+     const direct=i.type==='bookmark'&&!i.deleted;
+     return `<div class="list-card" tabindex="0" role="${direct?'link':'button'}" aria-label="${direct?'Visit':'Open'} ${esc(i.title)}" draggable="${ui.view==='trash'?'false':'true'}" data-item-id="${esc(i.id)}" data-action="open-item"><div class="list-thumb" style="color:${palettes[i.color]||'#aab'}">${icon(i.type,22)}</div><div style="min-width:0"><div class="list-title">${esc(i.title)} ${pinnedHere?`<span class="inline-pin" title="Pinned here">${icon('pushpin',13)}</span>`:''}${i.favorite?'<span style="color:#d78a95">♥</span>':''}</div><div class="list-desc">${esc(typeLabel(i))} · ${esc(summary(i))}${direct?' ↗':''}</div></div><div class="list-spacer"></div><button class="list-more" data-action="item-menu" data-id="${esc(i.id)}" title="More actions for ${esc(i.title)}" aria-label="More actions for ${esc(i.title)}">${icon('more',18)}</button><div class="list-date">${friendlyDate(i.updated)}</div></div>`;
     }
 
     function splitContextSections(list){
-      if(!(ui.view.startsWith('space:')||ui.view.startsWith('collection:')))return [{id:'all',name:'',icon:'',items:list}];
-      const pinned=[],collections=[],remaining=[];
-      for(const item of list){
-        if(isContextPinned(item)&&currentPinContext(item))pinned.push(item);
-        else if(item.type==='collection')collections.push(item);
-        else remaining.push(item);
-      }
-      const sections=[];
-      if(pinned.length)sections.push({id:'pinned',name:'Pinned',icon:'pushpin',items:pinned});
-      if(collections.length)sections.push({id:'collections',name:'Collections',icon:'folder',items:collections});
-      if(remaining.length)sections.push({id:'rest',name:sections.length?'Everything else':'',icon:'',items:remaining});
-      return sections;
+     if(ui.view==='trash'){
+      const normal=list.filter(i=>i.type!=='space'),spaces=list.filter(i=>i.type==='space');
+      if(!spaces.length)return [{id:'all',name:'',icon:'',items:list}];
+      const result=[];
+      if(normal.length)result.push({id:'trashed-items',name:'Items',icon:'layers',items:normal});
+      result.push({id:'trashed-spaces',name:'Spaces',icon:'space',items:spaces});
+      return result;
+     }
+     if(!(ui.view.startsWith('space:')||ui.view.startsWith('collection:')))return [{id:'all',name:'',icon:'',items:list}];
+     // A strict one-pass partition; no pinned object is eligible for lower groupings.
+     const pinned=[],collections=[],ordinary=[];
+     for(const item of list){
+      if(isContextPinned(item)&&currentPinContext(item))pinned.push(item);
+      else if(item.type==='collection')collections.push(item);
+      else ordinary.push(item);
+     }
+     const groups=[];
+     if(pinned.length)groups.push({id:'pinned',name:'Pinned',icon:'pushpin',items:pinned});
+     if(collections.length)groups.push({id:'collections',name:'Collections',icon:'folder',items:collections});
+     if(ordinary.length)groups.push({id:'rest',name:groups.length?'Everything else':'',icon:'',items:ordinary});
+     return groups;
     }
+
     function renderSection(section){
       const content=ui.layout==='grid'?`<div class="cards">${section.items.map(card).join('')}</div>`:`<div class="listview">${section.items.map(listCard).join('')}</div>`;
       const heading=section.name?`<div class="content-section-heading"><div class="content-section-label">${section.icon?icon(section.icon,15):''}<span>${esc(section.name)}</span></div><span class="content-section-total">${section.items.length}</span><div class="content-section-rule"></div></div>`:'';
@@ -680,40 +721,46 @@
     function renderFilterPopover(){
       let html='<div class="filter-label">Type</div><div class="filter-choices">';
       html+=`<button class="filter-pill ${ui.type==='all'?'active':''}" data-action="filter-type" data-type="all">All types</button>`;
-      html+=Object.entries(types).map(([t,n])=>`<button class="filter-pill ${ui.type===t?'active':''}" data-action="filter-type" data-type="${t}">${esc(n)}</button>`).join('');
+      html+=Object.entries(types).filter(([t])=>t!=='space').map(([t,n])=>`<button class="filter-pill ${ui.type===t?'active':''}" data-action="filter-type" data-type="${t}">${esc(n)}</button>`).join('');
       html+='</div><div class="filter-label">Color</div><div class="filter-choices">';
       html+=`<button class="filter-pill ${ui.color===''?'active':''}" data-action="filter-color" data-color="">Any</button>`;
       html+=Object.entries(palettes).map(([name,color])=>`<button class="filter-pill ${ui.color===name?'active':''}" data-action="filter-color" data-color="${name}"><span class="color-dot" style="background:${color}"></span>${name}</button>`).join('');
       html+='</div><div class="filter-label">Tag</div><div class="filter-choices">';
-      const tags=[...new Set(active().flatMap(i=>i.tags||[]))].sort();
+      const tags=[...new Set(active().filter(i=>i.type!=='space').flatMap(i=>i.tags||[]))].sort();
       html+=`<button class="filter-pill ${ui.tag===''?'active':''}" data-action="filter-tag" data-tag="">Any tag</button>`;
       html+=tags.map(tag=>`<button class="filter-pill ${ui.tag===tag?'active':''}" data-action="filter-tag" data-tag="${esc(tag)}">${esc(tag)}</button>`).join('');
       html+='</div><button class="pop-item" style="margin-top:4px" data-action="clear-filters">'+icon('x',14)+' Clear filters</button>';
       $('filter-popover').innerHTML=html;
     }
     function renderCreatePopover() {
-      $('create-popover').innerHTML=Object.entries(types).map(([t,name])=>`<button class="pop-item" data-action="new" data-type="${t}">${icon(t)}<span>${name}</span></button>`).join('')+'<div class="pop-divider"></div><button class="pop-item" data-action="import">'+icon('archive')+'<span>Import JSON backup</span></button>';
+      $('create-popover').innerHTML=Object.entries(types).filter(([t])=>t!=='space').map(([t,name])=>`<button class="pop-item" data-action="new" data-type="${t}">${icon(t)}<span>${name}</span></button>`).join('')+'<div class="pop-divider"></div><button class="pop-item" data-action="import">'+icon('archive')+'<span>Import JSON backup</span></button>';
     }
     function renderDetail(){
-  const panel=$('detail'),item=one(ui.detail);
-  if(!item){panel.classList.remove('open');panel.innerHTML='';return;}
-  const tags=(item.tags||[]).map(t=>`<span class="detail-chip">${esc(t)}</span>`).join('')||'<span class="small-muted">No tags yet</span>';
-  const collections=(item.collectionIds||[]).map(id=>one(id)).filter(i=>i&&!i.deleted).map(i=>`<button class="detail-chip" data-action="nav" data-view="${i.type==='space'?'space':'collection'}:${esc(i.id)}">${icon(i.type==='space'?'space':'folder',12)} ${esc(i.title)}</button>`).join('')||'<span class="small-muted">Unsorted</span>';
-  let body='';
-  if(['bookmark','file','image'].includes(item.type)){
-    body=`${item.url?`<a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer" style="display:block;overflow-wrap:anywhere;font-size:12px;margin:12px 0">${esc(item.url)}</a>`:'<p class="small-muted">No URL added.</p>'}${item.body?`<div class="detail-content">${esc(item.body)}</div>`:''}${item.url?`<div class="detail-buttons"><a class="detail-btn primary" href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${icon('external-link')} Open ${item.type==='bookmark'?'link':'file'}</a></div>`:''}`;
-  }
-  if(item.type==='note')body=`<div class="detail-content">${esc(item.body||'Nothing written yet.')}</div>`;
-  if(item.type==='collection'||item.type==='space'){
-    body=`<p class="detail-content">${members(item.id).length} items belong to this ${item.type}. ${item.type==='space'?'Spaces are broad areas; their collections appear beneath them in the sidebar.':'Collections can hold links, notes, checklists, files and other collections.'}</p>${item.deleted?'':`<div class="detail-buttons"><button class="detail-btn primary" data-action="nav" data-view="${item.type}:${esc(item.id)}">${icon(item.type==='space'?'space':'folder')} Open ${item.type}</button></div>`}`;
-  }
-  if(item.type==='checklist'){
-    const tasks=item.tasks||[],done=tasks.filter(t=>t.done).length;
-    body=`<div class="task-counter">${done} of ${tasks.length} completed · ${tasks.length?Math.round(done/tasks.length*100):0}%</div>${tasks.map((t,idx)=>`<label class="detail-checkline ${t.done?'done':''}"><input type="checkbox" data-action="toggle-task" data-id="${esc(item.id)}" data-index="${idx}" ${t.done?'checked':''}/><span>${esc(t.text)}</span></label>`).join('')}<input class="new-task-input" id="add-task" aria-label="Add task" placeholder="+ Add an item and press Enter" data-id="${esc(item.id)}"/>`;
-  }
-  panel.innerHTML=`<div class="detail-top"><span class="detail-type">${icon(item.type,17)} ${typeLabel(item)}</span><span class="grow"></span>${item.deleted?'':contextPinButton(item,'detail')}${item.deleted?'':`<button class="icon-btn" data-action="toggle-pin" data-id="${esc(item.id)}" title="${item.pinned?'Remove sidebar bookmark':'Bookmark in sidebar'}" style="${item.pinned?'color:#c3b3f5':''}" aria-label="Bookmark">${icon('bookmark')}</button><button class="icon-btn" data-action="favorite" data-id="${esc(item.id)}" title="${item.favorite?'Unfavorite':'Favorite'}" style="${item.favorite?'color:#f198a1':''}" aria-label="Toggle favorite">${icon('heart')}</button>`}<button class="icon-btn" data-action="edit" data-id="${esc(item.id)}" title="Edit item" aria-label="Edit">${icon('pencil')}</button><button class="icon-btn" data-action="close-detail" title="Close" aria-label="Close">${icon('x')}</button></div><div class="detail-body"><div class="detail-hero">${makeThumb(item)}</div><div class="detail-title">${esc(item.title)}</div>${body}<div class="detail-section"><h3>Collections &amp; spaces</h3><div class="detail-chips">${collections}</div></div><div class="detail-section"><h3>Tags</h3><div class="detail-chips">${tags}</div></div><div class="detail-section"><h3>Details</h3><div class="detail-info">Updated ${friendlyDate(item.updated)} · ${esc(item.color||'slate')} color<br>Stored in this browser only</div></div><div class="detail-buttons"><button class="detail-btn" data-action="edit" data-id="${esc(item.id)}">${icon('pencil')} Edit</button>${item.deleted?`<button class="detail-btn" data-action="restore" data-id="${esc(item.id)}">${icon('rotate')} Restore</button><button class="detail-btn" data-action="purge" data-id="${esc(item.id)}">${icon('trash')} Delete forever</button>`:`<button class="detail-btn" data-action="trash" data-id="${esc(item.id)}">${icon('trash')} Move to Trash</button>`}</div></div>`;
-  panel.classList.add('open');
-}
+     const panel=$('detail'),item=one(ui.detail);
+     if(!item){panel.classList.remove('open');panel.innerHTML='';return;}
+     const space=item.type==='space';
+     const tags=(item.tags||[]).map(t=>`<span class="detail-chip">${esc(t)}</span>`).join('')||'<span class="small-muted">No tags yet</span>';
+     const containers=(item.collectionIds||[]).map(id=>one(id)).filter(i=>i&&!i.deleted).map(i=>`<button class="detail-chip" data-action="nav" data-view="${i.type==='space'?'space':'collection'}:${esc(i.id)}">${icon(i.type==='space'?'space':'folder',12)} ${esc(i.title)}</button>`).join('')||'<span class="small-muted">Unsorted</span>';
+     let body='';
+     if(['bookmark','file','image'].includes(item.type)){
+       const url=safeUrl(item.url||'');
+       body=`${url?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer" style="display:block;overflow-wrap:anywhere;font-size:12px;margin:12px 0">${esc(url)}</a>`:'<p class="small-muted">No URL added.</p>'}${item.body?`<div class="detail-content">${esc(item.body)}</div>`:''}${url?`<div class="detail-buttons"><a class="detail-btn primary" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${icon('external-link')} ${item.type==='bookmark'?'Visit link':'Open file'}</a></div>`:''}`;
+     }
+     if(item.type==='note')body=`<div class="detail-content">${esc(item.body||'Nothing written yet.')}</div>`;
+     if(item.type==='collection'||space){
+       body=`<p class="detail-content">${members(item.id).length} items belong to this ${item.type}. ${space?'Spaces hold broad areas of your library, and their collections appear in the sidebar.':'Collections can hold links, notes, checklists, files and other collections.'}</p>${item.deleted?'':`<div class="detail-buttons"><button class="detail-btn primary" data-action="nav" data-view="${item.type}:${esc(item.id)}">${icon(space?'space':'folder')} Open ${item.type}</button></div>`}`;
+     }
+     if(item.type==='checklist'){
+       const tasks=item.tasks||[],done=tasks.filter(t=>t.done).length;
+       body=`<div class="task-counter">${done} of ${tasks.length} completed · ${tasks.length?Math.round(done/tasks.length*100):0}%</div>${tasks.map((t,idx)=>`<label class="detail-checkline ${t.done?'done':''}"><input type="checkbox" data-action="toggle-task" data-id="${esc(item.id)}" data-index="${idx}" ${t.done?'checked':''}/><span>${esc(t.text)}</span></label>`).join('')}<input class="new-task-input" id="add-task" aria-label="Add task" placeholder="+ Add an item and press Enter" data-id="${esc(item.id)}"/>`;
+     }
+     const headActions=item.deleted||space?'':`${contextPinButton(item,'detail')}<button class="icon-btn" data-action="toggle-pin" data-id="${esc(item.id)}" title="${item.pinned?'Remove sidebar bookmark':'Bookmark in sidebar'}" style="${item.pinned?'color:#c3b3f5':''}" aria-label="Bookmark">${icon('bookmark')}</button><button class="icon-btn" data-action="favorite" data-id="${esc(item.id)}" title="${item.favorite?'Unfavorite':'Favorite'}" style="${item.favorite?'color:#f198a1':''}" aria-label="Toggle favorite">${icon('heart')}</button>`;
+     const objectMeta=space?'':`<div class="detail-section"><h3>Collections &amp; spaces</h3><div class="detail-chips">${containers}</div></div><div class="detail-section"><h3>Tags</h3><div class="detail-chips">${tags}</div></div>`;
+     const details=`<div class="detail-section"><h3>Details</h3><div class="detail-info">Updated ${friendlyDate(item.updated)}${space?'':` · ${esc(item.color||'slate')} color`}<br>Stored in this browser only</div></div>`;
+     const footer=`<div class="detail-buttons"><button class="detail-btn" data-action="edit" data-id="${esc(item.id)}">${icon('pencil')} Edit</button>${item.deleted?`<button class="detail-btn" data-action="restore" data-id="${esc(item.id)}">${icon('rotate')} Restore</button><button class="detail-btn" data-action="purge" data-id="${esc(item.id)}">${icon('trash')} Delete forever</button>`:`<button class="detail-btn" data-action="trash" data-id="${esc(item.id)}">${icon('trash')} Move to Trash</button>`}</div>`;
+     panel.innerHTML=`<div class="detail-dialog" role="dialog" aria-modal="true" aria-label="${esc(item.title)}"><div class="detail-top"><span class="detail-type">${icon(space?'space':item.type,17)} ${typeLabel(item)}</span><span class="grow"></span>${headActions}<button class="icon-btn" data-action="edit" data-id="${esc(item.id)}" title="Edit item" aria-label="Edit">${icon('pencil')}</button><button class="icon-btn" data-action="close-detail" title="Close" aria-label="Close">${icon('x')}</button></div><div class="detail-body"><div class="detail-hero">${makeThumb(item)}</div><div class="detail-title">${esc(item.title)}</div>${body}${objectMeta}${details}${footer}</div></div>`;
+     panel.classList.add('open');
+    }
 
     function render(){renderSidebar();renderContent();renderDetail();renderFilterPopover();renderCreatePopover();$('filter-button').classList.toggle('selected',!!(ui.tag||ui.color||ui.type!=='all'));}
     let toastTimeout;
@@ -733,27 +780,59 @@
   return null;
 }
     function setView(view,origin=''){
-      ui.view=view;
-      let changed=false;
-      if(origin!=='bookmark'){
-        let spaceId=null;
-        if(view.startsWith('space:'))spaceId=view.slice(6);
-        else if(view.startsWith('collection:'))spaceId=findSpaceAncestor(view.slice(11));
-        if(spaceId&&!ui.expandedSpaces.has(spaceId)){
-          ui.expandedSpaces.add(spaceId);
-          changed=true;
-        }
-      }
-      if(changed)persistSidebar();
-      ui.mobile=false;ui.detail=null;ui.createOpen=false;ui.filterOpen=false;
-      closeMenus();render();$('main').scrollTop=0;
+     ui.view=view;
+     if(origin==='space'&&view.startsWith('space:')){
+      const id=view.slice(6);
+      if(ui.expandedSpaces.has(id))ui.expandedSpaces.delete(id);
+      else ui.expandedSpaces.add(id);
+      persistSidebar();
+     }
+     ui.mobile=false;ui.detail=null;ui.createOpen=false;ui.filterOpen=false;
+     closeMenus();render();$('main').scrollTop=0;
     }
 
-    function closeMenus(){$('create-popover').classList.remove('open');$('filter-popover').classList.remove('open');ui.createOpen=false;ui.filterOpen=false;}
-    function positionPopover(id,button){const pop=$(id),r=button.getBoundingClientRect(); const left=Math.max(8,Math.min(window.innerWidth-(id==='filter-popover'?295:220),r.left-pop.offsetWidth+button.offsetWidth));pop.style.top=Math.min(window.innerHeight-360,r.bottom+7)+'px';pop.style.left=left+'px';}
+    function closeMenus(){$('create-popover').classList.remove('open');$('filter-popover').classList.remove('open');$('item-popover').classList.remove('open');ui.menuItem=null;ui.createOpen=false;ui.filterOpen=false;}
+    function positionPopover(id,button){const pop=$(id),r=button.getBoundingClientRect();const width=pop.offsetWidth||210,height=pop.offsetHeight||250;const left=Math.max(8,Math.min(window.innerWidth-width-8,r.right-width));const top=r.bottom+7+height>window.innerHeight?Math.max(8,r.top-height-7):r.bottom+7;pop.style.top=Math.max(8,Math.min(window.innerHeight-height-8,top))+'px';pop.style.left=left+'px';}
     function toggleMenu(id,button){const open=!$(id).classList.contains('open');closeMenus();if(open){$(id).classList.add('open');positionPopover(id,button)} }
+    function itemMenuHTML(item){
+ const id=esc(item.id);
+ const option=(action,label,ico)=>`<button class="pop-item" data-action="${action}" data-id="${id}">${icon(ico,17)}<span>${esc(label)}</span></button>`;
+ if(item.deleted)return option('view-details','View details','note')+'<div class="pop-divider"></div>'+option('restore','Restore','rotate')+option('purge','Delete forever','trash');
+ let html='';
+ if(item.type==='bookmark'){
+  html+=option('visit-link','Visit link','external-link');
+  html+=option('view-details','View details','note')+'<div class="pop-divider"></div>';
+ }else html+=option('view-details','View details','note');
+ const ctx=currentPinContext(item);
+ if(ctx)html+=option('pin-context',isContextPinned(item,ctx)?'Unpin here':'Pin here','pushpin');
+ if(item.type!=='space'){
+  html+=option('toggle-pin',item.pinned?'Remove sidebar bookmark':'Bookmark in sidebar','bookmark');
+  html+=option('favorite',item.favorite?'Remove from favorites':'Add to favorites','heart');
+ }
+ html+='<div class="pop-divider"></div>';
+ return html+option('edit','Edit','pencil')+option('trash','Move to Trash','trash');
+}
+    function openItemMenu(trigger,id){
+ const item=one(id);
+ if(!item)return;
+ const pop=$('item-popover');
+ if(pop.classList.contains('open')&&ui.menuItem===id){closeMenus();return;}
+ closeMenus();
+ ui.menuItem=id;
+ pop.innerHTML=itemMenuHTML(item);
+ pop.classList.add('open');
+ positionPopover('item-popover',trigger);
+}
+    function visitLink(item){
+ if(!item||item.type!=='bookmark')return;
+ const url=safeUrl(item.url||'');
+ if(!url){closeMenus();ui.detail=item.id;renderDetail();toast('This bookmark has no valid link yet.');return;}
+ window.open(url,'_blank','noopener,noreferrer');
+}
     function openEditor(type,id=null){
   closeMenus();
+  ui.editReturn=id&&ui.detail===id?id:null;
+  if(ui.editReturn){ui.detail=null;$('detail').classList.remove('open');}
   const existing=id?one(id):null;
   const kind=existing?.type||type;
   ui.editor={id,type:kind};
@@ -764,10 +843,10 @@
   if(kind==='checklist')contents+=`<div class="field"><label for="f-tasks">Checklist items</label><textarea id="f-tasks" name="tasks" class="text-area" style="min-height:165px" placeholder="One item per line">${esc((current.tasks||[]).map(t=>(t.done?'[x] ':'[ ] ')+t.text).join('\n'))}</textarea><small>One item per line. Use [x] for completed, [ ] for incomplete.</small></div>`;
   if(['bookmark','image','file'].includes(kind))contents+=`<div class="field"><label for="f-body">Description (optional)</label><textarea id="f-body" name="body" class="text-area" style="min-height:75px" placeholder="Why save this?">${esc(current.body||'')}</textarea></div>`;
   if(kind!=='space')contents+=`<div class="field"><label>${kind==='collection'?'Inside (optional)':'In spaces or collections (optional)'}</label><div class="choice-grid">${collectionChoices(current,id)}</div><small>${kind==='collection'?'You can nest collections inside spaces or other collections.':'You can add an item to a space directly or to one or more collections.'}</small></div>`;
-  contents+=`<div class="field"><label for="f-tags">Tags</label><input id="f-tags" name="tags" class="text-field" placeholder="design, research, personal" value="${esc((current.tags||[]).join(', '))}"/><small>Separate with commas. Tags work across every space and collection.</small></div>`;
-  contents+=`<div class="field"><label>Color</label><div class="choice-grid" role="radiogroup" aria-label="Choose a color">${Object.entries(palettes).map(([name,color])=>`<label title="${name}" class="color-choice ${current.color===name?'selected':''}" style="background:${color}"><input type="radio" name="color" value="${name}" ${current.color===name?'checked':''} style="position:absolute;opacity:0;width:0;height:0"/></label>`).join('')}</div></div>`;
-  contents+=`<div class="field"><label class="choice-check" style="display:inline-flex"><input name="pinned" type="checkbox" ${current.pinned?'checked':''}/> ${icon('bookmark',15)} Bookmark in sidebar</label></div>`;
-  contents+=`<div class="field"><label class="choice-check" style="display:inline-flex"><input name="favorite" type="checkbox" ${current.favorite?'checked':''}/> ${icon('heart',15)} Add to favorites</label></div>`;
+  if(kind!=='space')contents+=`<div class="field"><label for="f-tags">Tags</label><input id="f-tags" name="tags" class="text-field" placeholder="design, research, personal" value="${esc((current.tags||[]).join(', '))}"/><small>Separate with commas. Tags work across every space and collection.</small></div>`;
+  if(kind!=='space')contents+=`<div class="field"><label>Color</label><div class="choice-grid" role="radiogroup" aria-label="Choose a color">${Object.entries(palettes).map(([name,color])=>`<label title="${name}" class="color-choice ${current.color===name?'selected':''}" style="background:${color}"><input type="radio" name="color" value="${name}" ${current.color===name?'checked':''} style="position:absolute;opacity:0;width:0;height:0"/></label>`).join('')}</div></div>`;
+  if(kind!=='space')contents+=`<div class="field"><label class="choice-check" style="display:inline-flex"><input name="pinned" type="checkbox" ${current.pinned?'checked':''}/> ${icon('bookmark',15)} Bookmark in sidebar</label></div>`;
+  if(kind!=='space')contents+=`<div class="field"><label class="choice-check" style="display:inline-flex"><input name="favorite" type="checkbox" ${current.favorite?'checked':''}/> ${icon('heart',15)} Add to favorites</label></div>`;
   $('modal-content').innerHTML=contents;
   $('modal-title').textContent=`${id?'Edit':'New'} ${typeLabel({type:kind}).toLowerCase()}`;
   $('modal-hint').textContent='Changes are stored locally';
@@ -803,14 +882,19 @@
   const item=original||{id:key(),type:ctx.type,created:new Date().toISOString(),deleted:false,thumb:'',group:''};
   item.title=title;item.url=url;item.body=String(data.get('body')||'');
   item.tasks=ctx.type==='checklist'?parseTasks(String(data.get('tasks')||''),original?.tasks||[]):[];
-  item.tags=[...new Set(String(data.get('tags')||'').split(',').map(t=>t.trim().toLowerCase()).filter(Boolean))];
-  item.collectionIds=cols;item.pinnedIn=(item.pinnedIn||[]).filter(c=>{const ix=c.indexOf(':');return ix!==-1&&cols.includes(c.slice(ix+1));});item.favorite=!!data.get('favorite');item.pinned=!!data.get('pinned');item.color=String(data.get('color')||'slate');
+  item.tags=ctx.type==='space'?[]:[...new Set(String(data.get('tags')||'').split(',').map(t=>t.trim().toLowerCase()).filter(Boolean))];
+  item.collectionIds=cols;item.pinnedIn=(item.pinnedIn||[]).filter(c=>{const ix=c.indexOf(':');return ix!==-1&&cols.includes(c.slice(ix+1));});item.favorite=ctx.type==='space'?false:!!data.get('favorite');item.pinned=ctx.type==='space'?false:!!data.get('pinned');item.color=ctx.type==='space'?(item.color||'slate'):String(data.get('color')||'slate');
   item.updated=new Date().toISOString();
   if(!original)items.unshift(item);
-  persist();$('scrim').classList.remove('open');ui.editor=null;ui.detail=item.id;render();
+  persist();$('scrim').classList.remove('open');ui.editor=null;ui.editReturn=null;ui.detail=item.id;render();
   toast(original?'Item updated':'Item created');
 }
 
+    function closeEditor(){
+ $('scrim').classList.remove('open');ui.editor=null;
+ const restore=ui.editReturn;ui.editReturn=null;
+ if(restore&&one(restore)){ui.detail=restore;renderDetail();}
+}
     function editFavorite(id){
   const item=one(id);if(!item)return;
   item.favorite=!item.favorite;item.updated=new Date().toISOString();persist();render();
@@ -832,7 +916,7 @@
 
     function restore(id){const i=one(id);if(!i)return;i.deleted=false;i.updated=new Date().toISOString();persist();render();toast('Item restored');}
     function purge(id){const i=one(id);if(!i)return;if(!confirm(`Delete “${i.title}” permanently?`))return;items=items.filter(x=>x.id!==id);items.forEach(x=>{x.collectionIds=x.collectionIds.filter(c=>c!==id);x.pinnedIn=(x.pinnedIn||[]).filter(c=>c!=='space:'+id&&c!=='collection:'+id);});if(ui.expandedSpaces.delete(id))persistSidebar();ui.detail=null;persist();render();toast('Deleted permanently');}
-    function exportData(){const blob=new Blob([JSON.stringify({version:3,exported:new Date().toISOString(),items},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='shelf-library-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('Backup exported');}
+    function exportData(){const blob=new Blob([JSON.stringify({version:4,exported:new Date().toISOString(),items},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='shelf-library-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('Backup exported');}
     function importData(){const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.addEventListener('change',async()=>{const file=input.files?.[0];if(!file)return;try{const json=JSON.parse(await file.text());if(!Array.isArray(json.items)||json.items.some(i=>!i.id||!i.type||!i.title||!Array.isArray(i.collectionIds)))throw Error('Invalid backup');if(!confirm(`Replace your current library with ${json.items.length} imported items? Export a backup first if needed.`))return;items=adaptLibrary(json.items);ui.detail=null;setView('all');persist();render();toast('Library imported');}catch(e){alert('Could not import this file. Please select a Shelf JSON backup.');}});input.click();}
     function dropOnCollection(itemId,collectionId){
   const item=one(itemId),folder=one(collectionId);
@@ -847,29 +931,32 @@
     document.addEventListener('click',e=>{
       const el=e.target.closest('[data-action]');if(!el){if(!e.target.closest('.popover'))closeMenus();return;}
       const action=el.dataset.action,id=el.dataset.id;
-      if(['favorite','toggle-pin','pin-context','edit','close-detail','trash','restore','purge','editor-trash','toggle-space-tree'].includes(action))e.stopPropagation();
+      if(['favorite','toggle-pin','pin-context','edit','close-detail','trash','restore','purge','editor-trash','toggle-space-tree','item-menu','visit-link','view-details'].includes(action))e.stopPropagation();
       switch(action){
         case 'nav':setView(el.dataset.view,el.dataset.origin||'');break;
         case 'toggle-section':ui.sections[el.dataset.section]=!ui.sections[el.dataset.section];persistSidebar();renderSidebar();break;
         case 'toggle-space-tree':if(ui.expandedSpaces.has(id))ui.expandedSpaces.delete(id);else ui.expandedSpaces.add(id);persistSidebar();renderSidebar();break;
         case 'new-space':openEditor('space');break;
-        case 'open-shortcut':{const target=one(id);if(target){ui.detail=id;ui.mobile=false;renderSidebar();renderDetail();}break;}
-        case 'editor-trash':{const target=ui.editor?.id;$('scrim').classList.remove('open');ui.editor=null;if(target)putInTrash(target);break;}
-        case 'toggle-pin':togglePinned(id);break;
-        case 'pin-context':toggleContextPin(id);break;
+        case 'item-menu':openItemMenu(el,id);break;
+        case 'view-details':closeMenus();ui.detail=id;renderDetail();break;
+        case 'visit-link':visitLink(one(id));closeMenus();break;
+        case 'open-shortcut':{const target=one(id);if(target){ui.mobile=false;renderSidebar();if(target.type==='bookmark'&&!target.deleted)visitLink(target);else{ui.detail=id;renderDetail();}}break;}
+        case 'editor-trash':{const target=ui.editor?.id;$('scrim').classList.remove('open');ui.editor=null;ui.editReturn=null;if(target)putInTrash(target);break;}
+        case 'toggle-pin':togglePinned(id);closeMenus();break;
+        case 'pin-context':toggleContextPin(id);closeMenus();break;
         case 'toggle-mobile':ui.mobile=!ui.mobile;renderSidebar();break;
         case 'toggle-create':{renderCreatePopover();toggleMenu('create-popover',el);break;}
         case 'toggle-filter':{renderFilterPopover();toggleMenu('filter-popover',el);break;}
         case 'new':openEditor(el.dataset.type);break;
         case 'new-group':openEditor('collection');break;
-        case 'open-item':{const i=one(el.dataset.itemId);if(!i)return;if((i.type==='collection'||i.type==='space')&&!i.deleted)setView(i.type+':'+i.id);else{ui.detail=i.id;renderDetail();}closeMenus();break;}
+        case 'open-item':{const i=one(el.dataset.itemId);if(!i)return;closeMenus();if(i.type==='bookmark'&&!i.deleted)visitLink(i);else if((i.type==='collection'||i.type==='space')&&!i.deleted)setView(i.type+':'+i.id);else{ui.detail=i.id;renderDetail();}break;}
         case 'close-detail':ui.detail=null;renderDetail();break;
         case 'edit':{const item=one(id);if(item)openEditor(item.type,id);break;}
-        case 'favorite':editFavorite(id);break;
-        case 'trash':putInTrash(id);break;
-        case 'restore':restore(id);break;
-        case 'purge':purge(id);break;
-        case 'close-modal':$('scrim').classList.remove('open');ui.editor=null;break;
+        case 'favorite':editFavorite(id);closeMenus();break;
+        case 'trash':putInTrash(id);closeMenus();break;
+        case 'restore':restore(id);closeMenus();break;
+        case 'purge':purge(id);closeMenus();break;
+        case 'close-modal':closeEditor();break;
         case 'layout':ui.layout=el.dataset.layout;renderContent();break;
         case 'filter-type':ui.type=el.dataset.type;render();$('filter-popover').classList.add('open');positionPopover('filter-popover',$('filter-button'));break;
         case 'filter-color':ui.color=el.dataset.color;render();$('filter-popover').classList.add('open');positionPopover('filter-popover',$('filter-button'));break;
@@ -892,10 +979,11 @@
     });
     $('search-input').addEventListener('input',e=>{ui.search=e.target.value;renderContent()});
     $('editor-form').addEventListener('submit',saveEditor);
-    $('scrim').addEventListener('click',e=>{if(e.target===$('scrim')){$('scrim').classList.remove('open');ui.editor=null;}});
+    $('scrim').addEventListener('click',e=>{if(e.target===$('scrim'))closeEditor();});
+    $('detail').addEventListener('click',e=>{if(e.target===$('detail')){ui.detail=null;renderDetail();}});
     $('detail').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='add-task'){e.preventDefault();const t=e.target.value.trim(),item=one(e.target.dataset.id);if(!t||!item)return;item.tasks.push({text:t,done:false});item.updated=new Date().toISOString();persist();renderContent();renderDetail();$('add-task')?.focus();}});
     document.addEventListener('keydown',e=>{
-      if(e.key==='Escape'){if($('scrim').classList.contains('open')){$('scrim').classList.remove('open');ui.editor=null;}else if(ui.detail){ui.detail=null;renderDetail();}else{closeMenus();ui.mobile=false;renderSidebar();}return;}
+      if(e.key==='Escape'){if($('scrim').classList.contains('open'))closeEditor();else if(ui.detail){ui.detail=null;renderDetail();}else{closeMenus();ui.mobile=false;renderSidebar();}return;}
       if(e.target.matches('input,textarea,select')||$('scrim').classList.contains('open'))return;
       if(e.key==='/'||(e.key.toLowerCase()==='k'&&(e.ctrlKey||e.metaKey))){e.preventDefault();$('search-input').focus();}
       if(e.key.toLowerCase()==='n'&&!e.ctrlKey&&!e.metaKey){e.preventDefault();openEditor('note');}
