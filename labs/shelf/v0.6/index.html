@@ -364,6 +364,7 @@
     .object-notes-label {margin:15px 0 7px;font-size:11px;color:#9999a3;text-transform:uppercase;letter-spacing:.06em}
     .field-row {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
     .field-row .field {min-width:0}
+    .field-row[hidden] {display:none!important}
     .text-field[type="date"],.text-field[type="time"] {color-scheme:dark}
     .text-field[type="date"]::-webkit-calendar-picker-indicator,.text-field[type="time"]::-webkit-calendar-picker-indicator {filter:invert(.65)}
     @media(max-width:530px){.object-facts{grid-template-columns:1fr}.field-row{grid-template-columns:1fr}}
@@ -961,6 +962,29 @@
      if(['bookmark','image','file'].includes(kind))contents+=`<div class="field"><label for="f-url">${kind==='bookmark'?'URL':kind==='image'?'Image URL':'File URL or path'}</label><input id="f-url" name="url" class="text-field" type="text" placeholder="https://…" value="${esc(current.url||'')}"/><small>${kind==='file'?'This prototype stores file references, not uploaded files.':kind==='image'?'Use a direct image URL to display its thumbnail.':'The link opens in a new tab.'}</small></div>`;
      if(kind==='note')contents+=`<div class="field"><label for="f-body">Note</label><textarea id="f-body" name="body" class="text-area" style="min-height:190px" placeholder="Write anything…">${esc(current.body)}</textarea></div>`;
      if(kind==='checklist')contents+=`<div class="field"><label for="f-tasks">Checklist items</label><textarea id="f-tasks" name="tasks" class="text-area" style="min-height:165px" placeholder="One item per line">${esc((current.tasks||[]).map(t=>(t.done?'[x] ':'[ ] ')+t.text).join('\n'))}</textarea><small>One item per line. Use [x] for completed, [ ] for incomplete.</small></div>`;
+     if(kind==='task'){
+       contents+=`<div class="field-row">
+         <div class="field"><label for="f-status">Status</label><select id="f-status" name="status" class="text-field">${Object.entries(taskStates).map(([key,value])=>`<option value="${key}" ${(current.status||'todo')===key?'selected':''}>${esc(value)}</option>`).join('')}</select></div>
+         <div class="field"><label for="f-priority">Priority</label><select id="f-priority" name="priority" class="text-field">${Object.entries(taskPriorities).map(([key,value])=>`<option value="${key}" ${(current.priority||'normal')===key?'selected':''}>${esc(value)}</option>`).join('')}</select></div>
+       </div>
+       <div class="field"><label for="f-due">Due date (optional)</label><input id="f-due" name="dueDate" class="text-field" type="date" value="${esc(current.dueDate||'')}"/></div>
+       <div class="field"><label for="f-body">Notes</label><textarea id="f-body" name="body" class="text-area" style="min-height:135px" placeholder="Context, links, or any details for this task…">${esc(current.body||'')}</textarea></div>`;
+     }
+     if(kind==='event'){
+       const begin=current.startDate||(!id?dayOffset(0):'');
+       const end=current.endDate||(!id?begin:'');
+       contents+=`<div class="field"><label class="choice-check"><input type="checkbox" id="f-all-day" name="allDay" ${current.allDay?'checked':''}/> All-day event</label></div>
+       <div class="field-row">
+         <div class="field"><label for="f-start-date">Start date</label><input id="f-start-date" name="startDate" type="date" class="text-field" required value="${esc(begin)}"/></div>
+         <div class="field"><label for="f-end-date">End date</label><input id="f-end-date" name="endDate" type="date" class="text-field" value="${esc(end)}"/></div>
+       </div>
+       <div class="field-row" id="event-time-fields" ${current.allDay?'hidden':''}>
+         <div class="field"><label for="f-start-time">Start time</label><input id="f-start-time" name="startTime" type="time" class="text-field" value="${esc(current.startTime||'10:00')}"/></div>
+         <div class="field"><label for="f-end-time">End time</label><input id="f-end-time" name="endTime" type="time" class="text-field" value="${esc(current.endTime||'11:00')}"/></div>
+       </div>
+       <div class="field"><label for="f-location">Location (optional)</label><input id="f-location" name="location" type="text" class="text-field" maxlength="220" value="${esc(current.location||'')}" placeholder="In person, online, or wherever"/></div>
+       <div class="field"><label for="f-body">Notes</label><textarea id="f-body" name="body" class="text-area" style="min-height:125px" placeholder="Agenda, preparation, meeting link…">${esc(current.body||'')}</textarea></div>`;
+     }
      if(['bookmark','image','file'].includes(kind))contents+=`<div class="field"><label for="f-body">Description (optional)</label><textarea id="f-body" name="body" class="text-area" style="min-height:75px" placeholder="Why save this?">${esc(current.body||'')}</textarea></div>`;
      contents+=`<div class="field"><label>${kind==='folder'?'Parent folders (optional)':'Add to folders (optional)'}</label><div class="choice-grid">${folderChoices(current,id)}</div><small>${kind==='folder'?'Folders may be nested at any depth. Leave empty to place this folder at the top level.':'Objects can belong to more than one folder.'}</small></div>`;
      contents+=`<div class="field"><label for="f-tags">Tags</label><input id="f-tags" name="tags" class="text-field" placeholder="design, research, personal" value="${esc((current.tags||[]).join(', '))}"/><small>Separate with commas. Tags work across your library.</small></div>`;
@@ -998,8 +1022,39 @@
       return parent&&!parent.deleted&&parent.type==='folder'&&id!==ctx.id&&(ctx.type!=='folder'||!isDescendant(id,ctx.id||'_none_'));
      });
      const item=original||{id:key(),type:ctx.type,created:new Date().toISOString(),deleted:false,thumb:'',group:''};
+     if(ctx.type==='event'){
+       const startDate=String(data.get('startDate')||'');
+       const endDate=String(data.get('endDate')||startDate);
+       const allDay=!!data.get('allDay');
+       const startTime=String(data.get('startTime')||'');
+       const endTime=String(data.get('endTime')||'');
+       if(!parseLocalDate(startDate)||!parseLocalDate(endDate)){toast('Choose a valid event date.');return;}
+       if(endDate<startDate){toast('End date cannot come before start date.');return;}
+       if(!allDay){
+         if(!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(startTime)||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(endTime)){
+           toast('Enter a start and end time, or choose All-day.');return;
+         }
+         if(endDate+'T'+endTime<startDate+'T'+startTime){toast('Event must end after it begins.');return;}
+       }
+     }
      item.title=title;item.url=url;item.body=String(data.get('body')||'');
      item.tasks=ctx.type==='checklist'?parseTasks(String(data.get('tasks')||''),original?.tasks||[]):[];
+     if(ctx.type==='task'){
+       const status=String(data.get('status')||'todo'),priority=String(data.get('priority')||'normal');
+       const dueDate=String(data.get('dueDate')||'');
+       if(dueDate&&!parseLocalDate(dueDate)){toast('Choose a valid due date.');return;}
+       item.status=Object.hasOwn(taskStates,status)?status:'todo';
+       item.priority=Object.hasOwn(taskPriorities,priority)?priority:'normal';
+       item.dueDate=dueDate;
+     }
+     if(ctx.type==='event'){
+       item.startDate=String(data.get('startDate')||'');
+       item.endDate=String(data.get('endDate')||item.startDate);
+       item.startTime=String(data.get('startTime')||'');
+       item.endTime=String(data.get('endTime')||'');
+       item.allDay=!!data.get('allDay');
+       item.location=String(data.get('location')||'').trim();
+     }
      item.tags=[...new Set(String(data.get('tags')||'').split(',').map(t=>t.trim().toLowerCase()).filter(Boolean))];
      item.collectionIds=[...new Set(folders)];
      item.pinnedIn=(item.pinnedIn||[]).filter(c=>c.startsWith('folder:')&&item.collectionIds.includes(c.slice(7)));
@@ -1097,6 +1152,7 @@
       }
     });
     document.addEventListener('change',e=>{
+      if(e.target.id==='f-all-day'){const times=$('event-time-fields');if(times)times.hidden=e.target.checked;}
       if(e.target.id==='sort-select'){ui.sort=e.target.value;renderContent();}
       if(e.target.matches('[data-action="toggle-task"]')){const item=one(e.target.dataset.id),task=item?.tasks?.[Number(e.target.dataset.index)];if(!task)return;task.done=e.target.checked;item.updated=new Date().toISOString();persist();renderContent();renderSidebar();renderDetail();}
       if(e.target.matches('input[name="color"]'))document.querySelectorAll('.color-choice').forEach(c=>c.classList.toggle('selected',c.querySelector('input').checked));
