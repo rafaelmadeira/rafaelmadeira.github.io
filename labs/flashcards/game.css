@@ -81,3 +81,31 @@
   .lifeline-options { gap:7px; }
   .lifeline-option { padding:12px 10px;font-size:12px; }
 }
+
+/* v0.8.1: align buy-in amount and explanation within each plot card. */
+.plot-entry {
+  display:grid;
+  grid-template-columns:max-content minmax(0,1fr);
+  column-gap:11px;
+  row-gap:4px;
+  align-items:baseline;
+  margin:1px 0 12px;
+  min-width:0;
+}
+.plot-entry-label {
+  color:#92998c;
+  font:500 10px "DM Mono",monospace;
+  letter-spacing:1px;
+}
+.plot-entry strong {
+  color:#8b6a2c;
+  font:700 15px "DM Mono",monospace;
+  font-variant-numeric:tabular-nums;
+}
+.plot-entry-note {
+  grid-column:1 / -1;
+  font-size:11px;
+  font-weight:400;
+  line-height:1.4;
+  color:#8a9387;
+}

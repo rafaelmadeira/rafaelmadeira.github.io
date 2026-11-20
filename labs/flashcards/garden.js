@@ -167,9 +167,10 @@
           (ready ? '<strong>' + ready + '</strong> ready to study' : '<strong>✓</strong> Up to date') +
           '</span><button type="button" class="reset-deck-progress" title="Reset only this deck’s learning history">Reset progress</button></div>' +
         '<div class="plot-play-actions">' +
-          '<div class="plot-entry">BUY-IN <strong>◈ ' + fmt(game ? game.getBuyIn() : 20) +
-          '</strong><span>' + ((game && game.walletBalance() < game.getBuyIn()) ?
-            'Not enough coins · study for XP' : 'Moves to your session table') + '</span></div>' +
+          '<div class="plot-entry"><span class="plot-entry-label">BUY-IN</span>' +
+          '<strong>◈ ' + fmt(game ? game.getBuyIn() : 20) + '</strong>' +
+          '<small class="plot-entry-note">' + ((game && game.walletBalance() < game.getBuyIn()) ?
+            'Not enough coins · study for XP' : 'Moves to your session table') + '</small></div>' +
           '<button class="deck-play-button study-deck" type="button">' +
           (ready ? 'Study deck' : 'Practice deck') + ' ↗</button>' +
         '</div>';
