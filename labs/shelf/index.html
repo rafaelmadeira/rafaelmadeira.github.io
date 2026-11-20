@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="dark" />
-  <title>Shelf — Folders v0.5</title>
+  <title>Shelf — Tasks & Events experiment v0.6</title>
   <style>
     :root { --bg:#111113; --sidebar:#202023; --card:#171719; --panel:#1d1d20; --surface:#29292d; --surface2:#323237; --line:#333338; --text:#ececef; --muted:#85858e; --muted2:#63636b; --blue:#2485d7; --blue2:#339df5; --focus:#5baff5; --radius:11px; color-scheme:dark }
     * { box-sizing:border-box }
@@ -323,6 +323,51 @@
     .folder-tree-row .folder-caret.expanded svg {transform:rotate(90deg)}
     .folder-tree-row .folder-nav.active .folder-caret {color:#e4f4ff}
     .folder-tree-row .folder-nav:hover .folder-caret {color:#ededf2}
+
+    /* v0.6: distinct but compatible previews for actions and scheduled moments */
+    .thumb-task {background:linear-gradient(145deg,var(--accent,#36536f),#191f2b);display:grid;place-items:center}
+    .task-paper {position:absolute;width:88%;height:112%;top:10%;background:#e8e9e5;color:#303439;border-radius:8px 8px 4px 4px;
+      padding:16px 16px 14px;transform:rotate(-1deg);box-shadow:0 13px 25px #0006;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+    .task-paper.is-done {background:#dce8dd}
+    .task-preview-kicker {display:flex;align-items:center;gap:5px;font-size:9px;font-weight:750;letter-spacing:.12em;color:#63717c}
+    .task-preview-kicker svg {flex-shrink:0}
+    .task-preview-state {margin-left:auto;font-size:9px;letter-spacing:0;font-weight:700;background:#d3d9dd;border-radius:20px;padding:4px 6px;white-space:nowrap}
+    .task-paper.is-done .task-preview-state {background:#bed8c8;color:#386e56}
+    .task-preview-main {display:flex;align-items:flex-start;gap:11px;min-height:0}
+    .task-preview-check {width:25px;height:25px;flex:0 0 25px;border:2px solid #8794a0;border-radius:7px;font-size:17px;font-weight:760;display:grid;place-items:center;line-height:1;color:#fff}
+    .is-done .task-preview-check {background:#3f9676;border-color:#3f9676}
+    .task-preview-heading {min-width:0;flex:1}
+    .task-preview-title {font-size:15px;font-weight:760;letter-spacing:-.03em;line-height:1.18;max-height:2.4em;overflow:hidden;overflow-wrap:anywhere}
+    .task-preview-notes {font-size:10px;line-height:1.5;color:#77808a;margin-top:6px;max-height:2.9em;overflow:hidden;overflow-wrap:anywhere}
+    .task-preview-footer {margin-top:auto;padding-top:7px;border-top:1px solid #cad0d1;display:flex;justify-content:space-between;align-items:center;gap:7px;
+      font-size:9px;white-space:nowrap;color:#67727c}
+    .task-preview-footer span:first-child {display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;text-overflow:ellipsis}
+    .task-preview-footer svg {flex-shrink:0}
+    .thumb-event {background:linear-gradient(145deg,var(--accent,#65547b),#23212e);display:grid;place-items:center}
+    .event-paper {width:90%;height:82%;background:#e9e7eb;color:#34333d;display:flex;overflow:hidden;border-radius:8px;
+      box-shadow:0 15px 26px #0005;transform:rotate(.5deg)}
+    .event-preview-date {background:#efe0d0;min-width:30%;max-width:30%;border-right:1px solid #dccfc7;display:flex;
+      flex-direction:column;justify-content:center;align-items:center;gap:1px}
+    .event-preview-month {font-size:10px;letter-spacing:.15em;font-weight:760;color:#927b76}
+    .event-preview-day {font-size:clamp(32px,4vw,49px);font-weight:760;letter-spacing:-.065em;line-height:1.05;color:#5c5068}
+    .event-preview-details {padding:15px 12px;display:flex;flex-direction:column;gap:5px;min-width:0;flex:1}
+    .event-preview-kicker {font-size:9px;font-weight:800;color:#8d829b;letter-spacing:.12em;display:flex;align-items:center;gap:5px}
+    .event-preview-title {font-size:14px;font-weight:760;line-height:1.13;letter-spacing:-.035em;overflow:hidden;max-height:2.35em;overflow-wrap:anywhere}
+    .event-preview-time {font-size:10px;line-height:1.35;color:#666172;font-weight:650;margin-top:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .event-preview-location {display:flex;gap:3px;align-items:center;font-size:9px;color:#847f89;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+    .event-preview-location svg {flex:0 0 12px}
+    .object-facts {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0 17px}
+    .object-fact {border:1px solid #424249;background:#2a2a30;border-radius:8px;padding:11px 12px;min-width:0}
+    .object-fact-label {font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#898994;display:flex;align-items:center;gap:6px;margin-bottom:5px}
+    .object-fact-label svg {width:14px;height:14px}
+    .object-fact-value {font-size:12px;color:#ededf1;font-weight:620;line-height:1.45;overflow-wrap:anywhere}
+    .object-notes-label {margin:15px 0 7px;font-size:11px;color:#9999a3;text-transform:uppercase;letter-spacing:.06em}
+    .field-row {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .field-row .field {min-width:0}
+    .field-row[hidden] {display:none!important}
+    .text-field[type="date"],.text-field[type="time"] {color-scheme:dark}
+    .text-field[type="date"]::-webkit-calendar-picker-indicator,.text-field[type="time"]::-webkit-calendar-picker-indicator {filter:invert(.65)}
+    @media(max-width:530px){.object-facts{grid-template-columns:1fr}.field-row{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -334,7 +379,7 @@
         <button class="head-btn" data-action="toggle-create" title="Create new item" aria-label="Create new item" data-icon="plus"></button>
       </div>
       <div class="side-content" id="nav-content"></div>
-      <div class="side-bottom"><span class="demo-badge">LOCAL PROTOTYPE · v0.5</span><a class="bottom-action" href="/labs/shelf/v0.4/" title="Return to version 0.4">v0.4</a><button class="bottom-action" data-action="export" title="Export all items as JSON">Export</button></div>
+      <div class="side-bottom"><span class="demo-badge">LOCAL PROTOTYPE · v0.6</span><a class="bottom-action" href="/labs/shelf/v0.5/" title="Return to version 0.5">v0.5</a><button class="bottom-action" data-action="export" title="Export all items as JSON">Export</button></div>
     </aside>
     <main class="main" id="main">
       <div class="main-content">
@@ -402,12 +447,43 @@
     svgPath.hash='<path d="M10 3 6 21M18 3l-4 18M4 9h17M3 15h17"/>';
     svgPath.pushpin='<path d="m16 3 5 5-2.5 1-2.5 4 .5 2.5-2 2-8-8 2-2 2.5.5 4-2.5z"/><path d="m4 20 6.5-6.5"/>';
     const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-    const storage = 'shelf-everything-v0-5';
-    const legacyStorages = ['shelf-everything-v0-4','shelf-everything-v0-3','shelf-everything-v0-2','shelf-everything-v0-1'];
+    const storage = 'shelf-everything-v0-6';
+    const legacyStorages = ['shelf-everything-v0-5','shelf-everything-v0-4','shelf-everything-v0-3','shelf-everything-v0-2','shelf-everything-v0-1'];
     const sidebarPrefsKey = storage+'-sidebar';
-    const legacySidebarPrefsKeys = ['shelf-everything-v0-4-sidebar','shelf-everything-v0-3-sidebar'];
+    const legacySidebarPrefsKeys = ['shelf-everything-v0-5-sidebar','shelf-everything-v0-4-sidebar','shelf-everything-v0-3-sidebar'];
     const palettes = {slate:'#475465', blue:'#41658f', red:'#97585b', amber:'#997b4e', green:'#597b67', violet:'#76648e', charcoal:'#45464c'};
-    const types = {bookmark:'Bookmark',note:'Note',checklist:'Checklist',folder:'Folder',image:'Image',file:'File'};
+    const types = {bookmark:'Bookmark',note:'Note',checklist:'Checklist',task:'Task',event:'Event',folder:'Folder',image:'Image',file:'File'};
+    const taskStates = {todo:'To do',doing:'In progress',done:'Done'};
+    const taskPriorities = {low:'Low',normal:'Normal',high:'High'};
+    svgPath.task='<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m7 12 3 3 7-7"/>';
+    svgPath.event='<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 11h18"/>';
+    svgPath['map-pin']='<path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.4"/>';
+    const asLocalISO = date => [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
+    const dayOffset = days => {const d=new Date();d.setDate(d.getDate()+days);return asLocalISO(d);};
+    const parseLocalDate = value => {
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value||'')))return null;
+      const [y,m,d]=String(value).split('-').map(Number);
+      const result=new Date(y,m-1,d);
+      return result.getFullYear()===y&&result.getMonth()===m-1&&result.getDate()===d?result:null;
+    };
+    const dateLabel = (value,weekday=false) => {
+      const d=parseLocalDate(value);
+      return d?d.toLocaleDateString(undefined,{month:'short',day:'numeric',...(weekday?{weekday:'short'}:{})}):'No date';
+    };
+    const timeLabel = value => {
+      if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(value||'')))return '';
+      const [h,m]=value.split(':').map(Number);
+      return new Date(2020,0,1,h,m).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+    };
+    const eventDateText = item => {
+      if(!item.startDate)return 'Date not set';
+      const range=item.endDate&&item.endDate!==item.startDate?
+        dateLabel(item.startDate)+' – '+dateLabel(item.endDate):dateLabel(item.startDate,true);
+      if(item.allDay)return range+' · All day';
+      const start=timeLabel(item.startTime),end=timeLabel(item.endTime);
+      return range+(start?' · '+start+(end?' – '+end:''):'');
+    };
+    const taskDateText = item => item.dueDate?'Due '+dateLabel(item.dueDate,true):'No due date';
     const now = Date.now();
     const moment = (hours) => new Date(now - hours*3600*1000).toISOString();
     const seed = () => {
@@ -467,16 +543,34 @@
       }
       return incoming;
     }
+    function addTaskEventSamples(library){
+      const examples=[];
+      if(!library.some(i=>i.type==='task')){
+        const folder=library.find(i=>i.id==='work'&&i.type==='folder'&&!i.deleted);
+        examples.push({id:'sample-task-v06',type:'task',title:'Sample · Review project notes',body:'An example of an individual action in Shelf. Try editing its status, priority and due date.',status:'todo',priority:'normal',dueDate:dayOffset(1),
+          collectionIds:folder?['work']:[],tags:['sample','planning'],color:'blue',favorite:false,pinned:false,pinnedIn:[],created:new Date().toISOString(),updated:new Date().toISOString(),deleted:false,sample:true});
+      }
+      if(!library.some(i=>i.type==='event')){
+        const folder=library.find(i=>i.id==='personal'&&i.type==='folder'&&!i.deleted);
+        examples.push({id:'sample-event-v06',type:'event',title:'Sample · Planning session',body:'An example event. Edit the time, location, and folder memberships to try it out.',startDate:dayOffset(2),endDate:dayOffset(2),
+          startTime:'10:00',endTime:'11:00',allDay:false,location:'Example location',
+          collectionIds:folder?['personal']:[],tags:['sample','planning'],color:'violet',favorite:false,pinned:false,pinnedIn:[],created:new Date().toISOString(),updated:new Date().toISOString(),deleted:false,sample:true});
+      }
+      library.push(...examples);
+      return library;
+    }
     function load(){
-      let source=null;
+      let source=null,sourceKey=null;
       for(const key of [storage,...legacyStorages]){
         try{
           const raw=JSON.parse(localStorage.getItem(key));
-          if(raw&&Array.isArray(raw.items)){source=raw.items;break;}
+          if(raw&&Array.isArray(raw.items)){source=raw.items;sourceKey=key;break;}
         }catch(e){}
       }
       const library=adaptLibrary(source||seed());
-      try{localStorage.setItem(storage,JSON.stringify({version:5,items:library}));}catch(e){}
+      // Only add demonstrations on the first v0.6 migration, never on reload after deletion.
+      if(sourceKey!==storage)addTaskEventSamples(library);
+      try{localStorage.setItem(storage,JSON.stringify({version:6,items:library}));}catch(e){}
       return library;
     }
     function loadSidebarPrefs(){
@@ -503,7 +597,7 @@
     const ui = {view:'all',search:'',type:'all',tag:'',color:'',sort:'recent',layout:'grid',detail:null,editor:null,editReturn:null,menuItem:null,filterOpen:false,createOpen:false,mobile:false,expandedFolders:new Set(savedSidebar.expandedFolders),sections:savedSidebar.sections};
     const persistSidebar = () => {try{localStorage.setItem(sidebarPrefsKey,JSON.stringify({expandedFolders:[...ui.expandedFolders],sections:ui.sections}));}catch(e){}};
     const $ = id => document.getElementById(id);
-    const persist = () => { try {localStorage.setItem(storage,JSON.stringify({version:5,items}));}catch(e){toast('Storage is unavailable; changes may not persist.')} };
+    const persist = () => { try {localStorage.setItem(storage,JSON.stringify({version:6,items}));}catch(e){toast('Storage is unavailable; changes may not persist.')} };
     const one = id => items.find(i=>i.id===id);
     const active = () => items.filter(i=>!i.deleted);
     const count = ids => active().filter(i=>ids.includes(i.id)).length;
@@ -513,7 +607,12 @@
     const friendlyDate = s => {const d=new Date(s);return isNaN(d.getTime())?'':d.toLocaleDateString(undefined,{month:'short',day:'numeric'})};
     const key = () => 'i'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-3);
     const typeLabel = item => types[item.type]||'Item';
-    const summary = item => item.type==='bookmark'||item.type==='image'||item.type==='file' ? domain(item.url):item.type==='checklist'?`${(item.tasks||[]).filter(t=>t.done).length} of ${(item.tasks||[]).length} complete`:item.type==='folder'?`${members(item.id).length} items`:(item.body||'Note').replace(/\s+/g,' ').slice(0,90);
+    const summary = item => item.type==='bookmark'||item.type==='image'||item.type==='file' ? domain(item.url)
+      :item.type==='checklist'?`${(item.tasks||[]).filter(t=>t.done).length} of ${(item.tasks||[]).length} complete`
+      :item.type==='task'?`${taskStates[item.status]||'To do'} · ${taskDateText(item)}`
+      :item.type==='event'?eventDateText(item)
+      :item.type==='folder'?`${members(item.id).length} items`
+      :(item.body||'Note').replace(/\s+/g,' ').slice(0,90);
     function viewLabel(){
       if(ui.view==='all')return ['All items','layers'];
       if(ui.view==='unsorted')return ['Unsorted','inbox'];
@@ -548,7 +647,7 @@
       if(ui.color)list=list.filter(i=>i.color===ui.color);
       if(ui.search){
         const q=ui.search.toLowerCase().trim();
-        list=list.filter(i=>[i.title,i.body,i.url,...(i.tags||[]),...(i.tasks||[]).map(t=>t.text)].filter(Boolean).join(' ').toLowerCase().includes(q));
+        list=list.filter(i=>[i.title,i.body,i.url,i.location,i.dueDate,i.startDate,i.endDate,taskStates[i.status],taskPriorities[i.priority],...(i.tags||[]),...(i.tasks||[]).map(t=>t.text)].filter(Boolean).join(' ').toLowerCase().includes(q));
       }
       return list.sort((a,b)=>{
     const at=String(a.title||''),bt=String(b.title||'');
@@ -607,6 +706,8 @@
         ['bookmark','Links','link'],
         ['note','Notes','note'],
         ['checklist','Checklists','checklist'],
+        ['task','Tasks','task'],
+        ['event','Events','event'],
         ['image','Images','image'],
         ['file','Files','file']
       ])html+=navButton('type:'+type,name,ico,counts(type));
@@ -641,6 +742,35 @@
         const tasks=i.tasks||[],done=tasks.filter(t=>t.done).length;
         return `<div class="card-image thumb-checklist" style="--accent:${palettes[i.color]||palettes.blue}"><div class="check-sheet"><div class="check-head">${esc(i.title)}</div>${tasks.slice(0,4).map(t=>`<div class="check-row ${t.done?'done':''}"><span class="check-box">${t.done?'✓':''}</span><span>${esc(t.text)}</span></div>`).join('')}<div class="check-progress"><div style="width:${tasks.length?done/tasks.length*100:0}%"></div></div></div></div>`;
       }
+
+      if(i.type==='task'){
+        const done=i.status==='done',state=taskStates[i.status]||'To do';
+        return `<div class="card-image thumb-task" style="--accent:${palettes[i.color]||palettes.blue}">
+          <div class="task-paper ${done?'is-done':''}">
+            <div class="task-preview-kicker">${icon('task',13)} <span>TASK</span><span class="task-preview-state">${esc(state)}</span></div>
+            <div class="task-preview-main"><div class="task-preview-check">${done?'✓':''}</div><div class="task-preview-heading">
+              <div class="task-preview-title">${esc(i.title)}</div>
+              <div class="task-preview-notes">${esc(i.body||'One thing to do, one place to keep it.')}</div>
+            </div></div>
+            <div class="task-preview-footer"><span>${icon('event',12)} ${esc(taskDateText(i))}</span><span>${esc(taskPriorities[i.priority]||'Normal')}</span></div>
+          </div></div>`;
+      }
+      if(i.type==='event'){
+        const start=parseLocalDate(i.startDate);
+        const month=start?start.toLocaleDateString(undefined,{month:'short'}).toUpperCase():'DATE';
+        const day=start?String(start.getDate()).padStart(2,'0'):'--';
+        const when=i.allDay?'All day':timeLabel(i.startTime)+(i.endTime?' – '+timeLabel(i.endTime):'');
+        return `<div class="card-image thumb-event" style="--accent:${palettes[i.color]||palettes.violet}">
+          <div class="event-paper">
+            <div class="event-preview-date"><div class="event-preview-month">${esc(month)}</div><div class="event-preview-day">${esc(day)}</div></div>
+            <div class="event-preview-details">
+              <div class="event-preview-kicker">${icon('event',12)} EVENT</div>
+              <div class="event-preview-title">${esc(i.title)}</div>
+              <div class="event-preview-time">${esc(when||'Time not set')}</div>
+              <div class="event-preview-location">${i.location?icon('map-pin',12):''}${esc(i.location||'')}</div>
+            </div>
+          </div></div>`;
+      }
       if(i.type==='folder')return `<div class="card-image thumb-collection"><div class="folder-hero">${icon('folder',100)}</div><div class="folder-number">${members(i.id).length} items</div></div>`;
       if(i.type==='image') return `<div class="card-image thumb-image">${i.url&&/^https?:\/\//i.test(i.url)?`<img src="${esc(i.url)}" alt="" loading="lazy" onerror="this.style.display='none'"/>`:''}<div class="art-sun"></div><div class="art-hill"></div><div class="art-hill two"></div></div>`;
       return `<div class="card-image thumb-file" style="--accent:${palettes[i.color]||palettes.slate}"><div class="file-drawing"><div class="file-ext">${esc((i.title.split('.').pop()||'FILE').slice(0,6).toUpperCase())}</div></div></div>`;
@@ -656,6 +786,14 @@
     function isContextPinned(item,context=ui.view){
   return Array.isArray(item.pinnedIn)&&item.pinnedIn.includes(context);
 }
+    function toggleTaskDone(id){
+      const item=one(id);
+      if(!item||item.deleted||item.type!=='task')return;
+      item.status=item.status==='done'?'todo':'done';
+      item.updated=new Date().toISOString();
+      persist();renderContent();renderDetail();
+      toast(item.status==='done'?'Task completed':'Task reopened');
+    }
     function toggleContextPin(id,context=ui.view){
   const item=one(id);
   if(!item||!context||item.deleted||context!==currentPinContext(item))return;
@@ -760,6 +898,30 @@
       const n=members(item.id).length;
       body=`<p class="detail-content">${n} ${n===1?'item belongs':'items belong'} to this folder. Folders can contain other folders, links, notes, checklists, images, and files.</p>${item.deleted?'':`<div class="detail-buttons"><button class="detail-btn primary" data-action="nav" data-view="folder:${esc(item.id)}">${icon('folder')} Open folder</button></div>`}`;
      }
+     if(item.type==='task'){
+       const done=item.status==='done',status=taskStates[item.status]||'To do';
+       const priority=taskPriorities[item.priority]||'Normal';
+       const notes=item.body?`<div class="object-notes-label">Notes</div><div class="detail-content">${esc(item.body)}</div>`:'';
+       body=`<div class="object-facts">
+         <div class="object-fact"><div class="object-fact-label">${icon('task',14)} Status</div><div class="object-fact-value">${esc(status)}</div></div>
+         <div class="object-fact"><div class="object-fact-label">${icon('event',14)} Due</div><div class="object-fact-value">${esc(item.dueDate?dateLabel(item.dueDate,true):'No due date')}</div></div>
+         <div class="object-fact"><div class="object-fact-label">Priority</div><div class="object-fact-value">${esc(priority)}</div></div>
+       </div>${notes}${item.deleted?'':`<div class="detail-buttons"><button class="detail-btn ${done?'':'primary'}" data-action="toggle-task-done" data-id="${esc(item.id)}">${icon('task',16)} ${done?'Reopen task':'Mark as done'}</button></div>`}`;
+     }
+     if(item.type==='event'){
+       const start=item.startDate?dateLabel(item.startDate,true):'Date not set';
+       const end=item.endDate?dateLabel(item.endDate,true):start;
+       const dateAndTime=date=>date+(item.allDay?' · All day':'');
+       const startText=start+(item.allDay?'':item.startTime?' · '+timeLabel(item.startTime):'');
+       const endText=end+(item.allDay?'':item.endTime?' · '+timeLabel(item.endTime):'');
+       const notes=item.body?`<div class="object-notes-label">Notes</div><div class="detail-content">${esc(item.body)}</div>`:'';
+       body=`<div class="object-facts">
+         <div class="object-fact"><div class="object-fact-label">${icon('event',14)} Starts</div><div class="object-fact-value">${esc(startText)}</div></div>
+         <div class="object-fact"><div class="object-fact-label">${icon('event',14)} Ends</div><div class="object-fact-value">${esc(endText)}</div></div>
+         <div class="object-fact"><div class="object-fact-label">${icon('map-pin',14)} Location</div><div class="object-fact-value">${esc(item.location||'No location')}</div></div>
+         <div class="object-fact"><div class="object-fact-label">Type</div><div class="object-fact-value">${item.allDay?'All-day event':'Timed event'}</div></div>
+       </div>${notes}`;
+     }
      if(item.type==='checklist'){
       const tasks=item.tasks||[],done=tasks.filter(t=>t.done).length;
       body=`<div class="task-counter">${done} of ${tasks.length} completed · ${tasks.length?Math.round(done/tasks.length*100):0}%</div>${tasks.map((t,idx)=>`<label class="detail-checkline ${t.done?'done':''}"><input type="checkbox" data-action="toggle-task" data-id="${esc(item.id)}" data-index="${idx}" ${t.done?'checked':''}/><span>${esc(t.text)}</span></label>`).join('')}<input class="new-task-input" id="add-task" aria-label="Add task" placeholder="+ Add an item and press Enter" data-id="${esc(item.id)}"/>`;
@@ -799,6 +961,7 @@
   html+=option('visit-link','Visit link','external-link');
   html+=option('view-details','View details','note')+'<div class="pop-divider"></div>';
  }else html+=option('view-details','View details','note');
+ if(item.type==='task')html+=option('toggle-task-done',item.status==='done'?'Reopen task':'Mark as done','task');
  const ctx=currentPinContext(item);
  if(ctx)html+=option('pin-context',isContextPinned(item,ctx)?'Unpin here':'Pin here','pushpin');
  html+=option('toggle-pin',item.pinned?'Remove sidebar bookmark':'Bookmark in sidebar','bookmark');
@@ -834,6 +997,29 @@
      if(['bookmark','image','file'].includes(kind))contents+=`<div class="field"><label for="f-url">${kind==='bookmark'?'URL':kind==='image'?'Image URL':'File URL or path'}</label><input id="f-url" name="url" class="text-field" type="text" placeholder="https://…" value="${esc(current.url||'')}"/><small>${kind==='file'?'This prototype stores file references, not uploaded files.':kind==='image'?'Use a direct image URL to display its thumbnail.':'The link opens in a new tab.'}</small></div>`;
      if(kind==='note')contents+=`<div class="field"><label for="f-body">Note</label><textarea id="f-body" name="body" class="text-area" style="min-height:190px" placeholder="Write anything…">${esc(current.body)}</textarea></div>`;
      if(kind==='checklist')contents+=`<div class="field"><label for="f-tasks">Checklist items</label><textarea id="f-tasks" name="tasks" class="text-area" style="min-height:165px" placeholder="One item per line">${esc((current.tasks||[]).map(t=>(t.done?'[x] ':'[ ] ')+t.text).join('\n'))}</textarea><small>One item per line. Use [x] for completed, [ ] for incomplete.</small></div>`;
+     if(kind==='task'){
+       contents+=`<div class="field-row">
+         <div class="field"><label for="f-status">Status</label><select id="f-status" name="status" class="text-field">${Object.entries(taskStates).map(([key,value])=>`<option value="${key}" ${(current.status||'todo')===key?'selected':''}>${esc(value)}</option>`).join('')}</select></div>
+         <div class="field"><label for="f-priority">Priority</label><select id="f-priority" name="priority" class="text-field">${Object.entries(taskPriorities).map(([key,value])=>`<option value="${key}" ${(current.priority||'normal')===key?'selected':''}>${esc(value)}</option>`).join('')}</select></div>
+       </div>
+       <div class="field"><label for="f-due">Due date (optional)</label><input id="f-due" name="dueDate" class="text-field" type="date" value="${esc(current.dueDate||'')}"/></div>
+       <div class="field"><label for="f-body">Notes</label><textarea id="f-body" name="body" class="text-area" style="min-height:135px" placeholder="Context, links, or any details for this task…">${esc(current.body||'')}</textarea></div>`;
+     }
+     if(kind==='event'){
+       const begin=current.startDate||(!id?dayOffset(0):'');
+       const end=current.endDate||(!id?begin:'');
+       contents+=`<div class="field"><label class="choice-check"><input type="checkbox" id="f-all-day" name="allDay" ${current.allDay?'checked':''}/> All-day event</label></div>
+       <div class="field-row">
+         <div class="field"><label for="f-start-date">Start date</label><input id="f-start-date" name="startDate" type="date" class="text-field" required value="${esc(begin)}"/></div>
+         <div class="field"><label for="f-end-date">End date</label><input id="f-end-date" name="endDate" type="date" class="text-field" value="${esc(end)}"/></div>
+       </div>
+       <div class="field-row" id="event-time-fields" ${current.allDay?'hidden':''}>
+         <div class="field"><label for="f-start-time">Start time</label><input id="f-start-time" name="startTime" type="time" class="text-field" value="${esc(current.startTime||'10:00')}"/></div>
+         <div class="field"><label for="f-end-time">End time</label><input id="f-end-time" name="endTime" type="time" class="text-field" value="${esc(current.endTime||'11:00')}"/></div>
+       </div>
+       <div class="field"><label for="f-location">Location (optional)</label><input id="f-location" name="location" type="text" class="text-field" maxlength="220" value="${esc(current.location||'')}" placeholder="In person, online, or wherever"/></div>
+       <div class="field"><label for="f-body">Notes</label><textarea id="f-body" name="body" class="text-area" style="min-height:125px" placeholder="Agenda, preparation, meeting link…">${esc(current.body||'')}</textarea></div>`;
+     }
      if(['bookmark','image','file'].includes(kind))contents+=`<div class="field"><label for="f-body">Description (optional)</label><textarea id="f-body" name="body" class="text-area" style="min-height:75px" placeholder="Why save this?">${esc(current.body||'')}</textarea></div>`;
      contents+=`<div class="field"><label>${kind==='folder'?'Parent folders (optional)':'Add to folders (optional)'}</label><div class="choice-grid">${folderChoices(current,id)}</div><small>${kind==='folder'?'Folders may be nested at any depth. Leave empty to place this folder at the top level.':'Objects can belong to more than one folder.'}</small></div>`;
      contents+=`<div class="field"><label for="f-tags">Tags</label><input id="f-tags" name="tags" class="text-field" placeholder="design, research, personal" value="${esc((current.tags||[]).join(', '))}"/><small>Separate with commas. Tags work across your library.</small></div>`;
@@ -864,6 +1050,10 @@
      const title=String(data.get('title')||'').trim();
      if(!title){$('f-title').focus();return;}
      const original=ctx.id?one(ctx.id):null;
+     if(ctx.type==='task'){
+       const due=String(data.get('dueDate')||'');
+       if(due&&!parseLocalDate(due)){toast('Choose a valid due date.');return;}
+     }
      const url=['bookmark','image','file'].includes(ctx.type)?safeUrl(String(data.get('url')||'')):'';
      if(['bookmark','image','file'].includes(ctx.type)&&String(data.get('url')||'').trim()&&!url){toast('Please use an http(s) URL or a relative file path.');return;}
      const folders=data.getAll('collections').filter(id=>{
@@ -871,8 +1061,38 @@
       return parent&&!parent.deleted&&parent.type==='folder'&&id!==ctx.id&&(ctx.type!=='folder'||!isDescendant(id,ctx.id||'_none_'));
      });
      const item=original||{id:key(),type:ctx.type,created:new Date().toISOString(),deleted:false,thumb:'',group:''};
+     if(ctx.type==='event'){
+       const startDate=String(data.get('startDate')||'');
+       const endDate=String(data.get('endDate')||startDate);
+       const allDay=!!data.get('allDay');
+       const startTime=String(data.get('startTime')||'');
+       const endTime=String(data.get('endTime')||'');
+       if(!parseLocalDate(startDate)||!parseLocalDate(endDate)){toast('Choose a valid event date.');return;}
+       if(endDate<startDate){toast('End date cannot come before start date.');return;}
+       if(!allDay){
+         if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime)){
+           toast('Enter a start and end time, or choose All-day.');return;
+         }
+         if(endDate+'T'+endTime<=startDate+'T'+startTime){toast('Event must end after it begins.');return;}
+       }
+     }
      item.title=title;item.url=url;item.body=String(data.get('body')||'');
      item.tasks=ctx.type==='checklist'?parseTasks(String(data.get('tasks')||''),original?.tasks||[]):[];
+     if(ctx.type==='task'){
+       const status=String(data.get('status')||'todo'),priority=String(data.get('priority')||'normal');
+       const dueDate=String(data.get('dueDate')||'');
+       item.status=Object.hasOwn(taskStates,status)?status:'todo';
+       item.priority=Object.hasOwn(taskPriorities,priority)?priority:'normal';
+       item.dueDate=dueDate;
+     }
+     if(ctx.type==='event'){
+       item.startDate=String(data.get('startDate')||'');
+       item.endDate=String(data.get('endDate')||item.startDate);
+       item.startTime=String(data.get('startTime')||'');
+       item.endTime=String(data.get('endTime')||'');
+       item.allDay=!!data.get('allDay');
+       item.location=String(data.get('location')||'').trim();
+     }
      item.tags=[...new Set(String(data.get('tags')||'').split(',').map(t=>t.trim().toLowerCase()).filter(Boolean))];
      item.collectionIds=[...new Set(folders)];
      item.pinnedIn=(item.pinnedIn||[]).filter(c=>c.startsWith('folder:')&&item.collectionIds.includes(c.slice(7)));
@@ -914,7 +1134,7 @@
 
     function restore(id){const i=one(id);if(!i)return;i.deleted=false;i.updated=new Date().toISOString();persist();render();toast('Item restored');}
     function purge(id){const i=one(id);if(!i)return;if(!confirm(`Delete “${i.title}” permanently?`))return;items=items.filter(x=>x.id!==id);items.forEach(x=>{x.collectionIds=x.collectionIds.filter(c=>c!==id);x.pinnedIn=(x.pinnedIn||[]).filter(c=>c!=='folder:'+id);});if(ui.expandedFolders.delete(id))persistSidebar();ui.detail=null;persist();render();toast('Deleted permanently');}
-    function exportData(){const blob=new Blob([JSON.stringify({version:5,exported:new Date().toISOString(),items},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='shelf-library-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('Backup exported');}
+    function exportData(){const blob=new Blob([JSON.stringify({version:6,exported:new Date().toISOString(),items},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='shelf-library-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('Backup exported');}
     function importData(){const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.addEventListener('change',async()=>{const file=input.files?.[0];if(!file)return;try{const json=JSON.parse(await file.text());if(!Array.isArray(json.items)||json.items.some(i=>!i.id||!i.type||!i.title||!Array.isArray(i.collectionIds)))throw Error('Invalid backup');if(!confirm(`Replace your current library with ${json.items.length} imported items? Export a backup first if needed.`))return;items=adaptLibrary(json.items);ui.detail=null;setView('all');persist();render();toast('Library imported');}catch(e){alert('Could not import this file. Please select a Shelf JSON backup.');}});input.click();}
     function dropOnFolder(itemId,folderId){
      const item=one(itemId),folder=one(folderId);
@@ -930,7 +1150,7 @@
     document.addEventListener('click',e=>{
       const el=e.target.closest('[data-action]');if(!el){if(!e.target.closest('.popover'))closeMenus();return;}
       const action=el.dataset.action,id=el.dataset.id;
-      if(['favorite','toggle-pin','pin-context','edit','close-detail','trash','restore','purge','editor-trash','item-menu','visit-link','view-details'].includes(action))e.stopPropagation();
+      if(['favorite','toggle-pin','pin-context','toggle-task-done','edit','close-detail','trash','restore','purge','editor-trash','item-menu','visit-link','view-details'].includes(action))e.stopPropagation();
       switch(action){
         case 'nav':setView(el.dataset.view,el.dataset.origin||'');break;
         case 'toggle-section':ui.sections[el.dataset.section]=!ui.sections[el.dataset.section];persistSidebar();renderSidebar();break;
@@ -942,6 +1162,7 @@
         case 'editor-trash':{const target=ui.editor?.id;$('scrim').classList.remove('open');ui.editor=null;ui.editReturn=null;if(target)putInTrash(target);break;}
         case 'toggle-pin':togglePinned(id);closeMenus();break;
         case 'pin-context':toggleContextPin(id);closeMenus();break;
+        case 'toggle-task-done':toggleTaskDone(id);closeMenus();break;
         case 'toggle-mobile':ui.mobile=!ui.mobile;renderSidebar();break;
         case 'toggle-create':{renderCreatePopover();toggleMenu('create-popover',el);break;}
         case 'toggle-filter':{renderFilterPopover();toggleMenu('filter-popover',el);break;}
@@ -964,12 +1185,13 @@
         case 'clear-tag':ui.tag='';render();break;
         case 'clear-color':ui.color='';render();break;
         case 'clear-filters':ui.type='all';ui.tag='';ui.color='';ui.search='';$('search-input').value='';closeMenus();render();break;
-        case 'reset':if(confirm('Reset all local changes and restore the sample items? Export a backup first if you want to keep your changes.')){items=adaptLibrary(seed());ui.detail=null;ui.expandedFolders.clear();persistSidebar();ui.type='all';ui.tag='';ui.color='';ui.search='';$('search-input').value='';setView('all');persist();toast('Sample library reset');}break;
+        case 'reset':if(confirm('Reset all local changes and restore the sample items? Export a backup first if you want to keep your changes.')){items=addTaskEventSamples(adaptLibrary(seed()));ui.detail=null;ui.expandedFolders.clear();persistSidebar();ui.type='all';ui.tag='';ui.color='';ui.search='';$('search-input').value='';setView('all');persist();toast('Sample library reset');}break;
         case 'export':exportData();break;
         case 'import':closeMenus();importData();break;
       }
     });
     document.addEventListener('change',e=>{
+      if(e.target.id==='f-all-day'){const times=$('event-time-fields');if(times)times.hidden=e.target.checked;}
       if(e.target.id==='sort-select'){ui.sort=e.target.value;renderContent();}
       if(e.target.matches('[data-action="toggle-task"]')){const item=one(e.target.dataset.id),task=item?.tasks?.[Number(e.target.dataset.index)];if(!task)return;task.done=e.target.checked;item.updated=new Date().toISOString();persist();renderContent();renderSidebar();renderDetail();}
       if(e.target.matches('input[name="color"]'))document.querySelectorAll('.color-choice').forEach(c=>c.classList.toggle('selected',c.querySelector('input').checked));
