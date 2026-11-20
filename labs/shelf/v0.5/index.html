@@ -907,7 +907,7 @@
      const item=one(id);if(!item||item.deleted)return;
      item.deleted=true;item.updated=new Date().toISOString();ui.detail=null;
      if(ui.view==='folder:'+id)ui.view='unsorted';
-     if(ui.expandedFolders.delete(id))persistSidebar();
+     // Retain the expansion preference in case this folder is restored.
      persist();render();
      toast(item.type==='folder'?'Moved to Trash; folder contents are preserved.':'Moved to Trash');
     }
