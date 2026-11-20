@@ -563,7 +563,7 @@
      return `<button class="nav-item ${ui.view===view?'active':''} ${cls}" data-action="nav" data-view="${esc(view)}" ${extra}><span class="nav-icon">${icon(ico)}</span><span class="nav-label">${esc(name)}</span>${total!==null?`<span class="count">${total}</span>`:''}</button>`;
     }
     function navFolder(item,depth=0,seen=new Set()){
-     if(seen.has(item.id)||depth>12)return '';
+     if(seen.has(item.id))return '';
      const visited=new Set([...seen,item.id]);
      const children=active().filter(i=>i.type==='folder'&&i.collectionIds?.includes(item.id)).sort((a,b)=>a.title.localeCompare(b.title));
      const expanded=ui.expandedFolders.has(item.id);
