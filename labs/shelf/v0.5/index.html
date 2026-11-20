@@ -635,19 +635,18 @@
         const tasks=i.tasks||[],done=tasks.filter(t=>t.done).length;
         return `<div class="card-image thumb-checklist" style="--accent:${palettes[i.color]||palettes.blue}"><div class="check-sheet"><div class="check-head">${esc(i.title)}</div>${tasks.slice(0,4).map(t=>`<div class="check-row ${t.done?'done':''}"><span class="check-box">${t.done?'✓':''}</span><span>${esc(t.text)}</span></div>`).join('')}<div class="check-progress"><div style="width:${tasks.length?done/tasks.length*100:0}%"></div></div></div></div>`;
       }
-      if(i.type==='space')return `<div class="card-image thumb-space"><div class="space-hero">${icon('space',94)}</div><div class="space-caption">SPACE · ${members(i.id).length} items</div></div>`;
-      if(i.type==='collection')return `<div class="card-image thumb-collection"><div class="folder-hero">${icon('folder',100)}</div><div class="folder-number">${members(i.id).length} items</div></div>`;
+      if(i.type==='folder')return `<div class="card-image thumb-collection"><div class="folder-hero">${icon('folder',100)}</div><div class="folder-number">${members(i.id).length} items</div></div>`;
       if(i.type==='image') return `<div class="card-image thumb-image">${i.url&&/^https?:\/\//i.test(i.url)?`<img src="${esc(i.url)}" alt="" loading="lazy" onerror="this.style.display='none'"/>`:''}<div class="art-sun"></div><div class="art-hill"></div><div class="art-hill two"></div></div>`;
       return `<div class="card-image thumb-file" style="--accent:${palettes[i.color]||palettes.slate}"><div class="file-drawing"><div class="file-ext">${esc((i.title.split('.').pop()||'FILE').slice(0,6).toUpperCase())}</div></div></div>`;
     }
     function currentPinContext(item){
-  const view=ui.view;
-  if(item?.deleted||!(view.startsWith('space:')||view.startsWith('collection:')))return '';
-  const id=view.slice(view.indexOf(':')+1);
-  const container=one(id);
-  if(!container||container.deleted)return '';
-  return (item?.collectionIds||[]).includes(id)?view:'';
-}
+     const view=ui.view;
+     if(item?.deleted||!view.startsWith('folder:'))return '';
+     const id=view.slice(7),folder=one(id);
+     if(!folder||folder.deleted||folder.type!=='folder')return '';
+     return (item.collectionIds||[]).includes(id)?view:'';
+    }
+
     function isContextPinned(item,context=ui.view){
   return Array.isArray(item.pinnedIn)&&item.pinnedIn.includes(context);
 }
@@ -666,7 +665,7 @@
   const context=currentPinContext(item);
   if(!context)return '';
   const selected=isContextPinned(item,context);
-  const label=selected?'Unpin from this '+(context.startsWith('space:')?'space':'collection'):'Pin in this '+(context.startsWith('space:')?'space':'collection');
+  const label=selected?'Unpin from this folder':'Pin in this folder';
   if(format==='detail')return `<button class="icon-btn ${selected?'context-pinned':''}" data-action="pin-context" data-id="${esc(item.id)}" title="${label}" aria-label="${label}">${icon('pushpin',19)}</button>`;
   if(format==='list')return `<button class="list-pin ${selected?'context-pinned':''}" data-action="pin-context" data-id="${esc(item.id)}" title="${label}" aria-label="${label}">${icon('pushpin',16)}</button>`;
   return `<button class="card-tool ${selected?'context-pinned':''}" data-action="pin-context" data-id="${esc(item.id)}" title="${label}" aria-label="${label}">${icon('pushpin',15)}</button>`;
@@ -684,25 +683,16 @@
     }
 
     function splitContextSections(list){
-     if(ui.view==='trash'){
-      const normal=list.filter(i=>i.type!=='space'),spaces=list.filter(i=>i.type==='space');
-      if(!spaces.length)return [{id:'all',name:'',icon:'',items:list}];
-      const result=[];
-      if(normal.length)result.push({id:'trashed-items',name:'Items',icon:'layers',items:normal});
-      result.push({id:'trashed-spaces',name:'Spaces',icon:'space',items:spaces});
-      return result;
-     }
-     if(!(ui.view.startsWith('space:')||ui.view.startsWith('collection:')))return [{id:'all',name:'',icon:'',items:list}];
-     // A strict one-pass partition; no pinned object is eligible for lower groupings.
-     const pinned=[],collections=[],ordinary=[];
+     if(!ui.view.startsWith('folder:'))return [{id:'all',name:'',icon:'',items:list}];
+     const pinned=[],folders=[],ordinary=[];
      for(const item of list){
       if(isContextPinned(item)&&currentPinContext(item))pinned.push(item);
-      else if(item.type==='collection')collections.push(item);
+      else if(item.type==='folder')folders.push(item);
       else ordinary.push(item);
      }
      const groups=[];
      if(pinned.length)groups.push({id:'pinned',name:'Pinned',icon:'pushpin',items:pinned});
-     if(collections.length)groups.push({id:'collections',name:'Collections',icon:'folder',items:collections});
+     if(folders.length)groups.push({id:'folders',name:'Folders',icon:'folder',items:folders});
      if(ordinary.length)groups.push({id:'rest',name:groups.length?'Everything else':'',icon:'',items:ordinary});
      return groups;
     }
@@ -752,53 +742,39 @@
     function renderDetail(){
      const panel=$('detail'),item=one(ui.detail);
      if(!item){panel.classList.remove('open');panel.innerHTML='';return;}
-     const space=item.type==='space';
      const tags=(item.tags||[]).map(t=>`<span class="detail-chip">${esc(t)}</span>`).join('')||'<span class="small-muted">No tags yet</span>';
-     const containers=(item.collectionIds||[]).map(id=>one(id)).filter(i=>i&&!i.deleted).map(i=>`<button class="detail-chip" data-action="nav" data-view="${i.type==='space'?'space':'collection'}:${esc(i.id)}">${icon(i.type==='space'?'space':'folder',12)} ${esc(i.title)}</button>`).join('')||'<span class="small-muted">Unsorted</span>';
+     const locations=(item.collectionIds||[]).map(id=>one(id)).filter(i=>i&&i.type==='folder'&&!i.deleted).map(i=>`<button class="detail-chip" data-action="nav" data-view="folder:${esc(i.id)}">${icon('folder',12)} ${esc(i.title)}</button>`).join('')||'<span class="small-muted">Not inside another folder</span>';
      let body='';
      if(['bookmark','file','image'].includes(item.type)){
-       const url=safeUrl(item.url||'');
-       body=`${url?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer" style="display:block;overflow-wrap:anywhere;font-size:12px;margin:12px 0">${esc(url)}</a>`:'<p class="small-muted">No URL added.</p>'}${item.body?`<div class="detail-content">${esc(item.body)}</div>`:''}${url?`<div class="detail-buttons"><a class="detail-btn primary" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${icon('external-link')} ${item.type==='bookmark'?'Visit link':'Open file'}</a></div>`:''}`;
+      const url=safeUrl(item.url||'');
+      body=`${url?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer" style="display:block;overflow-wrap:anywhere;font-size:12px;margin:12px 0">${esc(url)}</a>`:'<p class="small-muted">No URL added.</p>'}${item.body?`<div class="detail-content">${esc(item.body)}</div>`:''}${url?`<div class="detail-buttons"><a class="detail-btn primary" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${icon('external-link')} ${item.type==='bookmark'?'Visit link':'Open file'}</a></div>`:''}`;
      }
      if(item.type==='note')body=`<div class="detail-content">${esc(item.body||'Nothing written yet.')}</div>`;
-     if(item.type==='collection'||space){
-       body=`<p class="detail-content">${members(item.id).length} items belong to this ${item.type}. ${space?'Spaces hold broad areas of your library, and their collections appear in the sidebar.':'Collections can hold links, notes, checklists, files and other collections.'}</p>${item.deleted?'':`<div class="detail-buttons"><button class="detail-btn primary" data-action="nav" data-view="${item.type}:${esc(item.id)}">${icon(space?'space':'folder')} Open ${item.type}</button></div>`}`;
+     if(item.type==='folder'){
+      const n=members(item.id).length;
+      body=`<p class="detail-content">${n} ${n===1?'item belongs':'items belong'} to this folder. Folders can contain other folders, links, notes, checklists, images, and files.</p>${item.deleted?'':`<div class="detail-buttons"><button class="detail-btn primary" data-action="nav" data-view="folder:${esc(item.id)}">${icon('folder')} Open folder</button></div>`}`;
      }
      if(item.type==='checklist'){
-       const tasks=item.tasks||[],done=tasks.filter(t=>t.done).length;
-       body=`<div class="task-counter">${done} of ${tasks.length} completed · ${tasks.length?Math.round(done/tasks.length*100):0}%</div>${tasks.map((t,idx)=>`<label class="detail-checkline ${t.done?'done':''}"><input type="checkbox" data-action="toggle-task" data-id="${esc(item.id)}" data-index="${idx}" ${t.done?'checked':''}/><span>${esc(t.text)}</span></label>`).join('')}<input class="new-task-input" id="add-task" aria-label="Add task" placeholder="+ Add an item and press Enter" data-id="${esc(item.id)}"/>`;
+      const tasks=item.tasks||[],done=tasks.filter(t=>t.done).length;
+      body=`<div class="task-counter">${done} of ${tasks.length} completed · ${tasks.length?Math.round(done/tasks.length*100):0}%</div>${tasks.map((t,idx)=>`<label class="detail-checkline ${t.done?'done':''}"><input type="checkbox" data-action="toggle-task" data-id="${esc(item.id)}" data-index="${idx}" ${t.done?'checked':''}/><span>${esc(t.text)}</span></label>`).join('')}<input class="new-task-input" id="add-task" aria-label="Add task" placeholder="+ Add an item and press Enter" data-id="${esc(item.id)}"/>`;
      }
-     const headActions=item.deleted||space?'':`${contextPinButton(item,'detail')}<button class="icon-btn" data-action="toggle-pin" data-id="${esc(item.id)}" title="${item.pinned?'Remove sidebar bookmark':'Bookmark in sidebar'}" style="${item.pinned?'color:#c3b3f5':''}" aria-label="Bookmark">${icon('bookmark')}</button><button class="icon-btn" data-action="favorite" data-id="${esc(item.id)}" title="${item.favorite?'Unfavorite':'Favorite'}" style="${item.favorite?'color:#f198a1':''}" aria-label="Toggle favorite">${icon('heart')}</button>`;
-     const objectMeta=space?'':`<div class="detail-section"><h3>Collections &amp; spaces</h3><div class="detail-chips">${containers}</div></div><div class="detail-section"><h3>Tags</h3><div class="detail-chips">${tags}</div></div>`;
-     const details=`<div class="detail-section"><h3>Details</h3><div class="detail-info">Updated ${friendlyDate(item.updated)}${space?'':` · ${esc(item.color||'slate')} color`}<br>Stored in this browser only</div></div>`;
+     const headActions=item.deleted?'':`${contextPinButton(item,'detail')}<button class="icon-btn" data-action="toggle-pin" data-id="${esc(item.id)}" title="${item.pinned?'Remove sidebar bookmark':'Bookmark in sidebar'}" style="${item.pinned?'color:#c3b3f5':''}" aria-label="Bookmark">${icon('bookmark')}</button><button class="icon-btn" data-action="favorite" data-id="${esc(item.id)}" title="${item.favorite?'Unfavorite':'Favorite'}" style="${item.favorite?'color:#f198a1':''}" aria-label="Toggle favorite">${icon('heart')}</button>`;
+     const metadata=`<div class="detail-section"><h3>Folders</h3><div class="detail-chips">${locations}</div></div><div class="detail-section"><h3>Tags</h3><div class="detail-chips">${tags}</div></div>`;
+     const details=`<div class="detail-section"><h3>Details</h3><div class="detail-info">Updated ${friendlyDate(item.updated)} · ${esc(item.color||'slate')} color<br>Stored in this browser only</div></div>`;
      const footer=`<div class="detail-buttons"><button class="detail-btn" data-action="edit" data-id="${esc(item.id)}">${icon('pencil')} Edit</button>${item.deleted?`<button class="detail-btn" data-action="restore" data-id="${esc(item.id)}">${icon('rotate')} Restore</button><button class="detail-btn" data-action="purge" data-id="${esc(item.id)}">${icon('trash')} Delete forever</button>`:`<button class="detail-btn" data-action="trash" data-id="${esc(item.id)}">${icon('trash')} Move to Trash</button>`}</div>`;
-     panel.innerHTML=`<div class="detail-dialog" role="dialog" aria-modal="true" aria-label="${esc(item.title)}"><div class="detail-top"><span class="detail-type">${icon(space?'space':item.type,17)} ${typeLabel(item)}</span><span class="grow"></span>${headActions}<button class="icon-btn" data-action="edit" data-id="${esc(item.id)}" title="Edit item" aria-label="Edit">${icon('pencil')}</button><button class="icon-btn" data-action="close-detail" title="Close" aria-label="Close">${icon('x')}</button></div><div class="detail-body"><div class="detail-hero">${makeThumb(item)}</div><div class="detail-title">${esc(item.title)}</div>${body}${objectMeta}${details}${footer}</div></div>`;
+     panel.innerHTML=`<div class="detail-dialog" role="dialog" aria-modal="true" aria-label="${esc(item.title)}"><div class="detail-top"><span class="detail-type">${icon(item.type,17)} ${typeLabel(item)}</span><span class="grow"></span>${headActions}<button class="icon-btn" data-action="edit" data-id="${esc(item.id)}" title="Edit item" aria-label="Edit">${icon('pencil')}</button><button class="icon-btn" data-action="close-detail" title="Close" aria-label="Close">${icon('x')}</button></div><div class="detail-body"><div class="detail-hero">${makeThumb(item)}</div><div class="detail-title">${esc(item.title)}</div>${body}${metadata}${details}${footer}</div></div>`;
      panel.classList.add('open');
     }
 
     function render(){renderSidebar();renderContent();renderDetail();renderFilterPopover();renderCreatePopover();$('filter-button').classList.toggle('selected',!!(ui.tag||ui.color||ui.type!=='all'));}
     let toastTimeout;
     function toast(message){const e=$('toast');e.textContent=message;e.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>e.classList.remove('show'),2400)}
-    function findSpaceAncestor(id,seen=new Set()){
-  if(seen.has(id))return null;
-  seen.add(id);
-  const item=one(id);
-  if(!item)return null;
-  if(item.type==='space')return item.deleted?null:item.id;
-  for(const parentId of (item.collectionIds||[])){
-    const parent=one(parentId);
-    if(!parent||parent.deleted)continue;
-    const match=findSpaceAncestor(parentId,seen);
-    if(match)return match;
-  }
-  return null;
-}
     function setView(view,origin=''){
      ui.view=view;
-     if(origin==='space'&&view.startsWith('space:')){
-      const id=view.slice(6);
-      if(ui.expandedSpaces.has(id))ui.expandedSpaces.delete(id);
-      else ui.expandedSpaces.add(id);
+     if(origin==='tree'&&view.startsWith('folder:')){
+      const id=view.slice(7);
+      if(ui.expandedFolders.has(id))ui.expandedFolders.delete(id);
+      else ui.expandedFolders.add(id);
       persistSidebar();
      }
      ui.mobile=false;ui.detail=null;ui.createOpen=false;ui.filterOpen=false;
