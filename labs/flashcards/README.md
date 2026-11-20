@@ -1,4 +1,15 @@
-# Flashcards Lab v0.6 — Double or nothing
+# Flashcards Lab v0.7 — Plot palettes
+
+## Palette experiment
+Two real-time color options, controlled by a toggle above the plots:
+- **4 greens** (default): one neutral gray for unopened cards and exactly four visually distinct green health bands (0–24%, 25–49%, 50–74%, 75–100%).
+- **Red → green**: the same neutral gray for unopened cards plus a continuous color gradient from red (lower estimated recall) through orange and yellow to green (higher estimated recall).
+
+The legend changes with the selection, and the choice is saved locally under `flashlab-plot-palette-v1`.
+Estimated health, garden growth, XP, spaced repetition and harvested coins are not modified. This is visual-only.
+The previous two study buttons are unchanged. A proposed future third study action is named **Multiple choice** (instead of Hint): it would show four choices, allow no double bet and produce a weaker study rating on successful aided recognition. Not implemented in this palette-only experiment.
+
+## Previous functionality (v0.6)
 
 Live: https://rafaelmadeira.com/labs/flashcards/
 

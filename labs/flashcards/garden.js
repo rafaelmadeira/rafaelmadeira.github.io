@@ -63,17 +63,69 @@
       due: dueLabel(r, now), legacyAge: !r.firstSeenAt && Boolean(r.lastReviewedAt)
     };
   }
+  // Plot palette is visual-only. Never change the scheduler, estimated health, or review data.
+  var PALETTE_KEY = "flashlab-plot-palette-v1";
+  var UNOPENED = "#e8ecee";
+  var GREENS = ["#d8f2be", "#9bd982", "#41b56b", "#086b45"];
+  // Anchors define a continuous (interpolated) red-to-green gradient.
+  var SPECTRUM = [
+    [216, 83, 80],   // red
+    [236, 153, 75],  // orange
+    [237, 204, 80],  // gold
+    [160, 201, 90],  // chartreuse
+    [33, 128, 77]    // deep green
+  ];
+  function storedPalette() {
+    try { return localStorage.getItem(PALETTE_KEY) === "spectrum" ? "spectrum" : "greens"; }
+    catch (_) { return "greens"; }
+  }
+  var palette = storedPalette();
+  function colorFromSpectrum(health) {
+    var scaled = Math.max(0, Math.min(100, Number(health) || 0)) / 25;
+    var lower = Math.min(3, Math.floor(scaled));
+    var t = Math.max(0, Math.min(1, scaled - lower));
+    var start = SPECTRUM[lower], end = SPECTRUM[lower + 1];
+    var hex = start.map(function (channel, i) {
+      return Math.round(channel + (end[i] - channel) * t).toString(16).padStart(2, "0");
+    });
+    return "#" + hex.join("");
+  }
   function color(m) {
-    if (!m.studied) return "#e8ecee";
-    var h = m.health;
-    if (h < 20) return "#e8f6eb";
-    if (h < 40) return "#c7ebd0";
-    if (h < 60) return "#a7dfb5";
-    if (h < 75) return "#88d5a0";
-    if (h < 85) return "#63c981";
-    if (h < 93) return "#42b76a";
-    if (h < 97) return "#16884b";
-    return "#0c6739";
+    if (!m.studied) return UNOPENED;
+    var health = Math.max(0, Math.min(100, Number(m.health) || 0));
+    if (palette === "spectrum") return colorFromSpectrum(health);
+    return GREENS[Math.min(3, Math.floor(health / 25))];
+  }
+  function refreshPaletteControls() {
+    document.querySelectorAll("[data-plot-palette]").forEach(function (button) {
+      button.setAttribute("aria-pressed", String(button.dataset.plotPalette === palette));
+    });
+    var legend = document.getElementById("legend-swatches");
+    if (!legend) return;
+    legend.replaceChildren();
+    var colors = palette === "greens"
+      ? [UNOPENED].concat(GREENS)
+      : [UNOPENED].concat([0, 12.5, 25, 37.5, 50, 62.5, 75, 87.5, 100].map(colorFromSpectrum));
+    colors.forEach(function (value) {
+      var swatch = document.createElement("i");
+      swatch.style.background = value;
+      legend.appendChild(swatch);
+    });
+    var container = document.getElementById("garden-legend");
+    if (container) container.setAttribute("aria-label",
+      palette === "greens" ? "Unopened gray followed by four greens for increasing recall health" :
+        "Unopened gray followed by a continuous red to green health gradient");
+  }
+  function changePalette(next) {
+    if (next !== "greens" && next !== "spectrum") return;
+    if (palette === next) return;
+    palette = next;
+    try { localStorage.setItem(PALETTE_KEY, next); } catch (_) { /* Still works without storage. */ }
+    refreshPaletteControls();
+    hideTooltip();
+    if (cached && !document.getElementById("library-view").hidden) {
+      render(cached.decks, cached.getRecord, cached.deckStats, cached.startSession, cached.game);
+    }
   }
   function stabilityText(days) {
     if (days === null) return "—";
@@ -213,7 +265,12 @@
       container.appendChild(article);
     });
   }
-  window.FlashcardsGarden = { render: render, metrics: metrics, color: color, hideTooltip: hideTooltip };
+  document.querySelectorAll("[data-plot-palette]").forEach(function (button) {
+    button.addEventListener("click", function () { changePalette(button.dataset.plotPalette); });
+  });
+  refreshPaletteControls();
+  window.FlashcardsGarden = { render: render, metrics: metrics, color: color, hideTooltip: hideTooltip,
+    changePalette: changePalette, currentPalette: function () { return palette; } };
   window.addEventListener("scroll", hideTooltip, true);
   window.addEventListener("resize", hideTooltip);
   document.addEventListener("visibilitychange", function () {

@@ -326,3 +326,21 @@ h1, h2, h3, p { margin-top: 0; }
   .garden-legend { gap: 4px; }
   .garden-legend i { flex-basis: 14px; height: 14px; }
 }
+
+/* v0.7 — plot palette comparison, without changing estimated recall values. */
+.palette-control { display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:12px; }
+.palette-caption { color:#92998c;font:10px "DM Mono",monospace;letter-spacing:1.1px;white-space:nowrap; }
+.palette-toggle { display:inline-flex;gap:3px;border:1px solid #dce0d4;border-radius:9px;padding:3px;background:#eceee6; }
+.palette-toggle button { background:transparent;border:0;border-radius:6px;padding:8px 12px;font:600 12px "DM Sans",sans-serif;color:#778173;white-space:nowrap;transition:background .16s,color .16s,box-shadow .16s; }
+.palette-toggle button:hover:not([aria-pressed="true"]) { background:#e0e7da;color:#3f5e43; }
+.palette-toggle button[aria-pressed="true"] { color:#315939;background:#fffefa;box-shadow:0 1px 4px rgba(37,67,36,.13); }
+.legend-swatches { display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap; }
+.legend-swatches i { display:block;flex:0 0 16px;width:16px;height:16px;border-radius:4px; }
+@media(max-width:680px) {
+  .section-heading:has(.palette-control) { align-items:center;gap:15px;flex-wrap:wrap; }
+  .palette-control { justify-content:flex-start;gap:8px; }
+  .palette-caption { font-size:9px; }
+  .palette-toggle button { padding:8px 9px;font-size:11px; }
+  .legend-swatches { gap:4px; }
+  .legend-swatches i { width:14px;height:14px;flex-basis:14px; }
+}
