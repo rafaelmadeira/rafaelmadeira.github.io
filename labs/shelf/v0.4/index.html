@@ -931,29 +931,32 @@
     document.addEventListener('click',e=>{
       const el=e.target.closest('[data-action]');if(!el){if(!e.target.closest('.popover'))closeMenus();return;}
       const action=el.dataset.action,id=el.dataset.id;
-      if(['favorite','toggle-pin','pin-context','edit','close-detail','trash','restore','purge','editor-trash','toggle-space-tree'].includes(action))e.stopPropagation();
+      if(['favorite','toggle-pin','pin-context','edit','close-detail','trash','restore','purge','editor-trash','toggle-space-tree','item-menu','visit-link','view-details'].includes(action))e.stopPropagation();
       switch(action){
         case 'nav':setView(el.dataset.view,el.dataset.origin||'');break;
         case 'toggle-section':ui.sections[el.dataset.section]=!ui.sections[el.dataset.section];persistSidebar();renderSidebar();break;
         case 'toggle-space-tree':if(ui.expandedSpaces.has(id))ui.expandedSpaces.delete(id);else ui.expandedSpaces.add(id);persistSidebar();renderSidebar();break;
         case 'new-space':openEditor('space');break;
+        case 'item-menu':openItemMenu(el,id);break;
+        case 'view-details':closeMenus();ui.detail=id;renderDetail();break;
+        case 'visit-link':visitLink(one(id));closeMenus();break;
         case 'open-shortcut':{const target=one(id);if(target){ui.detail=id;ui.mobile=false;renderSidebar();renderDetail();}break;}
-        case 'editor-trash':{const target=ui.editor?.id;$('scrim').classList.remove('open');ui.editor=null;if(target)putInTrash(target);break;}
-        case 'toggle-pin':togglePinned(id);break;
-        case 'pin-context':toggleContextPin(id);break;
+        case 'editor-trash':{const target=ui.editor?.id;$('scrim').classList.remove('open');ui.editor=null;ui.editReturn=null;if(target)putInTrash(target);break;}
+        case 'toggle-pin':togglePinned(id);closeMenus();break;
+        case 'pin-context':toggleContextPin(id);closeMenus();break;
         case 'toggle-mobile':ui.mobile=!ui.mobile;renderSidebar();break;
         case 'toggle-create':{renderCreatePopover();toggleMenu('create-popover',el);break;}
         case 'toggle-filter':{renderFilterPopover();toggleMenu('filter-popover',el);break;}
         case 'new':openEditor(el.dataset.type);break;
         case 'new-group':openEditor('collection');break;
-        case 'open-item':{const i=one(el.dataset.itemId);if(!i)return;if((i.type==='collection'||i.type==='space')&&!i.deleted)setView(i.type+':'+i.id);else{ui.detail=i.id;renderDetail();}closeMenus();break;}
+        case 'open-item':{const i=one(el.dataset.itemId);if(!i)return;closeMenus();if(i.type==='bookmark'&&!i.deleted)visitLink(i);else if((i.type==='collection'||i.type==='space')&&!i.deleted)setView(i.type+':'+i.id);else{ui.detail=i.id;renderDetail();}break;}
         case 'close-detail':ui.detail=null;renderDetail();break;
         case 'edit':{const item=one(id);if(item)openEditor(item.type,id);break;}
-        case 'favorite':editFavorite(id);break;
-        case 'trash':putInTrash(id);break;
-        case 'restore':restore(id);break;
-        case 'purge':purge(id);break;
-        case 'close-modal':$('scrim').classList.remove('open');ui.editor=null;break;
+        case 'favorite':editFavorite(id);closeMenus();break;
+        case 'trash':putInTrash(id);closeMenus();break;
+        case 'restore':restore(id);closeMenus();break;
+        case 'purge':purge(id);closeMenus();break;
+        case 'close-modal':closeEditor();break;
         case 'layout':ui.layout=el.dataset.layout;renderContent();break;
         case 'filter-type':ui.type=el.dataset.type;render();$('filter-popover').classList.add('open');positionPopover('filter-popover',$('filter-button'));break;
         case 'filter-color':ui.color=el.dataset.color;render();$('filter-popover').classList.add('open');positionPopover('filter-popover',$('filter-button'));break;
@@ -976,10 +979,11 @@
     });
     $('search-input').addEventListener('input',e=>{ui.search=e.target.value;renderContent()});
     $('editor-form').addEventListener('submit',saveEditor);
-    $('scrim').addEventListener('click',e=>{if(e.target===$('scrim')){$('scrim').classList.remove('open');ui.editor=null;}});
+    $('scrim').addEventListener('click',e=>{if(e.target===$('scrim'))closeEditor();});
+    $('detail').addEventListener('click',e=>{if(e.target===$('detail')){ui.detail=null;renderDetail();}});
     $('detail').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='add-task'){e.preventDefault();const t=e.target.value.trim(),item=one(e.target.dataset.id);if(!t||!item)return;item.tasks.push({text:t,done:false});item.updated=new Date().toISOString();persist();renderContent();renderDetail();$('add-task')?.focus();}});
     document.addEventListener('keydown',e=>{
-      if(e.key==='Escape'){if($('scrim').classList.contains('open')){$('scrim').classList.remove('open');ui.editor=null;}else if(ui.detail){ui.detail=null;renderDetail();}else{closeMenus();ui.mobile=false;renderSidebar();}return;}
+      if(e.key==='Escape'){if($('scrim').classList.contains('open'))closeEditor();else if(ui.detail){ui.detail=null;renderDetail();}else{closeMenus();ui.mobile=false;renderSidebar();}return;}
       if(e.target.matches('input,textarea,select')||$('scrim').classList.contains('open'))return;
       if(e.key==='/'||(e.key.toLowerCase()==='k'&&(e.ctrlKey||e.metaKey))){e.preventDefault();$('search-input').focus();}
       if(e.key.toLowerCase()==='n'&&!e.ctrlKey&&!e.metaKey){e.preventDefault();openEditor('note');}
