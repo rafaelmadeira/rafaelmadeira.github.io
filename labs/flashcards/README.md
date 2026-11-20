@@ -1,43 +1,40 @@
-# Flashcards Lab v0.7 — Plot palettes
-
-## Palette experiment
-Two real-time color options, controlled by a toggle above the plots:
-- **4 greens** (default): one neutral gray for unopened cards and exactly four visually distinct green health bands (0–24%, 25–49%, 50–74%, 75–100%).
-- **Red → green**: the same neutral gray for unopened cards plus a continuous color gradient from red (lower estimated recall) through orange and yellow to green (higher estimated recall).
-
-The legend changes with the selection, and the choice is saved locally under `flashlab-plot-palette-v1`.
-Estimated health, garden growth, XP, spaced repetition and harvested coins are not modified. This is visual-only.
-The previous two study buttons are unchanged. A proposed future third study action is named **Multiple choice** (instead of Hint): it would show four choices, allow no double bet and produce a weaker study rating on successful aided recognition. Not implemented in this palette-only experiment.
-
-## Previous functionality (v0.6)
+# Flashcards Lab v0.8 — Compact garden + Lifeline
 
 Live: https://rafaelmadeira.com/labs/flashcards/
 
-Single-player prototype. In-game coins have no monetary value. No accounts, cloud sync, shops, buildable decks or special cards.
+A static HTML/CSS/JS learning-game prototype. Only virtual coins, not real money. Progress is saved in this browser using localStorage.
 
-## The whole study decision
-Every normal scheduled flashcard presents precisely two ways to reveal the answer:
-- **Reveal answer**: if rated Correct or Effortless, **+1 coin**. If No recall or Incorrect, **−1 coin**, never below zero.
-- **Double or nothing**: commits your **whole current coin balance** before reveal. If Correct or Effortless, doubles that balance (+N); if No recall or Incorrect, loses the whole amount (−N, balance zero).
+## Library
+- The old large introduction and tutorial panel have been removed. The page opens directly to **Your plots**. **Import JSON deck** is in the top bar.
+- Plot cells are **8 × 8 px**, with **2 px** gaps. They are static: no click-through, focus, or hover/tooltip. A plot is now only a memory-health snapshot; use the deck's **Study deck** button to review.
+- Palette comparison remains available: **4 greens** versus **Red → green**, with the same gray for unseen cards. Switching colors never changes memory records.
+- Every plot has a **Reset progress** control. It asks for confirmation before clearing the spaced-repetition records of that deck only; the global XP, imported deck itself, other decks and coins remain. This provides new cards to test without altering existing progress unless requested.
+- The existing passive plot earnings/Collect animation remains.
 
-At zero coins, Double or nothing is disabled until at least one coin is earned or harvested. Neither reveal choice changes XP or the spaced-repetition algorithm. The front of the flashcard and Space keyboard shortcut use **normal reveal**.
+## Study
+- Regular **Reveal answer**: correct/effortless wins the card's nominal coin value; incorrect/no recall loses that value (up to remaining table balance).
+- **Double bet**: same recall, exactly twice the card value won or lost. Unlike v0.6/0.7, this **never risks the global wallet**. It is disabled when the table cannot cover the doubled stake.
+- **✳ Use a lifeline**: replaces both reveal choices with four multiple-choice options (real answer plus three different answers randomly drawn from the **same deck**). Disabled for decks without four distinct possible answers. The chosen option automatically grades the response; no additional self-rating is needed. Lifeline earns/loses 25% of the normal card's coin value, rounded to a minimum of one coin.
+- A successful lifeline is considered **aided recognition**, not unaided recall: it earns approximately 25% of normal XP, does not extend the success streak or award mastery, and schedules another review in **6 hours**. A failed lifeline incurs −10 XP rather than the usual −40 and schedules a retry in 10 minutes, with the same in-session retry rules.
+- The unassisted rating buttons remain No recall, Incorrect, Correct and Effortless. Keyboard Space: normal reveal; 1–4: grade; Escape: leave and cash out.
 
-For early single-card review and extra practice when there are no new/due cards, only ordinary reveal is available; the existing study rules mean no coins, no XP, and (in extra practice) no schedule changes. This prevents repeatedly farming known cards.
+## Coins and sessions
+- For now, a plot session has a **20-coin buy-in**, displayed on its card. This is **escrow**, not an entry fee: 20 coins move from the wallet to the session table and whatever remains on the table is returned when the session finishes or the user leaves.
+- The table displays **buy-in / current bankroll / session P&L**, close to the card rather than only in the distant site header.
+- Normal nominal card value starts at **4 coins**, rises by 2 per historical failure (max +6), and gets +2 if more than three days overdue, capped at 12. Double bet is 2× this value; Lifeline is a quarter (rounded, minimum 1).
+- If the wallet is below 20 coins, scheduled flashcards remain available for study and XP **without coin betting**. If the table runs out of coins during a session, the remaining questions continue as XP-only recall.
+- Wallet and plot earnings use the existing `flashlab-game-v1` key. A tab reload **automatically returns an interrupted session's remaining table balance** to the wallet so a crash does not strand escrowed coins.
+- Existing XP, the simple spaced-repetition scheduler, three Portuguese JSON decks, imports, and plot palettes are preserved.
 
-## Plots and harvest
-All 3 starter plots remain. Cards become green based on a provisional, non-calibrated forgetfulness/health heuristic and opened cards yield 0.025 game coin/hour per plot. Plot Collection animates a left-to-right sweep and transfers pending earnings into your wallet. Prior starter harvests 8/6/6 coins are preserved (not reset). The wallet initially starts with 30 coins.
+## Limitations
+- Study timing is an experimental simplified scheduler, not calibrated FSRS.
+- Color shades show an approximate heuristic forgetting curve, not a scientifically measured probability.
+- Recognition alternatives are selected from the same deck. In decks with ambiguous answers (synonyms, variants, overlapping facts), they may not be ideal distractors.
 
-## Existing behavior retained
-- 27 Brazilian state/Federal District capitals, 12 South American countries, and 12 South American capitals; JSON deck imports supported.
-- Same review scheduler, XP earning and scoring ledger, memory visualization and tooltip.
-- Previous v0.4 study data and v0.5 game wallet/plot earnings preserved using the same localStorage keys.
-- Keyboard: Space to reveal normally; 1–4 grade; Escape leave session.
-- End-of-session ledger now reports both XP and net coins. Each question shows whether Normal or Double or nothing was chosen.
-
-## Testing
-1. Start Study deck. Confirm two reveal buttons and no extra card-hand panel or bet picker.
-2. At balance N, test Normal +1 and −1. At balance N, test Double or nothing: win yields 2N, miss yields zero.
-3. Check that a double bet is chosen before reveal and cannot be switched after seeing the answer.
-4. When balance is zero, Double or nothing is disabled; Normal success recovers one coin.
-5. Complete a session, see XP and coin totals, and reload: wallet, schedule and plots persist.
-6. Early direct-card study and extra practice allow no score farming.
+## Manual QA
+1. Open the library: no hero section; import visible in topbar; 8px cells have no tooltip.
+2. Reset one deck, confirm only that deck goes gray; start a study session with new cards.
+3. With at least 20 coins, confirm that 20 move to the table, card value is shown, and Double bet is only 2× card value.
+4. Test Lifeline success and failure, four alternatives, instant grading, weaker XP reward and shorter aided-review interval.
+5. Exit: table balance returns to wallet. Reload during a session to test crash-safe refund.
+6. Reload after normal review: previously saved XP and due dates persist.

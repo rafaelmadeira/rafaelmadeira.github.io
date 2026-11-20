@@ -113,8 +113,9 @@
   function cardValue(record) {
     // More lapses and overdue reviews make a memory more valuable, still with a small bounded range.
     var failures = Math.min(3, Math.max(0, Number(record && record.misses) || 0));
-    var overdue = record && record.dueAt ?
-      Math.max(0, (Date.now() - Date.parse(record.dueAt)) / 86400000) : 0;
+    var dueTime = record && record.dueAt ? Date.parse(record.dueAt) : NaN;
+    var overdue = Number.isFinite(dueTime) ?
+      Math.max(0, (Date.now() - dueTime) / 86400000) : 0;
     return Math.min(12, 4 + failures * 2 + (overdue > 3 ? 2 : 0));
   }
   function beginRound(record) {
@@ -148,7 +149,6 @@
       return true;
     }
     var stake = cardValue(game.currentRecord);
-    var multiplier = choice === "double" ? 2 : 1;
     if (choice === "double" && game.bankroll < stake * 2) return false;
     round = { mode: ["normal","double","lifeline"].includes(choice) ? choice : "normal", stake:stake };
     return true;

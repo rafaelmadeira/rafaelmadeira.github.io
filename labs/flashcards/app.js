@@ -416,7 +416,8 @@
       correct: safeInt(old.correct) + (success ? 1 : 0),
       misses: safeInt(old.misses) + (success ? 0 : 1),
       streak: rating === "assisted" ? 0 : (success ? safeInt(old.streak) + 1 : 0),
-      unrecoveredMisses: success ? 0 : unresolvedMisses(old) + 1,
+      unrecoveredMisses: rating === "assisted" ? unresolvedMisses(old) :
+        success ? 0 : unresolvedMisses(old) + 1,
       intervalDays: intervalDays,
       lastRating: rating,
       lastReviewedAt: new Date().toISOString(),
