@@ -550,7 +550,13 @@
         const q=ui.search.toLowerCase().trim();
         list=list.filter(i=>[i.title,i.body,i.url,...(i.tags||[]),...(i.tasks||[]).map(t=>t.text)].filter(Boolean).join(' ').toLowerCase().includes(q));
       }
-      return list.sort((a,b)=>ui.sort==='alpha'?a.title.localeCompare(b.title):ui.sort==='type'?(a.type.localeCompare(b.type)||a.title.localeCompare(b.title)):ui.sort==='oldest'?a.updated.localeCompare(b.updated):b.updated.localeCompare(a.updated));
+      return list.sort((a,b)=>{
+    const at=String(a.title||''),bt=String(b.title||'');
+    const au=String(a.updated||''),bu=String(b.updated||'');
+    if(ui.sort==='alpha')return at.localeCompare(bt);
+    if(ui.sort==='type')return String(a.type||'').localeCompare(String(b.type||''))||at.localeCompare(bt);
+    return ui.sort==='oldest'?au.localeCompare(bu):bu.localeCompare(au);
+  });
     }
 
     function navButton(view,name,ico,total,cls='',extra=''){
