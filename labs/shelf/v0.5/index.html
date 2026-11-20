@@ -311,6 +311,18 @@
     @media (hover:none){.item-card .card-tools,.list-more {opacity:1}}
     @media(max-width:660px){.detail {padding:12px}.detail-dialog {max-height:calc(100dvh - 24px)}.detail-hero {height:170px}
       .detail-body {padding:17px}.detail-top {padding:10px 13px;gap:4px}}
+
+    /* Shelf v0.5: One folder hierarchy for all levels */
+    .folder-tree-row {position:relative}
+    .folder-tree-row .folder-nav {width:100%;padding-right:14px;gap:9px;min-height:34px}
+    .folder-tree-row .folder-nav .nav-icon {flex:0 0 20px}
+    .folder-tree-row .folder-nav .count {margin-left:auto;display:inline-block;visibility:visible;font-size:11px}
+    .folder-tree-row .folder-nav:hover .count {display:inline-block;visibility:visible}
+    .folder-tree-row .folder-caret {width:17px;height:17px;display:grid;place-items:center;flex:0 0 17px;color:#818189;margin-left:4px}
+    .folder-tree-row .folder-caret svg {transition:transform .15s ease}
+    .folder-tree-row .folder-caret.expanded svg {transform:rotate(90deg)}
+    .folder-tree-row .folder-nav.active .folder-caret {color:#e4f4ff}
+    .folder-tree-row .folder-nav:hover .folder-caret {color:#ededf2}
   </style>
 </head>
 <body>
@@ -542,74 +554,71 @@
     }
 
     function navButton(view,name,ico,total,cls='',extra=''){
-  return `<button class="nav-item ${ui.view===view?'active':''} ${cls}" data-action="nav" data-view="${esc(view)}" ${extra}><span class="nav-icon">${icon(ico)}</span><span class="nav-label">${esc(name)}</span>${total!==null?`<span class="count">${total}</span>`:''}</button>`;
-}
-    function navCollection(item,depth=1,seen=new Set()){
-  if(seen.has(item.id)||depth>9)return '';
-  const visited=new Set([...seen,item.id]);
-  const children=active().filter(i=>i.type==='collection'&&i.collectionIds?.includes(item.id)).sort((a,b)=>a.title.localeCompare(b.title));
-  const indent=Math.min(34+(depth-1)*20,194);
-  return `<div class="folder-row tree-folder">${navButton('collection:'+item.id,item.title,'folder',members(item.id).length,'in-space-tree',`style="padding-left:${indent}px" data-origin="tree" data-drop-collection="${esc(item.id)}" title="Open ${esc(item.title)} · Drop an item to add it"`)}<button class="folder-edit-overlay" data-action="edit" data-id="${esc(item.id)}" title="Edit collection (including Trash)" aria-label="Edit ${esc(item.title)}">${icon('more',15)}</button></div>${children.map(child=>navCollection(child,depth+1,visited)).join('')}`;
-}
+     return `<button class="nav-item ${ui.view===view?'active':''} ${cls}" data-action="nav" data-view="${esc(view)}" ${extra}><span class="nav-icon">${icon(ico)}</span><span class="nav-label">${esc(name)}</span>${total!==null?`<span class="count">${total}</span>`:''}</button>`;
+    }
+    function navFolder(item,depth=0,seen=new Set()){
+     if(seen.has(item.id)||depth>12)return '';
+     const visited=new Set([...seen,item.id]);
+     const children=active().filter(i=>i.type==='folder'&&i.collectionIds?.includes(item.id)).sort((a,b)=>a.title.localeCompare(b.title));
+     const expanded=ui.expandedFolders.has(item.id);
+     const indent=Math.min(14+depth*20,230);
+     const caret=children.length?`<span class="folder-caret ${expanded?'expanded':''}" aria-hidden="true">${icon('chevron-right',15)}</span>`:'';
+     const view='folder:'+item.id;
+     const row=`<div class="folder-row folder-tree-row"><button class="nav-item folder-nav ${ui.view===view?'active':''}" data-action="nav" data-view="${esc(view)}" data-origin="tree" data-drop-folder="${esc(item.id)}" style="padding-left:${indent}px" title="Open ${esc(item.title)}${children.length?' · Click again to collapse':''} · Drop an item here to add it" ${children.length?`aria-expanded="${expanded}"`:''}><span class="nav-icon">${icon('folder',18)}</span><span class="nav-label">${esc(item.title)}</span><span class="count">${members(item.id).length}</span>${caret}</button></div>`;
+     return row+(expanded?children.map(child=>navFolder(child,depth+1,visited)).join(''):'');
+    }
     function navSection(key,label,extra=''){
-  const open=ui.sections[key];
-  return `<div class="nav-caption nav-caption-row"><button class="section-toggle" data-action="toggle-section" data-section="${key}" aria-expanded="${open}" title="${open?'Collapse':'Expand'} ${label}"><span class="section-caret ${open?'open':''}">${icon('chevron-right',14)}</span><span>${label}</span></button>${extra}</div>`;
-}
+     const open=ui.sections[key];
+     return `<div class="nav-caption nav-caption-row"><button class="section-toggle" data-action="toggle-section" data-section="${key}" aria-expanded="${open}" title="${open?'Collapse':'Expand'} ${label}"><span class="section-caret ${open?'open':''}">${icon('chevron-right',14)}</span><span>${label}</span></button>${extra}</div>`;
+    }
     function renderSidebar(){
-  const live=active();
-  const scroll=$('nav-content').scrollTop;
-  let html='<div class="nav-group main-nav">';
-  html+=navButton('all','All items','layers',live.filter(i=>i.type!=='space').length);
-  html+=navButton('unsorted','Unsorted','inbox',live.filter(i=>i.type!=='space'&&!hasLiveParent(i)).length);
-  html+=navButton('trash','Trash','trash',items.filter(i=>i.deleted).length);
-  html+='</div>';
-  html+='<div class="nav-group">';
-  html+=navSection('bookmarks','Bookmarks');
-  if(ui.sections.bookmarks){
-    const pinned=live.filter(i=>i.pinned&&i.type!=='space').sort((a,b)=>a.title.localeCompare(b.title));
-    html+=pinned.length?pinned.map(i=>{
-      if(i.type==='space'||i.type==='collection'){
-        return navButton(`${i.type}:${i.id}`,i.title,i.type==='space'?'space':'folder',null,'',`data-origin="bookmark" title="Open bookmarked ${esc(i.type)} (without expanding its tree)"`);
-      }
-      return `<button class="nav-item" data-action="open-shortcut" data-id="${esc(i.id)}" title="Open bookmarked ${esc(i.type)}"><span class="nav-icon">${icon(i.type)}</span><span class="nav-label">${esc(i.title)}</span></button>`;
-    }).join(''):'<div class="section-empty">Bookmark an item using the ribbon icon to keep it here.</div>';
-  }
-  html+='</div><div class="nav-group">';
-  html+=navSection('spaces','Spaces',`<button class="section-add" data-action="new-space" title="Create new space" aria-label="Create new space">${icon('plus',14)}</button>`);
-  if(ui.sections.spaces){
-    const spaces=live.filter(i=>i.type==='space').sort((a,b)=>a.title.localeCompare(b.title));
-    html+=spaces.length?spaces.map(sp=>{
-      const expanded=ui.expandedSpaces.has(sp.id);
-      const children=expanded?live.filter(i=>i.type==='collection'&&i.collectionIds?.includes(sp.id)).sort((a,b)=>a.title.localeCompare(b.title)):[];
-      return `<div class="space-row">${navButton('space:'+sp.id,sp.title,'space',null,'space-nav',`data-origin="space" data-drop-collection="${esc(sp.id)}" title="Open ${esc(sp.title)} · Drop an item to add it"`)}<button class="space-expand ${expanded?'expanded':''}" data-action="toggle-space-tree" data-id="${esc(sp.id)}" aria-label="${expanded?'Collapse':'Expand'} ${esc(sp.title)} collections" aria-expanded="${expanded}" title="${expanded?'Collapse':'Expand'} collections">${icon('chevron-right',15)}</button></div>${children.map(c=>navCollection(c,1,new Set([sp.id]))).join('')}`;
-    }).join(''):'<div class="section-empty">Make a space for a broad area of your life.</div>';
-  }
-  html+='</div><div class="nav-group">';
-  html+=navSection('filters','Filters');
-  if(ui.sections.filters){
-    const num=type=>live.filter(i=>i.type===type).length;
-    html+=navButton('favorites','Favorites','heart',live.filter(i=>i.type!=='space'&&i.favorite).length);
-    html+=navButton('type:bookmark','Links','link',num('bookmark'));
-    html+=navButton('type:note','Notes','note',num('note'));
-    html+=navButton('type:checklist','Checklists','checklist',num('checklist'));
-    html+=navButton('type:image','Images','image',num('image'));
-    html+=navButton('type:file','Files','file',num('file'));
-    html+=navButton('untagged','Without tags','tag',live.filter(i=>i.type!=='space'&&!i.tags?.length).length);
-  }
-  html+='</div><div class="nav-group">';
-  html+=navSection('tags','Tags');
-  if(ui.sections.tags){
-    const tags={};
-    live.filter(i=>i.type!=='space').forEach(i=>(i.tags||[]).forEach(tag=>tags[tag]=(tags[tag]||0)+1));
-    html+=Object.entries(tags).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(([tag,n])=>
-      `<button class="nav-item tag-text-row ${ui.tag===tag?'active':''}" data-action="tag" data-tag="${esc(tag)}"><span class="nav-icon tag-hash">${icon('hash',17)}</span><span class="nav-label">${esc(tag)}</span><span class="count">${n}</span></button>`
-    ).join('')||'<div class="section-empty">Tags you add will appear here.</div>';
-  }
-  html+='</div>';
-  $('nav-content').innerHTML=html;
-  $('nav-content').scrollTop=scroll;
-  $('sidebar').classList.toggle('mobile-open',ui.mobile);
-}
+     const live=active(),scroll=$('nav-content').scrollTop;
+     let html='<div class="nav-group main-nav">';
+     html+=navButton('all','All items','layers',live.length);
+     html+=navButton('unsorted','Unsorted','inbox',live.filter(i=>i.type!=='folder'&&!hasLiveParent(i)).length);
+     html+=navButton('trash','Trash','trash',items.filter(i=>i.deleted).length);
+     html+='</div><div class="nav-group">';
+     html+=navSection('bookmarks','Bookmarks');
+     if(ui.sections.bookmarks){
+      const marked=live.filter(i=>i.pinned).sort((a,b)=>a.title.localeCompare(b.title));
+      html+=marked.length?marked.map(i=>{
+       if(i.type==='folder')return navButton('folder:'+i.id,i.title,'folder',null,'',`data-origin="bookmark" title="Open bookmarked folder without expanding the sidebar tree"`);
+       return `<button class="nav-item" data-action="open-shortcut" data-id="${esc(i.id)}" title="Open bookmarked ${esc(i.type)}"><span class="nav-icon">${icon(i.type)}</span><span class="nav-label">${esc(i.title)}</span></button>`;
+      }).join(''):'<div class="section-empty">Bookmark an item to keep it here.</div>';
+     }
+     html+='</div><div class="nav-group">';
+     html+=navSection('folders','Folders',`<button class="section-add" data-action="new-folder" title="Create a folder" aria-label="Create folder">${icon('plus',14)}</button>`);
+     if(ui.sections.folders){
+      const roots=live.filter(i=>i.type==='folder'&&!hasLiveParent(i)).sort((a,b)=>a.title.localeCompare(b.title));
+      html+=roots.length?roots.map(i=>navFolder(i)).join(''):'<div class="section-empty">Create a folder to organize your library.</div>';
+     }
+     html+='</div><div class="nav-group">';
+     html+=navSection('objects','Objects');
+     if(ui.sections.objects){
+      const counts=t=>live.filter(i=>i.type===t).length;
+      for(const [type,name,ico] of [
+        ['folder','Folders','folder'],
+        ['bookmark','Links','link'],
+        ['note','Notes','note'],
+        ['checklist','Checklists','checklist'],
+        ['image','Images','image'],
+        ['file','Files','file']
+      ])html+=navButton('type:'+type,name,ico,counts(type));
+     }
+     html+='</div><div class="nav-group">';
+     html+=navSection('tags','Tags');
+     if(ui.sections.tags){
+      const tags={};
+      live.forEach(i=>(i.tags||[]).forEach(tag=>tags[tag]=(tags[tag]||0)+1));
+      html+=Object.entries(tags).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(([tag,n])=>
+        `<button class="nav-item tag-text-row ${ui.tag===tag?'active':''}" data-action="tag" data-tag="${esc(tag)}"><span class="nav-icon tag-hash">${icon('hash',17)}</span><span class="nav-label">${esc(tag)}</span><span class="count">${n}</span></button>`
+      ).join('')||'<div class="section-empty">Tags you add will appear here.</div>';
+     }
+     html+='</div>';
+     $('nav-content').innerHTML=html;
+     $('nav-content').scrollTop=scroll;
+     $('sidebar').classList.toggle('mobile-open',ui.mobile);
+    }
 
     function makeThumb(i){
       if(i.type==='bookmark'){
