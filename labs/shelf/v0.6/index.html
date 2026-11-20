@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="dark" />
-  <title>Shelf — Folders v0.5</title>
+  <title>Shelf — Tasks & Events experiment v0.6</title>
   <style>
     :root { --bg:#111113; --sidebar:#202023; --card:#171719; --panel:#1d1d20; --surface:#29292d; --surface2:#323237; --line:#333338; --text:#ececef; --muted:#85858e; --muted2:#63636b; --blue:#2485d7; --blue2:#339df5; --focus:#5baff5; --radius:11px; color-scheme:dark }
     * { box-sizing:border-box }
@@ -334,7 +334,7 @@
         <button class="head-btn" data-action="toggle-create" title="Create new item" aria-label="Create new item" data-icon="plus"></button>
       </div>
       <div class="side-content" id="nav-content"></div>
-      <div class="side-bottom"><span class="demo-badge">LOCAL PROTOTYPE · v0.5</span><a class="bottom-action" href="/labs/shelf/v0.4/" title="Return to version 0.4">v0.4</a><button class="bottom-action" data-action="export" title="Export all items as JSON">Export</button></div>
+      <div class="side-bottom"><span class="demo-badge">LOCAL PROTOTYPE · v0.6</span><a class="bottom-action" href="/labs/shelf/v0.5/" title="Return to version 0.5">v0.5</a><button class="bottom-action" data-action="export" title="Export all items as JSON">Export</button></div>
     </aside>
     <main class="main" id="main">
       <div class="main-content">
@@ -402,12 +402,42 @@
     svgPath.hash='<path d="M10 3 6 21M18 3l-4 18M4 9h17M3 15h17"/>';
     svgPath.pushpin='<path d="m16 3 5 5-2.5 1-2.5 4 .5 2.5-2 2-8-8 2-2 2.5.5 4-2.5z"/><path d="m4 20 6.5-6.5"/>';
     const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-    const storage = 'shelf-everything-v0-5';
-    const legacyStorages = ['shelf-everything-v0-4','shelf-everything-v0-3','shelf-everything-v0-2','shelf-everything-v0-1'];
+    const storage = 'shelf-everything-v0-6';
+    const legacyStorages = ['shelf-everything-v0-5','shelf-everything-v0-4','shelf-everything-v0-3','shelf-everything-v0-2','shelf-everything-v0-1'];
     const sidebarPrefsKey = storage+'-sidebar';
-    const legacySidebarPrefsKeys = ['shelf-everything-v0-4-sidebar','shelf-everything-v0-3-sidebar'];
+    const legacySidebarPrefsKeys = ['shelf-everything-v0-5-sidebar','shelf-everything-v0-4-sidebar','shelf-everything-v0-3-sidebar'];
     const palettes = {slate:'#475465', blue:'#41658f', red:'#97585b', amber:'#997b4e', green:'#597b67', violet:'#76648e', charcoal:'#45464c'};
-    const types = {bookmark:'Bookmark',note:'Note',checklist:'Checklist',folder:'Folder',image:'Image',file:'File'};
+    const types = {bookmark:'Bookmark',note:'Note',checklist:'Checklist',task:'Task',event:'Event',folder:'Folder',image:'Image',file:'File'};
+    const taskStates = {todo:'To do',doing:'In progress',done:'Done'};
+    const taskPriorities = {low:'Low',normal:'Normal',high:'High'};
+    svgPath.task='<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m7 12 3 3 7-7"/>';
+    svgPath.event='<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 11h18"/>';
+    const asLocalISO = date => [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
+    const dayOffset = days => {const d=new Date();d.setDate(d.getDate()+days);return asLocalISO(d);};
+    const parseLocalDate = value => {
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value||'')))return null;
+      const [y,m,d]=String(value).split('-').map(Number);
+      const result=new Date(y,m-1,d);
+      return result.getFullYear()===y&&result.getMonth()===m-1&&result.getDate()===d?result:null;
+    };
+    const dateLabel = (value,weekday=false) => {
+      const d=parseLocalDate(value);
+      return d?d.toLocaleDateString(undefined,{month:'short',day:'numeric',...(weekday?{weekday:'short'}:{})}):'No date';
+    };
+    const timeLabel = value => {
+      if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(value||'')))return '';
+      const [h,m]=value.split(':').map(Number);
+      return new Date(2020,0,1,h,m).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+    };
+    const eventDateText = item => {
+      if(!item.startDate)return 'Date not set';
+      const range=item.endDate&&item.endDate!==item.startDate?
+        dateLabel(item.startDate)+' – '+dateLabel(item.endDate):dateLabel(item.startDate,true);
+      if(item.allDay)return range+' · All day';
+      const start=timeLabel(item.startTime),end=timeLabel(item.endTime);
+      return range+(start?' · '+start+(end?' – '+end:''):'');
+    };
+    const taskDateText = item => item.dueDate?'Due '+dateLabel(item.dueDate,true):'No due date';
     const now = Date.now();
     const moment = (hours) => new Date(now - hours*3600*1000).toISOString();
     const seed = () => {
@@ -467,16 +497,34 @@
       }
       return incoming;
     }
+    function addTaskEventSamples(library){
+      const examples=[];
+      if(!library.some(i=>i.type==='task')){
+        const folder=library.find(i=>i.id==='work'&&i.type==='folder'&&!i.deleted);
+        examples.push({id:'sample-task-v06',type:'task',title:'Sample · Review project notes',body:'An example of an individual action in Shelf. Try editing its status, priority and due date.',status:'todo',priority:'normal',dueDate:dayOffset(1),
+          collectionIds:folder?['work']:[],tags:['sample','planning'],color:'blue',favorite:false,pinned:false,pinnedIn:[],created:new Date().toISOString(),updated:new Date().toISOString(),deleted:false,sample:true});
+      }
+      if(!library.some(i=>i.type==='event')){
+        const folder=library.find(i=>i.id==='personal'&&i.type==='folder'&&!i.deleted);
+        examples.push({id:'sample-event-v06',type:'event',title:'Sample · Planning session',body:'An example event. Edit the time, location, and folder memberships to try it out.',startDate:dayOffset(2),endDate:dayOffset(2),
+          startTime:'10:00',endTime:'11:00',allDay:false,location:'Example location',
+          collectionIds:folder?['personal']:[],tags:['sample','planning'],color:'violet',favorite:false,pinned:false,pinnedIn:[],created:new Date().toISOString(),updated:new Date().toISOString(),deleted:false,sample:true});
+      }
+      library.push(...examples);
+      return library;
+    }
     function load(){
-      let source=null;
+      let source=null,sourceKey=null;
       for(const key of [storage,...legacyStorages]){
         try{
           const raw=JSON.parse(localStorage.getItem(key));
-          if(raw&&Array.isArray(raw.items)){source=raw.items;break;}
+          if(raw&&Array.isArray(raw.items)){source=raw.items;sourceKey=key;break;}
         }catch(e){}
       }
       const library=adaptLibrary(source||seed());
-      try{localStorage.setItem(storage,JSON.stringify({version:5,items:library}));}catch(e){}
+      // Only add demonstrations on the first v0.6 migration, never on reload after deletion.
+      if(sourceKey!==storage)addTaskEventSamples(library);
+      try{localStorage.setItem(storage,JSON.stringify({version:6,items:library}));}catch(e){}
       return library;
     }
     function loadSidebarPrefs(){
@@ -503,7 +551,7 @@
     const ui = {view:'all',search:'',type:'all',tag:'',color:'',sort:'recent',layout:'grid',detail:null,editor:null,editReturn:null,menuItem:null,filterOpen:false,createOpen:false,mobile:false,expandedFolders:new Set(savedSidebar.expandedFolders),sections:savedSidebar.sections};
     const persistSidebar = () => {try{localStorage.setItem(sidebarPrefsKey,JSON.stringify({expandedFolders:[...ui.expandedFolders],sections:ui.sections}));}catch(e){}};
     const $ = id => document.getElementById(id);
-    const persist = () => { try {localStorage.setItem(storage,JSON.stringify({version:5,items}));}catch(e){toast('Storage is unavailable; changes may not persist.')} };
+    const persist = () => { try {localStorage.setItem(storage,JSON.stringify({version:6,items}));}catch(e){toast('Storage is unavailable; changes may not persist.')} };
     const one = id => items.find(i=>i.id===id);
     const active = () => items.filter(i=>!i.deleted);
     const count = ids => active().filter(i=>ids.includes(i.id)).length;
@@ -513,7 +561,12 @@
     const friendlyDate = s => {const d=new Date(s);return isNaN(d.getTime())?'':d.toLocaleDateString(undefined,{month:'short',day:'numeric'})};
     const key = () => 'i'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-3);
     const typeLabel = item => types[item.type]||'Item';
-    const summary = item => item.type==='bookmark'||item.type==='image'||item.type==='file' ? domain(item.url):item.type==='checklist'?`${(item.tasks||[]).filter(t=>t.done).length} of ${(item.tasks||[]).length} complete`:item.type==='folder'?`${members(item.id).length} items`:(item.body||'Note').replace(/\s+/g,' ').slice(0,90);
+    const summary = item => item.type==='bookmark'||item.type==='image'||item.type==='file' ? domain(item.url)
+      :item.type==='checklist'?`${(item.tasks||[]).filter(t=>t.done).length} of ${(item.tasks||[]).length} complete`
+      :item.type==='task'?`${taskStates[item.status]||'To do'} · ${taskDateText(item)}`
+      :item.type==='event'?eventDateText(item)
+      :item.type==='folder'?`${members(item.id).length} items`
+      :(item.body||'Note').replace(/\s+/g,' ').slice(0,90);
     function viewLabel(){
       if(ui.view==='all')return ['All items','layers'];
       if(ui.view==='unsorted')return ['Unsorted','inbox'];
@@ -548,7 +601,7 @@
       if(ui.color)list=list.filter(i=>i.color===ui.color);
       if(ui.search){
         const q=ui.search.toLowerCase().trim();
-        list=list.filter(i=>[i.title,i.body,i.url,...(i.tags||[]),...(i.tasks||[]).map(t=>t.text)].filter(Boolean).join(' ').toLowerCase().includes(q));
+        list=list.filter(i=>[i.title,i.body,i.url,i.location,i.dueDate,i.startDate,i.endDate,taskStates[i.status],taskPriorities[i.priority],...(i.tags||[]),...(i.tasks||[]).map(t=>t.text)].filter(Boolean).join(' ').toLowerCase().includes(q));
       }
       return list.sort((a,b)=>{
     const at=String(a.title||''),bt=String(b.title||'');
@@ -914,7 +967,7 @@
 
     function restore(id){const i=one(id);if(!i)return;i.deleted=false;i.updated=new Date().toISOString();persist();render();toast('Item restored');}
     function purge(id){const i=one(id);if(!i)return;if(!confirm(`Delete “${i.title}” permanently?`))return;items=items.filter(x=>x.id!==id);items.forEach(x=>{x.collectionIds=x.collectionIds.filter(c=>c!==id);x.pinnedIn=(x.pinnedIn||[]).filter(c=>c!=='folder:'+id);});if(ui.expandedFolders.delete(id))persistSidebar();ui.detail=null;persist();render();toast('Deleted permanently');}
-    function exportData(){const blob=new Blob([JSON.stringify({version:5,exported:new Date().toISOString(),items},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='shelf-library-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('Backup exported');}
+    function exportData(){const blob=new Blob([JSON.stringify({version:6,exported:new Date().toISOString(),items},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='shelf-library-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('Backup exported');}
     function importData(){const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.addEventListener('change',async()=>{const file=input.files?.[0];if(!file)return;try{const json=JSON.parse(await file.text());if(!Array.isArray(json.items)||json.items.some(i=>!i.id||!i.type||!i.title||!Array.isArray(i.collectionIds)))throw Error('Invalid backup');if(!confirm(`Replace your current library with ${json.items.length} imported items? Export a backup first if needed.`))return;items=adaptLibrary(json.items);ui.detail=null;setView('all');persist();render();toast('Library imported');}catch(e){alert('Could not import this file. Please select a Shelf JSON backup.');}});input.click();}
     function dropOnFolder(itemId,folderId){
      const item=one(itemId),folder=one(folderId);
@@ -964,7 +1017,7 @@
         case 'clear-tag':ui.tag='';render();break;
         case 'clear-color':ui.color='';render();break;
         case 'clear-filters':ui.type='all';ui.tag='';ui.color='';ui.search='';$('search-input').value='';closeMenus();render();break;
-        case 'reset':if(confirm('Reset all local changes and restore the sample items? Export a backup first if you want to keep your changes.')){items=adaptLibrary(seed());ui.detail=null;ui.expandedFolders.clear();persistSidebar();ui.type='all';ui.tag='';ui.color='';ui.search='';$('search-input').value='';setView('all');persist();toast('Sample library reset');}break;
+        case 'reset':if(confirm('Reset all local changes and restore the sample items? Export a backup first if you want to keep your changes.')){items=addTaskEventSamples(adaptLibrary(seed()));ui.detail=null;ui.expandedFolders.clear();persistSidebar();ui.type='all';ui.tag='';ui.color='';ui.search='';$('search-input').value='';setView('all');persist();toast('Sample library reset');}break;
         case 'export':exportData();break;
         case 'import':closeMenus();importData();break;
       }
