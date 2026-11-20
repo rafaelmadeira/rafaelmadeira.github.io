@@ -725,19 +725,19 @@
     function renderFilterPopover(){
       let html='<div class="filter-label">Type</div><div class="filter-choices">';
       html+=`<button class="filter-pill ${ui.type==='all'?'active':''}" data-action="filter-type" data-type="all">All types</button>`;
-      html+=Object.entries(types).filter(([t])=>t!=='space').map(([t,n])=>`<button class="filter-pill ${ui.type===t?'active':''}" data-action="filter-type" data-type="${t}">${esc(n)}</button>`).join('');
+      html+=Object.entries(types).map(([t,n])=>`<button class="filter-pill ${ui.type===t?'active':''}" data-action="filter-type" data-type="${t}">${esc(n)}</button>`).join('');
       html+='</div><div class="filter-label">Color</div><div class="filter-choices">';
       html+=`<button class="filter-pill ${ui.color===''?'active':''}" data-action="filter-color" data-color="">Any</button>`;
       html+=Object.entries(palettes).map(([name,color])=>`<button class="filter-pill ${ui.color===name?'active':''}" data-action="filter-color" data-color="${name}"><span class="color-dot" style="background:${color}"></span>${name}</button>`).join('');
       html+='</div><div class="filter-label">Tag</div><div class="filter-choices">';
-      const tags=[...new Set(active().filter(i=>i.type!=='space').flatMap(i=>i.tags||[]))].sort();
+      const tags=[...new Set(active().flatMap(i=>i.tags||[]))].sort();
       html+=`<button class="filter-pill ${ui.tag===''?'active':''}" data-action="filter-tag" data-tag="">Any tag</button>`;
       html+=tags.map(tag=>`<button class="filter-pill ${ui.tag===tag?'active':''}" data-action="filter-tag" data-tag="${esc(tag)}">${esc(tag)}</button>`).join('');
       html+='</div><button class="pop-item" style="margin-top:4px" data-action="clear-filters">'+icon('x',14)+' Clear filters</button>';
       $('filter-popover').innerHTML=html;
     }
     function renderCreatePopover() {
-      $('create-popover').innerHTML=Object.entries(types).filter(([t])=>t!=='space').map(([t,name])=>`<button class="pop-item" data-action="new" data-type="${t}">${icon(t)}<span>${name}</span></button>`).join('')+'<div class="pop-divider"></div><button class="pop-item" data-action="import">'+icon('archive')+'<span>Import JSON backup</span></button>';
+      $('create-popover').innerHTML=Object.entries(types).map(([t,name])=>`<button class="pop-item" data-action="new" data-type="${t}">${icon(t)}<span>${name}</span></button>`).join('')+'<div class="pop-divider"></div><button class="pop-item" data-action="import">'+icon('archive')+'<span>Import JSON backup</span></button>';
     }
     function renderDetail(){
      const panel=$('detail'),item=one(ui.detail);
@@ -924,12 +924,11 @@
     document.addEventListener('click',e=>{
       const el=e.target.closest('[data-action]');if(!el){if(!e.target.closest('.popover'))closeMenus();return;}
       const action=el.dataset.action,id=el.dataset.id;
-      if(['favorite','toggle-pin','pin-context','edit','close-detail','trash','restore','purge','editor-trash','toggle-space-tree','item-menu','visit-link','view-details'].includes(action))e.stopPropagation();
+      if(['favorite','toggle-pin','pin-context','edit','close-detail','trash','restore','purge','editor-trash','item-menu','visit-link','view-details'].includes(action))e.stopPropagation();
       switch(action){
         case 'nav':setView(el.dataset.view,el.dataset.origin||'');break;
         case 'toggle-section':ui.sections[el.dataset.section]=!ui.sections[el.dataset.section];persistSidebar();renderSidebar();break;
-        case 'toggle-space-tree':if(ui.expandedSpaces.has(id))ui.expandedSpaces.delete(id);else ui.expandedSpaces.add(id);persistSidebar();renderSidebar();break;
-        case 'new-space':openEditor('space');break;
+        case 'new-folder':openEditor('folder');break;
         case 'item-menu':openItemMenu(el,id);break;
         case 'view-details':closeMenus();ui.detail=id;renderDetail();break;
         case 'visit-link':visitLink(one(id));closeMenus();break;
@@ -941,8 +940,7 @@
         case 'toggle-create':{renderCreatePopover();toggleMenu('create-popover',el);break;}
         case 'toggle-filter':{renderFilterPopover();toggleMenu('filter-popover',el);break;}
         case 'new':openEditor(el.dataset.type);break;
-        case 'new-group':openEditor('collection');break;
-        case 'open-item':{const i=one(el.dataset.itemId);if(!i)return;closeMenus();if(i.type==='bookmark'&&!i.deleted)visitLink(i);else if((i.type==='collection'||i.type==='space')&&!i.deleted)setView(i.type+':'+i.id);else{ui.detail=i.id;renderDetail();}break;}
+        case 'open-item':{const i=one(el.dataset.itemId);if(!i)return;closeMenus();if(i.type==='bookmark'&&!i.deleted)visitLink(i);else if(i.type==='folder'&&!i.deleted)setView('folder:'+i.id);else{ui.detail=i.id;renderDetail();}break;}
         case 'close-detail':ui.detail=null;renderDetail();break;
         case 'edit':{const item=one(id);if(item)openEditor(item.type,id);break;}
         case 'favorite':editFavorite(id);closeMenus();break;
@@ -960,7 +958,7 @@
         case 'clear-tag':ui.tag='';render();break;
         case 'clear-color':ui.color='';render();break;
         case 'clear-filters':ui.type='all';ui.tag='';ui.color='';ui.search='';$('search-input').value='';closeMenus();render();break;
-        case 'reset':if(confirm('Reset all local changes and restore the sample items? Export a backup first if you want to keep your changes.')){items=adaptLibrary(seed());ui.detail=null;ui.expandedSpaces.clear();persistSidebar();ui.type='all';ui.tag='';ui.color='';ui.search='';$('search-input').value='';setView('all');persist();toast('Sample library reset');}break;
+        case 'reset':if(confirm('Reset all local changes and restore the sample items? Export a backup first if you want to keep your changes.')){items=adaptLibrary(seed());ui.detail=null;ui.expandedFolders.clear();persistSidebar();ui.type='all';ui.tag='';ui.color='';ui.search='';$('search-input').value='';setView('all');persist();toast('Sample library reset');}break;
         case 'export':exportData();break;
         case 'import':closeMenus();importData();break;
       }
@@ -983,11 +981,9 @@
       if((e.key==='Enter'||e.key===' ')&&e.target.matches('.item-card,.list-card')){e.preventDefault();e.target.click();}
     });
     document.addEventListener('dragstart',e=>{const card=e.target.closest('[data-item-id]');if(!card)return;e.dataTransfer?.setData('text/plain',card.dataset.itemId);if(e.dataTransfer)e.dataTransfer.effectAllowed='copy';});
-    $('sidebar').addEventListener('dragover',e=>{const folder=e.target.closest('[data-drop-collection]');document.querySelectorAll('.drag-over').forEach(x=>{if(x!==folder)x.classList.remove('drag-over')});if(!folder)return;e.preventDefault();if(e.dataTransfer)e.dataTransfer.dropEffect='copy';folder.classList.add('drag-over');});
-    $('sidebar').addEventListener('dragleave',e=>{if(!e.relatedTarget?.closest?.('[data-drop-collection]'))document.querySelectorAll('.drag-over').forEach(x=>x.classList.remove('drag-over'));});
-    $('sidebar').addEventListener('drop',e=>{const folder=e.target.closest('[data-drop-collection]');document.querySelectorAll('.drag-over').forEach(x=>x.classList.remove('drag-over'));if(!folder)return;e.preventDefault();dropOnCollection(e.dataTransfer.getData('text/plain'),folder.dataset.dropCollection);});
-    // A small addendum allows us to edit a collection from its sidebar row without requiring navigation.
-    const style=document.createElement('style');style.textContent='.folder-row{position:relative}.folder-edit-overlay{display:none;position:absolute;right:10px;top:4px;width:26px;height:26px;border:0;border-radius:5px;background:#38383e;color:#bcbcc4;place-items:center}.folder-row:hover .folder-edit-overlay{display:grid}.folder-row:has(.nav-item.active) .folder-edit-overlay{background:#1873bc;color:white}.folder-row .nav-item:hover .count{visibility:hidden}';document.head.append(style);
+    $('sidebar').addEventListener('dragover',e=>{const folder=e.target.closest('[data-drop-folder]');document.querySelectorAll('.drag-over').forEach(x=>{if(x!==folder)x.classList.remove('drag-over')});if(!folder)return;e.preventDefault();if(e.dataTransfer)e.dataTransfer.dropEffect='copy';folder.classList.add('drag-over');});
+    $('sidebar').addEventListener('dragleave',e=>{if(!e.relatedTarget?.closest?.('[data-drop-folder]'))document.querySelectorAll('.drag-over').forEach(x=>x.classList.remove('drag-over'));});
+    $('sidebar').addEventListener('drop',e=>{const folder=e.target.closest('[data-drop-folder]');document.querySelectorAll('.drag-over').forEach(x=>x.classList.remove('drag-over'));if(!folder)return;e.preventDefault();dropOnFolder(e.dataTransfer.getData('text/plain'),folder.dataset.dropFolder);});
     const linkSafeClick=e=>{const a=e.target.closest('a[href]');if(a && (/^javascript:/i.test(a.getAttribute('href'))||/^data:/i.test(a.getAttribute('href')))){e.preventDefault();toast('Unsupported link.')}};
     $('detail').addEventListener('click',linkSafeClick);
     document.querySelectorAll('[data-icon]').forEach(el=>el.innerHTML=icon(el.dataset.icon));
