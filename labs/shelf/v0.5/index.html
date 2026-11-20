@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="dark" />
-  <title>Shelf — Everything library v0.4</title>
+  <title>Shelf — Folders v0.5</title>
   <style>
     :root { --bg:#111113; --sidebar:#202023; --card:#171719; --panel:#1d1d20; --surface:#29292d; --surface2:#323237; --line:#333338; --text:#ececef; --muted:#85858e; --muted2:#63636b; --blue:#2485d7; --blue2:#339df5; --focus:#5baff5; --radius:11px; color-scheme:dark }
     * { box-sizing:border-box }
@@ -322,7 +322,7 @@
         <button class="head-btn" data-action="toggle-create" title="Create new item" aria-label="Create new item" data-icon="plus"></button>
       </div>
       <div class="side-content" id="nav-content"></div>
-      <div class="side-bottom"><span class="demo-badge">LOCAL PROTOTYPE · v0.4</span><a class="bottom-action" href="/labs/shelf/v0.3/" title="Return to version 0.3">v0.3</a><button class="bottom-action" data-action="export" title="Export all items as JSON">Export</button></div>
+      <div class="side-bottom"><span class="demo-badge">LOCAL PROTOTYPE · v0.5</span><a class="bottom-action" href="/labs/shelf/v0.4/" title="Return to version 0.4">v0.4</a><button class="bottom-action" data-action="export" title="Export all items as JSON">Export</button></div>
     </aside>
     <main class="main" id="main">
       <div class="main-content">
@@ -390,12 +390,12 @@
     svgPath.hash='<path d="M10 3 6 21M18 3l-4 18M4 9h17M3 15h17"/>';
     svgPath.pushpin='<path d="m16 3 5 5-2.5 1-2.5 4 .5 2.5-2 2-8-8 2-2 2.5.5 4-2.5z"/><path d="m4 20 6.5-6.5"/>';
     const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-    const storage = 'shelf-everything-v0-4';
-    const legacyStorages = ['shelf-everything-v0-3','shelf-everything-v0-2','shelf-everything-v0-1'];
+    const storage = 'shelf-everything-v0-5';
+    const legacyStorages = ['shelf-everything-v0-4','shelf-everything-v0-3','shelf-everything-v0-2','shelf-everything-v0-1'];
     const sidebarPrefsKey = storage+'-sidebar';
-    const legacySidebarPrefsKey = 'shelf-everything-v0-3-sidebar';
+    const legacySidebarPrefsKeys = ['shelf-everything-v0-4-sidebar','shelf-everything-v0-3-sidebar'];
     const palettes = {slate:'#475465', blue:'#41658f', red:'#97585b', amber:'#997b4e', green:'#597b67', violet:'#76648e', charcoal:'#45464c'};
-    const types = {bookmark:'Bookmark',note:'Note',checklist:'Checklist',collection:'Collection',space:'Space',image:'Image',file:'File'};
+    const types = {bookmark:'Bookmark',note:'Note',checklist:'Checklist',folder:'Folder',image:'Image',file:'File'};
     const now = Date.now();
     const moment = (hours) => new Date(now - hours*3600*1000).toISOString();
     const seed = () => {
@@ -424,27 +424,34 @@
       ];
     };
     function adaptLibrary(source){
+      const legacyGroupOnly=!source.some(i=>i.type==='space'||i.type==='folder');
       const incoming=source.map(i=>({
         ...i,
+        type:i.type==='space'||i.type==='collection'?'folder':i.type,
         collectionIds:Array.isArray(i.collectionIds)?[...i.collectionIds]:[],
         tags:Array.isArray(i.tags)?[...i.tags]:[],
         pinned:typeof i.pinned==='boolean'?i.pinned:['home','project-plan'].includes(i.id),
-        pinnedIn:Array.isArray(i.pinnedIn)?[...new Set(i.pinnedIn.filter(x=>typeof x==='string'))]:[]
+        pinnedIn:[...new Set((Array.isArray(i.pinnedIn)?i.pinnedIn:[]).filter(x=>typeof x==='string').map(key=>{
+          const m=key.match(/^(space|collection):(.+)$/);
+          return m?'folder:'+m[2]:key;
+        }))]
       }));
-      if(incoming.some(i=>i.type==='space'))return incoming;
-      const roots=incoming.filter(i=>i.type==='collection'&&!i.collectionIds.length&&!i.deleted);
-      for(const group of ['Work','Personal']){
-        const matches=roots.filter(i=>i.group===group);
-        if(!matches.length)continue;
-        const id='shelf-space-'+group.toLowerCase();
-        if(!incoming.some(i=>i.id===id)){
-          incoming.push({
-            id,type:'space',title:group,collectionIds:[],tags:[],pinned:false,pinnedIn:[],favorite:false,
-            color:group==='Work'?'blue':'green',created:new Date().toISOString(),
-            updated:new Date().toISOString(),deleted:false,body:'',url:'',tasks:[]
-          });
+      // Old v0.1 library used grouping labels instead of actual parent folders.
+      if(legacyGroupOnly){
+        const roots=incoming.filter(i=>i.type==='folder'&&!i.collectionIds.length&&!i.deleted);
+        for(const group of ['Work','Personal']){
+          const children=roots.filter(i=>i.group===group);
+          if(!children.length)continue;
+          const id='shelf-space-'+group.toLowerCase();
+          if(!incoming.some(i=>i.id===id)){
+            incoming.push({
+              id,type:'folder',title:group,collectionIds:[],tags:[],pinned:false,pinnedIn:[],favorite:false,
+              color:group==='Work'?'blue':'green',created:new Date().toISOString(),
+              updated:new Date().toISOString(),deleted:false,body:'',url:'',tasks:[]
+            });
+          }
+          children.forEach(i=>{if(!i.collectionIds.includes(id))i.collectionIds.push(id);});
         }
-        matches.forEach(i=>{if(!i.collectionIds.includes(id))i.collectionIds.push(id);});
       }
       return incoming;
     }
@@ -453,35 +460,38 @@
       for(const key of [storage,...legacyStorages]){
         try{
           const raw=JSON.parse(localStorage.getItem(key));
-          if(raw&&Array.isArray(raw.items)){
-            source=raw.items;
-            break;
-          }
+          if(raw&&Array.isArray(raw.items)){source=raw.items;break;}
         }catch(e){}
       }
       const library=adaptLibrary(source||seed());
-      try{localStorage.setItem(storage,JSON.stringify({version:4,items:library}));}catch(e){}
+      try{localStorage.setItem(storage,JSON.stringify({version:5,items:library}));}catch(e){}
       return library;
     }
     function loadSidebarPrefs(){
       try{
-        const raw=JSON.parse(localStorage.getItem(sidebarPrefsKey)||localStorage.getItem(legacySidebarPrefsKey));
+        const candidate=[sidebarPrefsKey,...legacySidebarPrefsKeys].map(k=>localStorage.getItem(k)).find(Boolean);
+        const raw=candidate?JSON.parse(candidate):null;
         if(raw&&typeof raw==='object'){
-          const valid=Array.isArray(raw.expandedSpaces)?raw.expandedSpaces.filter(x=>typeof x==='string'):[];
-          const base={bookmarks:true,spaces:true,filters:true,tags:true};
-          for(const key of Object.keys(base))if(typeof raw.sections?.[key]==='boolean')base[key]=raw.sections[key];
-          return {expandedSpaces:valid,sections:base};
+          const ids=Array.isArray(raw.expandedFolders)?raw.expandedFolders:
+            Array.isArray(raw.expandedSpaces)?raw.expandedSpaces:[];
+          const base={bookmarks:true,folders:true,objects:true,tags:true};
+          const oldNames={folders:'spaces',objects:'filters'};
+          for(const section of Object.keys(base)){
+            const val=raw.sections?.[section]??raw.sections?.[oldNames[section]];
+            if(typeof val==='boolean')base[section]=val;
+          }
+          return {expandedFolders:ids.filter(id=>typeof id==='string'),sections:base};
         }
       }catch(e){}
-      return {expandedSpaces:[],sections:{bookmarks:true,spaces:true,filters:true,tags:true}};
+      return {expandedFolders:[],sections:{bookmarks:true,folders:true,objects:true,tags:true}};
     }
 
     let items = load();
     const savedSidebar = loadSidebarPrefs();
-    const ui = {view:'all',search:'',type:'all',tag:'',color:'',sort:'recent',layout:'grid',detail:null,editor:null,editReturn:null,menuItem:null,filterOpen:false,createOpen:false,mobile:false,expandedSpaces:new Set(savedSidebar.expandedSpaces),sections:savedSidebar.sections};
-    const persistSidebar = () => {try{localStorage.setItem(sidebarPrefsKey,JSON.stringify({expandedSpaces:[...ui.expandedSpaces],sections:ui.sections}));}catch(e){}};
+    const ui = {view:'all',search:'',type:'all',tag:'',color:'',sort:'recent',layout:'grid',detail:null,editor:null,editReturn:null,menuItem:null,filterOpen:false,createOpen:false,mobile:false,expandedFolders:new Set(savedSidebar.expandedFolders),sections:savedSidebar.sections};
+    const persistSidebar = () => {try{localStorage.setItem(sidebarPrefsKey,JSON.stringify({expandedFolders:[...ui.expandedFolders],sections:ui.sections}));}catch(e){}};
     const $ = id => document.getElementById(id);
-    const persist = () => { try {localStorage.setItem(storage,JSON.stringify({version:4,items}));}catch(e){toast('Storage is unavailable; changes may not persist.')} };
+    const persist = () => { try {localStorage.setItem(storage,JSON.stringify({version:5,items}));}catch(e){toast('Storage is unavailable; changes may not persist.')} };
     const one = id => items.find(i=>i.id===id);
     const active = () => items.filter(i=>!i.deleted);
     const count = ids => active().filter(i=>ids.includes(i.id)).length;
@@ -491,50 +501,45 @@
     const friendlyDate = s => {const d=new Date(s);return isNaN(d.getTime())?'':d.toLocaleDateString(undefined,{month:'short',day:'numeric'})};
     const key = () => 'i'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-3);
     const typeLabel = item => types[item.type]||'Item';
-    const summary = item => item.type==='bookmark'||item.type==='image'||item.type==='file' ? domain(item.url):item.type==='checklist'?`${(item.tasks||[]).filter(t=>t.done).length} of ${(item.tasks||[]).length} complete`:(item.type==='collection'||item.type==='space')?`${members(item.id).length} items`:(item.body||'Note').replace(/\s+/g,' ').slice(0,90);
+    const summary = item => item.type==='bookmark'||item.type==='image'||item.type==='file' ? domain(item.url):item.type==='checklist'?`${(item.tasks||[]).filter(t=>t.done).length} of ${(item.tasks||[]).length} complete`:item.type==='folder'?`${members(item.id).length} items`:(item.body||'Note').replace(/\s+/g,' ').slice(0,90);
     function viewLabel(){
-  if(ui.view==='all')return ['All items','layers'];
-  if(ui.view==='unsorted')return ['Unsorted','inbox'];
-  if(ui.view==='trash')return ['Trash','trash'];
-  if(ui.view==='favorites')return ['Favorites','heart'];
-  if(ui.view==='untagged')return ['Without tags','tag'];
-  if(ui.view.startsWith('type:')){
-    const type=ui.view.slice(5);
-    return [type==='bookmark'?'Links':typeLabel({type})+'s',type];
-  }
-  if(ui.view.startsWith('space:')){
-    const obj=one(ui.view.slice(6));
-    return [obj?.title||'Space','space'];
-  }
-  if(ui.view.startsWith('collection:')){
-    const obj=one(ui.view.slice(11));
-    return [obj?.title||'Collection','folder'];
-  }
-  return ['All items','layers'];
-}
+      if(ui.view==='all')return ['All items','layers'];
+      if(ui.view==='unsorted')return ['Unsorted','inbox'];
+      if(ui.view==='trash')return ['Trash','trash'];
+      if(ui.view==='favorites')return ['Favorites','heart'];
+      if(ui.view==='untagged')return ['Without tags','tag']; // legacy deep link compatibility
+      if(ui.view.startsWith('type:')){
+        const type=ui.view.slice(5);
+        return [type==='bookmark'?'Links':typeLabel({type})+'s',type];
+      }
+      if(ui.view.startsWith('folder:')){
+        const obj=one(ui.view.slice(7));
+        return [obj?.title||'Folder','folder'];
+      }
+      return ['All items','layers'];
+    }
     function hasLiveParent(item){
-  return (item.collectionIds||[]).some(id=>{
-    const parent=one(id);
-    return parent&&!parent.deleted&&(parent.type==='collection'||parent.type==='space');
-  });
-}
+      return (item.collectionIds||[]).some(id=>{
+        const parent=one(id);
+        return parent&&!parent.deleted&&parent.type==='folder';
+      });
+    }
     function filtered(){
-  let list=items.filter(i=>ui.view==='trash'?i.deleted:!i.deleted&&i.type!=='space');
-  if(ui.view==='unsorted')list=list.filter(i=>i.type!=='space'&&!hasLiveParent(i));
-  else if(ui.view==='favorites')list=list.filter(i=>i.favorite);
-  else if(ui.view==='untagged')list=list.filter(i=>!i.tags?.length);
-  else if(ui.view.startsWith('type:'))list=list.filter(i=>i.type===ui.view.slice(5));
-  else if(ui.view.startsWith('space:'))list=list.filter(i=>i.collectionIds?.includes(ui.view.slice(6)));
-  else if(ui.view.startsWith('collection:'))list=list.filter(i=>i.collectionIds?.includes(ui.view.slice(11)));
-  if(ui.type!=='all')list=list.filter(i=>i.type===ui.type);
-  if(ui.tag)list=list.filter(i=>(i.tags||[]).includes(ui.tag));
-  if(ui.color)list=list.filter(i=>i.color===ui.color);
-  if(ui.search){
-    const query=ui.search.toLowerCase().trim();
-    list=list.filter(i=>[i.title,i.body,i.url,...(i.tags||[]),...(i.tasks||[]).map(t=>t.text)].filter(Boolean).join(' ').toLowerCase().includes(query));
-  }
-  return list.sort((a,b)=>ui.sort==='alpha'?a.title.localeCompare(b.title):ui.sort==='type'?(a.type.localeCompare(b.type)||a.title.localeCompare(b.title)):ui.sort==='oldest'?a.updated.localeCompare(b.updated):b.updated.localeCompare(a.updated));
-}
+      let list=items.filter(i=>ui.view==='trash'?i.deleted:!i.deleted);
+      if(ui.view==='unsorted')list=list.filter(i=>i.type!=='folder'&&!hasLiveParent(i));
+      else if(ui.view==='favorites')list=list.filter(i=>i.favorite);
+      else if(ui.view==='untagged')list=list.filter(i=>!i.tags?.length);
+      else if(ui.view.startsWith('type:'))list=list.filter(i=>i.type===ui.view.slice(5));
+      else if(ui.view.startsWith('folder:'))list=list.filter(i=>i.collectionIds?.includes(ui.view.slice(7)));
+      if(ui.type!=='all')list=list.filter(i=>i.type===ui.type);
+      if(ui.tag)list=list.filter(i=>(i.tags||[]).includes(ui.tag));
+      if(ui.color)list=list.filter(i=>i.color===ui.color);
+      if(ui.search){
+        const q=ui.search.toLowerCase().trim();
+        list=list.filter(i=>[i.title,i.body,i.url,...(i.tags||[]),...(i.tasks||[]).map(t=>t.text)].filter(Boolean).join(' ').toLowerCase().includes(q));
+      }
+      return list.sort((a,b)=>ui.sort==='alpha'?a.title.localeCompare(b.title):ui.sort==='type'?(a.type.localeCompare(b.type)||a.title.localeCompare(b.title)):ui.sort==='oldest'?a.updated.localeCompare(b.updated):b.updated.localeCompare(a.updated));
+    }
 
     function navButton(view,name,ico,total,cls='',extra=''){
   return `<button class="nav-item ${ui.view===view?'active':''} ${cls}" data-action="nav" data-view="${esc(view)}" ${extra}><span class="nav-icon">${icon(ico)}</span><span class="nav-label">${esc(name)}</span>${total!==null?`<span class="count">${total}</span>`:''}</button>`;
@@ -916,7 +921,7 @@
 
     function restore(id){const i=one(id);if(!i)return;i.deleted=false;i.updated=new Date().toISOString();persist();render();toast('Item restored');}
     function purge(id){const i=one(id);if(!i)return;if(!confirm(`Delete “${i.title}” permanently?`))return;items=items.filter(x=>x.id!==id);items.forEach(x=>{x.collectionIds=x.collectionIds.filter(c=>c!==id);x.pinnedIn=(x.pinnedIn||[]).filter(c=>c!=='space:'+id&&c!=='collection:'+id);});if(ui.expandedSpaces.delete(id))persistSidebar();ui.detail=null;persist();render();toast('Deleted permanently');}
-    function exportData(){const blob=new Blob([JSON.stringify({version:4,exported:new Date().toISOString(),items},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='shelf-library-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('Backup exported');}
+    function exportData(){const blob=new Blob([JSON.stringify({version:5,exported:new Date().toISOString(),items},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='shelf-library-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('Backup exported');}
     function importData(){const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.addEventListener('change',async()=>{const file=input.files?.[0];if(!file)return;try{const json=JSON.parse(await file.text());if(!Array.isArray(json.items)||json.items.some(i=>!i.id||!i.type||!i.title||!Array.isArray(i.collectionIds)))throw Error('Invalid backup');if(!confirm(`Replace your current library with ${json.items.length} imported items? Export a backup first if needed.`))return;items=adaptLibrary(json.items);ui.detail=null;setView('all');persist();render();toast('Library imported');}catch(e){alert('Could not import this file. Please select a Shelf JSON backup.');}});input.click();}
     function dropOnCollection(itemId,collectionId){
   const item=one(itemId),folder=one(collectionId);
