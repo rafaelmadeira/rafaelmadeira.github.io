@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="dark" />
-  <title>Shelf — an everything library</title>
+  <title>Shelf — Spaces experiment (v0.2)</title>
   <style>
     :root { --bg:#111113; --sidebar:#202023; --card:#171719; --panel:#1d1d20; --surface:#29292d; --surface2:#323237; --line:#333338; --text:#ececef; --muted:#85858e; --muted2:#63636b; --blue:#2485d7; --blue2:#339df5; --focus:#5baff5; --radius:11px; color-scheme:dark }
     * { box-sizing:border-box }
@@ -224,6 +224,42 @@
     @media (max-width:660px) { .sidebar {position:fixed;top:0;left:0;bottom:0;z-index:16;transform:translateX(-101%);transition:transform .2s;width:272px} .sidebar.mobile-open {transform:translateX(0)} .mobile-menu{display:grid} .main-content{padding-left:16px;padding-right:16px}.topbar{height:55px}.top-actions{gap:0}.heading{margin-top:14px;margin-bottom:18px}.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 12px}.card-image{aspect-ratio:1.35}.card-title{font-size:12px}.card-sub{font-size:10px}.new-top span{display:none}.new-top{padding:8px}.top-actions .icon-btn{width:30px}.heading-tools .toolbar-select{max-width:95px}.detail{z-index:18}.search kbd{display:none} }
     @media (max-width:380px){ .cards{grid-template-columns:1fr 1fr}.heading-tools .view-toggle{display:none}.heading-title{gap:7px} }
     @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
+    /* Shelf v0.2 — collapsible navigation sections and space tree */
+    .nav-caption-row { margin:17px 8px 5px 10px; display:flex;align-items:center;gap:2px }
+    .nav-caption-row .section-toggle { display:flex;align-items:center;gap:5px;min-width:0;flex:1;text-align:left;font-size:12px;font-weight:620;color:#8c8c96;letter-spacing:.01em;border:0;background:transparent;border-radius:6px;padding:5px 4px }
+    .nav-caption-row .section-toggle:hover { color:#eee;background:#303035 }
+    .section-caret { display:inline-grid;place-items:center;width:15px;height:15px;transition:transform .14s }
+    .section-caret.open { transform:rotate(90deg) }
+    .section-add { display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:5px;background:transparent;color:#93939d;flex-shrink:0 }
+    .section-add:hover { color:#fff;background:#3a3a40 }
+    .section-empty { color:#777780;font-size:11px;line-height:1.5;padding:7px 15px 11px 29px }
+    .space-row { position:relative }
+    .space-nav { padding-right:40px }
+    .space-expand { position:absolute;right:9px;top:4px;width:24px;height:25px;border:0;border-radius:6px;display:grid;place-items:center;color:#898991;background:transparent;transition:transform .15s,background .12s }
+    .space-expand svg { transition:transform .15s }
+    .space-expand.expanded svg { transform:rotate(90deg) }
+    .space-expand:hover { background:#414147;color:#fff }
+    .space-row:has(.nav-item.active) .space-expand {color:#e4f3ff}
+    .tree-folder .nav-item { font-size:12.5px;min-height:32px;color:#c4c4cc;gap:7px }
+    .tree-folder .nav-item.active { color:#fff }
+    .tree-folder .nav-icon { flex:0 0 17px }
+    .tree-folder .nav-icon svg { width:17px;height:17px }
+    .tree-folder .folder-edit-overlay { top:3px }
+    .tag-text-row { padding-left:29px }
+    .card-tool.pinned,.card-pinned { color:#c6b6ef }
+    .card-pinned {display:inline-grid;place-items:center;flex-shrink:0;margin-top:2px}
+    .card-pinned svg {width:13px;height:13px;fill:#c6b6ef33}
+    .thumb-space { background:linear-gradient(145deg,#323e57,#1b202b);display:flex;align-items:center;justify-content:center }
+    .space-hero { color:#a8b9de;filter:drop-shadow(0 15px 11px #0006) }
+    .space-hero svg { stroke-width:1.15; fill:#8aa3d516 }
+    .space-caption {position:absolute;bottom:17px;font-size:10px;letter-spacing:.1em;color:#97aac7}
+    .choice-grid:has(.choice-heading) {align-items:center}
+    .choice-heading {font-size:10px;line-height:2;color:#777782;text-transform:uppercase;letter-spacing:.08em;flex:0 0 100%;margin-top:4px}
+    .modal-footer button.danger {margin-right:auto;background:#462c31;color:#ffb6be;border:1px solid #724348}
+    .modal-footer button.danger:hover {background:#63353e}
+    .side-bottom a.bottom-action {text-decoration:none;white-space:nowrap}
+    .side-bottom .demo-badge {overflow:hidden;text-overflow:ellipsis}
   </style>
 </head>
 <body>
@@ -235,7 +271,7 @@
         <button class="head-btn" data-action="toggle-create" title="Create new item" aria-label="Create new item" data-icon="plus"></button>
       </div>
       <div class="side-content" id="nav-content"></div>
-      <div class="side-bottom"><span class="demo-badge">LOCAL PROTOTYPE · v0.1</span><button class="bottom-action" data-action="export" title="Export all items as JSON">Export</button></div>
+      <div class="side-bottom"><span class="demo-badge">LOCAL PROTOTYPE · v0.2</span><a class="bottom-action" href="/labs/shelf/v0.1/" title="Open untouched version 0.1">v0.1</a><button class="bottom-action" data-action="export" title="Export all items as JSON">Export</button></div>
     </aside>
     <main class="main" id="main">
       <div class="main-content">
@@ -259,7 +295,7 @@
   <div id="create-popover" class="popover" aria-label="Create menu"></div>
   <div id="filter-popover" class="popover filter-popover" aria-label="Filters"></div>
   <section class="detail" id="detail" aria-label="Item details"></section>
-  <div id="scrim" class="scrim" role="presentation"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><span id="modal-title">New item</span><span class="grow"></span><button class="icon-btn" data-action="close-modal" aria-label="Close editor" data-icon="x"></button></div><form id="editor-form" novalidate><div class="modal-content" id="modal-content"></div><div class="modal-footer"><span class="subtle" id="modal-hint"></span><button type="button" data-action="close-modal">Cancel</button><button type="submit" class="save">Save item</button></div></form></div></div>
+  <div id="scrim" class="scrim" role="presentation"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><span id="modal-title">New item</span><span class="grow"></span><button class="icon-btn" data-action="close-modal" aria-label="Close editor" data-icon="x"></button></div><form id="editor-form" novalidate><div class="modal-content" id="modal-content"></div><div class="modal-footer"><span class="subtle" id="modal-hint"></span><button type="button" class="danger" id="editor-trash" data-action="editor-trash" hidden>Move to Trash</button><button type="button" data-action="close-modal">Cancel</button><button type="submit" class="save">Save item</button></div></form></div></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script>
   (() => {
@@ -297,10 +333,13 @@
       'check-square':'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m7 12 4 4 6-7"/>'
     };
     const icon = (name,size=19) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" aria-hidden="true">${svgPath[name]||svgPath.note}</svg>`;
+    svgPath.space=svgPath.layers;
+    svgPath["chevron-right"]='<path d="m9 18 6-6-6-6"/>';
     const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-    const storage = 'shelf-everything-v0-1';
+    const storage = 'shelf-everything-v0-2';
+    const legacyStorage = 'shelf-everything-v0-1';
     const palettes = {slate:'#475465', blue:'#41658f', red:'#97585b', amber:'#997b4e', green:'#597b67', violet:'#76648e', charcoal:'#45464c'};
-    const types = {bookmark:'Bookmark',note:'Note',checklist:'Checklist',collection:'Collection',image:'Image',file:'File'};
+    const types = {bookmark:'Bookmark',note:'Note',checklist:'Checklist',collection:'Collection',space:'Space',image:'Image',file:'File'};
     const now = Date.now();
     const moment = (hours) => new Date(now - hours*3600*1000).toISOString();
     const seed = () => {
@@ -328,11 +367,49 @@
         o('music','bookmark','A music discovery playlist',[],{url:'https://music.youtube.com',tags:['music','personal'],color:'red',ago:15})
       ];
     };
-    function load() { try {const value = JSON.parse(localStorage.getItem(storage)); if(value && Array.isArray(value.items)) return value.items;}catch(e){} return seed(); }
+    function adaptLibrary(source) {
+  const incoming=source.map(i=>({
+    ...i,
+    collectionIds:Array.isArray(i.collectionIds)?[...i.collectionIds]:[],
+    tags:Array.isArray(i.tags)?[...i.tags]:[],
+    pinned:typeof i.pinned==='boolean'?i.pinned:['home','project-plan'].includes(i.id)
+  }));
+  if(incoming.some(i=>i.type==='space')) return incoming;
+  const roots=incoming.filter(i=>i.type==='collection'&&!i.collectionIds.length&&!i.deleted);
+  for(const group of ['Work','Personal']){
+    const matches=roots.filter(i=>i.group===group);
+    if(!matches.length) continue;
+    const id='shelf-space-'+group.toLowerCase();
+    if(!incoming.some(i=>i.id===id)){
+      incoming.push({
+        id,type:'space',title:group,collectionIds:[],tags:[],pinned:false,favorite:false,
+        color:group==='Work'?'blue':'green',created:new Date().toISOString(),
+        updated:new Date().toISOString(),deleted:false,body:'',url:'',tasks:[]
+      });
+    }
+    matches.forEach(i=>{if(!i.collectionIds.includes(id))i.collectionIds.push(id);});
+  }
+  return incoming;
+}
+    function load(){
+  try{
+    const own=JSON.parse(localStorage.getItem(storage));
+    if(own&&Array.isArray(own.items))return adaptLibrary(own.items);
+  }catch(e){}
+  let source=null;
+  try{
+    const previous=JSON.parse(localStorage.getItem(legacyStorage));
+    if(previous&&Array.isArray(previous.items))source=previous.items;
+  }catch(e){}
+  const migrated=adaptLibrary(source||seed());
+  try{localStorage.setItem(storage,JSON.stringify({version:2,items:migrated}));}catch(e){}
+  return migrated;
+}
+
     let items = load();
-    const ui = {view:'all',search:'',type:'all',tag:'',color:'',sort:'recent',layout:'grid',detail:null,editor:null,filterOpen:false,createOpen:false,mobile:false};
+    const ui = {view:'all',search:'',type:'all',tag:'',color:'',sort:'recent',layout:'grid',detail:null,editor:null,filterOpen:false,createOpen:false,mobile:false,expandedSpace:null,sections:{bookmarks:true,spaces:true,filters:true,tags:true}};
     const $ = id => document.getElementById(id);
-    const persist = () => { try {localStorage.setItem(storage,JSON.stringify({version:1,items}));}catch(e){toast('Storage is unavailable; changes may not persist.')} };
+    const persist = () => { try {localStorage.setItem(storage,JSON.stringify({version:2,items}));}catch(e){toast('Storage is unavailable; changes may not persist.')} };
     const one = id => items.find(i=>i.id===id);
     const active = () => items.filter(i=>!i.deleted);
     const count = ids => active().filter(i=>ids.includes(i.id)).length;
@@ -342,67 +419,121 @@
     const friendlyDate = s => {const d=new Date(s);return isNaN(d.getTime())?'':d.toLocaleDateString(undefined,{month:'short',day:'numeric'})};
     const key = () => 'i'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-3);
     const typeLabel = item => types[item.type]||'Item';
-    const summary = item => item.type==='bookmark'||item.type==='image'||item.type==='file' ? domain(item.url):item.type==='checklist'?`${(item.tasks||[]).filter(t=>t.done).length} of ${(item.tasks||[]).length} complete`:item.type==='collection'?`${members(item.id).length} items`:(item.body||'Note').replace(/\s+/g,' ').slice(0,90);
-    function viewLabel() {
-      if(ui.view==='all') return ['All items','layers'];
-      if(ui.view==='unsorted') return ['Unsorted','inbox'];
-      if(ui.view==='trash') return ['Trash','trash'];
-      if(ui.view==='favorites') return ['Favorites','heart'];
-      if(ui.view==='untagged') return ['Without tags','tag'];
-      if(ui.view.startsWith('type:')) {const type=ui.view.split(':')[1];return [type==='bookmark'?'Links':typeLabel({type})+'s',type];}
-      if(ui.view.startsWith('collection:')) {const v=one(ui.view.slice(11));return [v?.title||'Collection','folder'];}
-      return ['All items','layers'];
-    }
-    function filtered() {
-      let list=items.filter(i=>ui.view==='trash'?i.deleted:!i.deleted);
-      if(ui.view==='unsorted') list=list.filter(i=>!i.collectionIds?.length);
-      else if(ui.view==='favorites') list=list.filter(i=>i.favorite);
-      else if(ui.view==='untagged') list=list.filter(i=>!i.tags?.length);
-      else if(ui.view.startsWith('type:')) list=list.filter(i=>i.type===ui.view.split(':')[1]);
-      else if(ui.view.startsWith('collection:')) list=list.filter(i=>i.collectionIds?.includes(ui.view.slice(11)));
-      if(ui.type!=='all') list=list.filter(i=>i.type===ui.type);
-      if(ui.tag) list=list.filter(i=>(i.tags||[]).includes(ui.tag));
-      if(ui.color) list=list.filter(i=>i.color===ui.color);
-      if(ui.search) {const q=ui.search.toLowerCase().trim();list=list.filter(i=>[i.title,i.body,i.url,...(i.tags||[]),...(i.tasks||[]).map(t=>t.text)].filter(Boolean).join(' ').toLowerCase().includes(q));}
-      return list.sort((a,b)=>ui.sort==='alpha'?a.title.localeCompare(b.title):ui.sort==='type'?(a.type.localeCompare(b.type)||a.title.localeCompare(b.title)):ui.sort==='oldest'?a.updated.localeCompare(b.updated):b.updated.localeCompare(a.updated));
-    }
-    const navButton = (view,name,ico,total,cls='',extra='') => `<button class="nav-item ${ui.view===view?'active':''} ${cls}" data-action="nav" data-view="${esc(view)}" ${extra}><span class="nav-icon">${icon(ico)}</span><span class="nav-label">${esc(name)}</span>${total!==null?`<span class="count">${total}</span>`:''}</button>`;
-    function navCollection(item,depth=0,seen=new Set()) {
-      if(seen.has(item.id)||depth>7) return '';
-      const next=new Set([...seen,item.id]);
-      const children=active().filter(i=>i.type==='collection'&&i.collectionIds?.includes(item.id)).sort((a,b)=>a.title.localeCompare(b.title));
-      return `<div class="folder-row">${navButton('collection:'+item.id,item.title,'folder',members(item.id).length,depth?'nested'+(depth>1?' nested2':''):'',`data-drop-collection="${esc(item.id)}" title="Open ${esc(item.title)} · Drop an item here to add it"`)}<button class="folder-edit-overlay" data-action="edit" data-id="${esc(item.id)}" title="Edit collection" aria-label="Edit ${esc(item.title)}">${icon('more',15)}</button></div>${children.map(c=>navCollection(c,depth+1,next)).join('')}`;
-    }
-    function renderSidebar() {
-      const live=active(),groups=['Collections','Work','Personal'];
-      let html='<div class="nav-group">';
-      html+=navButton('all','All items','layers',live.length);
-      html+=navButton('unsorted','Unsorted','inbox',live.filter(i=>!i.collectionIds?.length).length);
-      html+=navButton('trash','Trash','trash',items.filter(i=>i.deleted).length);
-      html+='</div>';
-      groups.forEach(group=>{
-        const roots=live.filter(i=>i.type==='collection'&&!i.collectionIds?.length&&(i.group||'Collections')===group).sort((a,b)=>a.title.localeCompare(b.title));
-        html+=`<div class="nav-group"><div class="nav-caption"><span>${group}</span><button title="New ${group.toLowerCase()} collection" data-action="new-group" data-group="${group}">${icon('plus',14)}</button></div>`;
-        html+=roots.length?roots.map(i=>navCollection(i)).join(''):'<div style="padding:0 15px;color:#626269;font-size:11px">No collections</div>';
-        html+='</div>';
-      });
-      const countType=type=>live.filter(i=>i.type===type).length;
-      html+='<div class="nav-group"><div class="nav-caption">Filters</div>';
-      html+=navButton('favorites','Favorites','heart',live.filter(i=>i.favorite).length);
-      html+=navButton('type:bookmark','Links','link',countType('bookmark'));
-      html+=navButton('type:note','Notes','note',countType('note'));
-      html+=navButton('type:checklist','Checklists','checklist',countType('checklist'));
-      html+=navButton('type:image','Images','image',countType('image'));
-      html+=navButton('type:file','Files','file',countType('file'));
-      html+=navButton('untagged','Without tags','tag',live.filter(i=>!i.tags?.length).length);
-      html+='</div>';
-      const tags={};live.forEach(i=>(i.tags||[]).forEach(t=>tags[t]=(tags[t]||0)+1));
-      html+='<div class="nav-group"><div class="nav-caption">Tags</div>';
-      html+=Object.entries(tags).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,16).map(([t,n])=>`<button class="nav-item ${ui.tag===t?'active':''}" data-action="tag" data-tag="${esc(t)}"><span class="nav-icon" style="font-size:17px">#</span><span class="nav-label">${esc(t)}</span><span class="count">${n}</span></button>`).join('');
-      html+='</div>';
-      $('nav-content').innerHTML=html;
-      $('sidebar').classList.toggle('mobile-open',ui.mobile);
-    }
+    const summary = item => item.type==='bookmark'||item.type==='image'||item.type==='file' ? domain(item.url):item.type==='checklist'?`${(item.tasks||[]).filter(t=>t.done).length} of ${(item.tasks||[]).length} complete`:(item.type==='collection'||item.type==='space')?`${members(item.id).length} items`:(item.body||'Note').replace(/\s+/g,' ').slice(0,90);
+    function viewLabel(){
+  if(ui.view==='all')return ['All items','layers'];
+  if(ui.view==='unsorted')return ['Unsorted','inbox'];
+  if(ui.view==='trash')return ['Trash','trash'];
+  if(ui.view==='favorites')return ['Favorites','heart'];
+  if(ui.view==='untagged')return ['Without tags','tag'];
+  if(ui.view.startsWith('type:')){
+    const type=ui.view.slice(5);
+    return [type==='bookmark'?'Links':typeLabel({type})+'s',type];
+  }
+  if(ui.view.startsWith('space:')){
+    const obj=one(ui.view.slice(6));
+    return [obj?.title||'Space','space'];
+  }
+  if(ui.view.startsWith('collection:')){
+    const obj=one(ui.view.slice(11));
+    return [obj?.title||'Collection','folder'];
+  }
+  return ['All items','layers'];
+}
+    function hasLiveParent(item){
+  return (item.collectionIds||[]).some(id=>{
+    const parent=one(id);
+    return parent&&!parent.deleted&&(parent.type==='collection'||parent.type==='space');
+  });
+}
+    function filtered(){
+  let list=items.filter(i=>ui.view==='trash'?i.deleted:!i.deleted);
+  if(ui.view==='unsorted')list=list.filter(i=>i.type!=='space'&&!hasLiveParent(i));
+  else if(ui.view==='favorites')list=list.filter(i=>i.favorite);
+  else if(ui.view==='untagged')list=list.filter(i=>!i.tags?.length);
+  else if(ui.view.startsWith('type:'))list=list.filter(i=>i.type===ui.view.slice(5));
+  else if(ui.view.startsWith('space:'))list=list.filter(i=>i.collectionIds?.includes(ui.view.slice(6)));
+  else if(ui.view.startsWith('collection:'))list=list.filter(i=>i.collectionIds?.includes(ui.view.slice(11)));
+  if(ui.type!=='all')list=list.filter(i=>i.type===ui.type);
+  if(ui.tag)list=list.filter(i=>(i.tags||[]).includes(ui.tag));
+  if(ui.color)list=list.filter(i=>i.color===ui.color);
+  if(ui.search){
+    const query=ui.search.toLowerCase().trim();
+    list=list.filter(i=>[i.title,i.body,i.url,...(i.tags||[]),...(i.tasks||[]).map(t=>t.text)].filter(Boolean).join(' ').toLowerCase().includes(query));
+  }
+  return list.sort((a,b)=>ui.sort==='alpha'?a.title.localeCompare(b.title):ui.sort==='type'?(a.type.localeCompare(b.type)||a.title.localeCompare(b.title)):ui.sort==='oldest'?a.updated.localeCompare(b.updated):b.updated.localeCompare(a.updated));
+}
+
+    function navButton(view,name,ico,total,cls='',extra=''){
+  return `<button class="nav-item ${ui.view===view?'active':''} ${cls}" data-action="nav" data-view="${esc(view)}" ${extra}><span class="nav-icon">${icon(ico)}</span><span class="nav-label">${esc(name)}</span>${total!==null?`<span class="count">${total}</span>`:''}</button>`;
+}
+    function navCollection(item,depth=1,seen=new Set()){
+  if(seen.has(item.id)||depth>9)return '';
+  const visited=new Set([...seen,item.id]);
+  const children=active().filter(i=>i.type==='collection'&&i.collectionIds?.includes(item.id)).sort((a,b)=>a.title.localeCompare(b.title));
+  const indent=Math.min(24+(depth-1)*17,160);
+  return `<div class="folder-row tree-folder">${navButton('collection:'+item.id,item.title,'folder',members(item.id).length,'in-space-tree',`style="padding-left:${indent}px" data-origin="tree" data-drop-collection="${esc(item.id)}" title="Open ${esc(item.title)} · Drop an item to add it"`)}<button class="folder-edit-overlay" data-action="edit" data-id="${esc(item.id)}" title="Edit collection (including Trash)" aria-label="Edit ${esc(item.title)}">${icon('more',15)}</button></div>${children.map(child=>navCollection(child,depth+1,visited)).join('')}`;
+}
+    function navSection(key,label,extra=''){
+  const open=ui.sections[key];
+  return `<div class="nav-caption nav-caption-row"><button class="section-toggle" data-action="toggle-section" data-section="${key}" aria-expanded="${open}" title="${open?'Collapse':'Expand'} ${label}"><span class="section-caret ${open?'open':''}">${icon('chevron-right',14)}</span><span>${label}</span></button>${extra}</div>`;
+}
+    function renderSidebar(){
+  const live=active();
+  const scroll=$('nav-content').scrollTop;
+  let html='<div class="nav-group main-nav">';
+  html+=navButton('all','All items','layers',live.length);
+  html+=navButton('unsorted','Unsorted','inbox',live.filter(i=>i.type!=='space'&&!hasLiveParent(i)).length);
+  html+=navButton('trash','Trash','trash',items.filter(i=>i.deleted).length);
+  html+='</div>';
+  html+='<div class="nav-group">';
+  html+=navSection('bookmarks','Bookmarks');
+  if(ui.sections.bookmarks){
+    const pinned=live.filter(i=>i.pinned).sort((a,b)=>a.title.localeCompare(b.title));
+    html+=pinned.length?pinned.map(i=>{
+      if(i.type==='space'||i.type==='collection'){
+        return navButton(`${i.type}:${i.id}`,i.title,i.type==='space'?'space':'folder',null,'',`data-origin="bookmark" title="Open bookmarked ${esc(i.type)} (without expanding its tree)"`);
+      }
+      return `<button class="nav-item" data-action="open-shortcut" data-id="${esc(i.id)}" title="Open bookmarked ${esc(i.type)}"><span class="nav-icon">${icon(i.type)}</span><span class="nav-label">${esc(i.title)}</span></button>`;
+    }).join(''):'<div class="section-empty">Bookmark an item using the ribbon icon to keep it here.</div>';
+  }
+  html+='</div><div class="nav-group">';
+  html+=navSection('spaces','Spaces',`<button class="section-add" data-action="new-space" title="Create new space" aria-label="Create new space">${icon('plus',14)}</button>`);
+  if(ui.sections.spaces){
+    const spaces=live.filter(i=>i.type==='space').sort((a,b)=>a.title.localeCompare(b.title));
+    html+=spaces.length?spaces.map(sp=>{
+      const expanded=ui.expandedSpace===sp.id;
+      const children=expanded?live.filter(i=>i.type==='collection'&&i.collectionIds?.includes(sp.id)).sort((a,b)=>a.title.localeCompare(b.title)):[];
+      return `<div class="space-row">${navButton('space:'+sp.id,sp.title,'space',null,'space-nav',`data-origin="space" data-drop-collection="${esc(sp.id)}" title="Open ${esc(sp.title)} · Drop an item to add it"`)}<button class="space-expand ${expanded?'expanded':''}" data-action="toggle-space-tree" data-id="${esc(sp.id)}" aria-label="${expanded?'Collapse':'Expand'} ${esc(sp.title)} collections" aria-expanded="${expanded}" title="${expanded?'Collapse':'Expand'} collections">${icon('chevron-right',15)}</button></div>${children.map(c=>navCollection(c,1,new Set([sp.id]))).join('')}`;
+    }).join(''):'<div class="section-empty">Make a space for a broad area of your life.</div>';
+  }
+  html+='</div><div class="nav-group">';
+  html+=navSection('filters','Filters');
+  if(ui.sections.filters){
+    const num=type=>live.filter(i=>i.type===type).length;
+    html+=navButton('favorites','Favorites','heart',live.filter(i=>i.favorite).length);
+    html+=navButton('type:bookmark','Links','link',num('bookmark'));
+    html+=navButton('type:note','Notes','note',num('note'));
+    html+=navButton('type:checklist','Checklists','checklist',num('checklist'));
+    html+=navButton('type:image','Images','image',num('image'));
+    html+=navButton('type:file','Files','file',num('file'));
+    html+=navButton('untagged','Without tags','tag',live.filter(i=>!i.tags?.length).length);
+  }
+  html+='</div><div class="nav-group">';
+  html+=navSection('tags','Tags');
+  if(ui.sections.tags){
+    const tags={};
+    live.forEach(i=>(i.tags||[]).forEach(tag=>tags[tag]=(tags[tag]||0)+1));
+    html+=Object.entries(tags).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(([tag,n])=>
+      `<button class="nav-item tag-text-row ${ui.tag===tag?'active':''}" data-action="tag" data-tag="${esc(tag)}"><span class="nav-label">${esc(tag)}</span><span class="count">${n}</span></button>`
+    ).join('')||'<div class="section-empty">Tags you add will appear here.</div>';
+  }
+  html+='</div>';
+  $('nav-content').innerHTML=html;
+  $('nav-content').scrollTop=scroll;
+  $('sidebar').classList.toggle('mobile-open',ui.mobile);
+}
+
     function makeThumb(i){
       if(i.type==='bookmark'){
         if(i.thumb==='donetick') return `<div class="card-image brand-donetick"><div class="donetick-page"><div class="donetick-face">ᴗ</div><div class="donetick-lines"></div></div></div>`;
@@ -418,13 +549,17 @@
         const tasks=i.tasks||[],done=tasks.filter(t=>t.done).length;
         return `<div class="card-image thumb-checklist" style="--accent:${palettes[i.color]||palettes.blue}"><div class="check-sheet"><div class="check-head">${esc(i.title)}</div>${tasks.slice(0,4).map(t=>`<div class="check-row ${t.done?'done':''}"><span class="check-box">${t.done?'✓':''}</span><span>${esc(t.text)}</span></div>`).join('')}<div class="check-progress"><div style="width:${tasks.length?done/tasks.length*100:0}%"></div></div></div></div>`;
       }
+      if(i.type==='space')return `<div class="card-image thumb-space"><div class="space-hero">${icon('space',94)}</div><div class="space-caption">SPACE · ${members(i.id).length} items</div></div>`;
       if(i.type==='collection')return `<div class="card-image thumb-collection"><div class="folder-hero">${icon('folder',100)}</div><div class="folder-number">${members(i.id).length} items</div></div>`;
       if(i.type==='image') return `<div class="card-image thumb-image">${i.url&&/^https?:\/\//i.test(i.url)?`<img src="${esc(i.url)}" alt="" loading="lazy" onerror="this.style.display='none'"/>`:''}<div class="art-sun"></div><div class="art-hill"></div><div class="art-hill two"></div></div>`;
       return `<div class="card-image thumb-file" style="--accent:${palettes[i.color]||palettes.slate}"><div class="file-drawing"><div class="file-ext">${esc((i.title.split('.').pop()||'FILE').slice(0,6).toUpperCase())}</div></div></div>`;
     }
-    function card(i) {
-      return `<article class="item-card" tabindex="0" role="button" aria-label="Open ${esc(i.title)}" draggable="${ui.view==='trash'?'false':'true'}" data-item-id="${esc(i.id)}" data-action="open-item"><div class="card-tools"><button class="card-tool" data-action="favorite" data-id="${esc(i.id)}" title="${i.favorite?'Remove from favorites':'Add to favorites'}" aria-label="Favorite">${icon('heart',15)}</button><button class="card-tool" data-action="edit" data-id="${esc(i.id)}" title="Edit item" aria-label="Edit">${icon('pencil',15)}</button></div>${makeThumb(i)}<div class="card-title-row"><div class="card-title">${esc(i.title)}</div>${i.favorite?`<span class="card-fave">${icon('heart',14)}</span>`:''}</div><div class="card-sub">${esc(summary(i)||typeLabel(i))}</div></article>`;
-    }
+    function card(i){
+  const pinButton=`<button class="card-tool ${i.pinned?'pinned':''}" data-action="toggle-pin" data-id="${esc(i.id)}" title="${i.pinned?'Remove from sidebar bookmarks':'Bookmark in sidebar'}" aria-label="${i.pinned?'Remove bookmark':'Bookmark'}">${icon('bookmark',15)}</button>`;
+  const trashButton=(i.type==='collection'||i.type==='space')&&!i.deleted?`<button class="card-tool" data-action="trash" data-id="${esc(i.id)}" title="Move ${esc(i.type)} to Trash" aria-label="Move to Trash">${icon('trash',15)}</button>`:'';
+  return `<article class="item-card" tabindex="0" role="button" aria-label="Open ${esc(i.title)}" draggable="${ui.view==='trash'?'false':'true'}" data-item-id="${esc(i.id)}" data-action="open-item"><div class="card-tools">${ui.view==='trash'?'':pinButton+`<button class="card-tool" data-action="favorite" data-id="${esc(i.id)}" title="${i.favorite?'Remove from favorites':'Add to favorites'}" aria-label="Favorite">${icon('heart',15)}</button>`+trashButton}<button class="card-tool" data-action="edit" data-id="${esc(i.id)}" title="Edit item" aria-label="Edit">${icon('pencil',15)}</button></div>${makeThumb(i)}<div class="card-title-row"><div class="card-title">${esc(i.title)}</div>${i.pinned?`<span class="card-pinned" title="Bookmarked">${icon('bookmark',13)}</span>`:''}${i.favorite?`<span class="card-fave">${icon('heart',14)}</span>`:''}</div><div class="card-sub">${esc(summary(i)||typeLabel(i))}</div></article>`;
+}
+
     function listCard(i) {return `<div class="list-card" tabindex="0" role="button" draggable="${ui.view==='trash'?'false':'true'}" data-item-id="${esc(i.id)}" data-action="open-item"><div class="list-thumb" style="color:${palettes[i.color]||'#aab'}">${icon(i.type,22)}</div><div style="min-width:0"><div class="list-title">${esc(i.title)} ${i.favorite?'<span style="color:#d78a95">♥</span>':''}</div><div class="list-desc">${esc(typeLabel(i))} · ${esc(summary(i))}</div></div><div class="list-spacer"></div><div class="list-date">${friendlyDate(i.updated)}</div></div>`;}
     function renderContent(){
       const [title,ico]=viewLabel(),list=filtered();
@@ -436,7 +571,7 @@
       const chips=[];
       if(ui.search)chips.push(`<button class="chip-clear" data-action="clear-search">Search: ${esc(ui.search)} ×</button>`);
       if(ui.type!=='all')chips.push(`<button class="chip-clear" data-action="clear-type">${esc(types[ui.type])} ×</button>`);
-      if(ui.tag)chips.push(`<button class="chip-clear" data-action="clear-tag">#${esc(ui.tag)} ×</button>`);
+      if(ui.tag)chips.push(`<button class="chip-clear" data-action="clear-tag">${esc(ui.tag)} ×</button>`);
       if(ui.color)chips.push(`<button class="chip-clear" data-action="clear-color"><span class="color-dot" style="background:${palettes[ui.color]}"></span>${esc(ui.color)} ×</button>`);
       $('active-filters').innerHTML=chips.length?`<div class="active-chips">${chips.join('')}</div>`:'';
       if(!list.length) { $('content').innerHTML=`<div class="empty-state"><div class="empty-graphic">${icon(ui.search?'search':'folder',34)}</div><div class="empty-title">${ui.search||ui.type!=='all'||ui.tag||ui.color?'Nothing matches yet':ui.view==='trash'?'Trash is empty':'Nothing here yet'}</div><div class="empty-copy">${ui.search||ui.type!=='all'||ui.tag||ui.color?'Try clearing a filter or using a different search.':'Every item has a place here. Create something, or drag an existing card onto this collection in the sidebar.'}</div>${ui.search||ui.type!=='all'||ui.tag||ui.color?'<button data-action="clear-filters">Clear filters</button>':'<button data-action="toggle-create">Add an item</button>'}</div>`;return; }
@@ -452,7 +587,7 @@
       html+='</div><div class="filter-label">Tag</div><div class="filter-choices">';
       const tags=[...new Set(active().flatMap(i=>i.tags||[]))].sort();
       html+=`<button class="filter-pill ${ui.tag===''?'active':''}" data-action="filter-tag" data-tag="">Any tag</button>`;
-      html+=tags.map(tag=>`<button class="filter-pill ${ui.tag===tag?'active':''}" data-action="filter-tag" data-tag="${esc(tag)}">#${esc(tag)}</button>`).join('');
+      html+=tags.map(tag=>`<button class="filter-pill ${ui.tag===tag?'active':''}" data-action="filter-tag" data-tag="${esc(tag)}">${esc(tag)}</button>`).join('');
       html+='</div><button class="pop-item" style="margin-top:4px" data-action="clear-filters">'+icon('x',14)+' Clear filters</button>';
       $('filter-popover').innerHTML=html;
     }
@@ -460,93 +595,169 @@
       $('create-popover').innerHTML=Object.entries(types).map(([t,name])=>`<button class="pop-item" data-action="new" data-type="${t}">${icon(t)}<span>${name}</span></button>`).join('')+'<div class="pop-divider"></div><button class="pop-item" data-action="import">'+icon('archive')+'<span>Import JSON backup</span></button>';
     }
     function renderDetail(){
-      const panel=$('detail'); const item=one(ui.detail);
-      if(!item){panel.classList.remove('open');panel.innerHTML='';return;}
-      const tags=(item.tags||[]).map(t=>`<span class="detail-chip">#${esc(t)}</span>`).join('')||'<span class="small-muted">No tags yet</span>';
-      const collections=(item.collectionIds||[]).map(id=>one(id)).filter(i=>i&&!i.deleted).map(i=>`<button class="detail-chip" data-action="nav" data-view="collection:${esc(i.id)}">${icon('folder',12)} ${esc(i.title)}</button>`).join('')||'<span class="small-muted">Unsorted</span>';
-      let body='';
-      if(item.type==='bookmark'||item.type==='file'||item.type==='image')body=`${item.url?`<a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer" style="display:block;overflow-wrap:anywhere;font-size:12px;margin:12px 0">${esc(item.url)}</a>`:'<p class="small-muted">No URL added.</p>'}${item.body?`<div class="detail-content">${esc(item.body)}</div>`:''}${item.url?`<div class="detail-buttons"><a class="detail-btn primary" href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${icon('external-link')} Open ${item.type==='bookmark'?'link':'file'}</a></div>`:''}`;
-      if(item.type==='note')body=`<div class="detail-content">${esc(item.body||'Nothing written yet.')}</div>`;
-      if(item.type==='collection')body=`<p class="detail-content">${members(item.id).length} items belong to this collection. Collections can include notes, bookmarks, checklists, files and other collections.</p><div class="detail-buttons"><button class="detail-btn primary" data-action="nav" data-view="collection:${esc(item.id)}">${icon('folder')} Open collection</button></div>`;
-      if(item.type==='checklist'){
-        const tasks=item.tasks||[],done=tasks.filter(t=>t.done).length;
-        body=`<div class="task-counter">${done} of ${tasks.length} completed · ${tasks.length?Math.round(done/tasks.length*100):0}%</div>${tasks.map((t,idx)=>`<label class="detail-checkline ${t.done?'done':''}"><input type="checkbox" data-action="toggle-task" data-id="${esc(item.id)}" data-index="${idx}" ${t.done?'checked':''}/><span>${esc(t.text)}</span></label>`).join('')}<input class="new-task-input" id="add-task" aria-label="Add task" placeholder="+ Add an item and press Enter" data-id="${esc(item.id)}"/>`;
-      }
-      panel.innerHTML=`<div class="detail-top"><span class="detail-type">${icon(item.type,17)} ${typeLabel(item)}</span><span class="grow"></span><button class="icon-btn" data-action="favorite" data-id="${esc(item.id)}" title="${item.favorite?'Unfavorite':'Favorite'}" style="${item.favorite?'color:#f198a1':''}" aria-label="Toggle favorite">${icon('heart')}</button><button class="icon-btn" data-action="edit" data-id="${esc(item.id)}" title="Edit item" aria-label="Edit">${icon('pencil')}</button><button class="icon-btn" data-action="close-detail" title="Close" aria-label="Close">${icon('x')}</button></div><div class="detail-body"><div class="detail-hero">${makeThumb(item)}</div><div class="detail-title">${esc(item.title)}</div>${body}<div class="detail-section"><h3>Collections</h3><div class="detail-chips">${collections}</div></div><div class="detail-section"><h3>Tags</h3><div class="detail-chips">${tags}</div></div><div class="detail-section"><h3>Details</h3><div class="detail-info">Updated ${friendlyDate(item.updated)} · ${esc(item.color||'slate')} color<br>Stored in this browser only</div></div><div class="detail-buttons"><button class="detail-btn" data-action="edit" data-id="${esc(item.id)}">${icon('pencil')} Edit</button>${item.deleted?`<button class="detail-btn" data-action="restore" data-id="${esc(item.id)}">${icon('rotate')} Restore</button><button class="detail-btn" data-action="purge" data-id="${esc(item.id)}">${icon('trash')} Delete forever</button>`:`<button class="detail-btn" data-action="trash" data-id="${esc(item.id)}">${icon('trash')} Move to trash</button>`}</div></div>`;
-      panel.classList.add('open');
-    }
+  const panel=$('detail'),item=one(ui.detail);
+  if(!item){panel.classList.remove('open');panel.innerHTML='';return;}
+  const tags=(item.tags||[]).map(t=>`<span class="detail-chip">${esc(t)}</span>`).join('')||'<span class="small-muted">No tags yet</span>';
+  const collections=(item.collectionIds||[]).map(id=>one(id)).filter(i=>i&&!i.deleted).map(i=>`<button class="detail-chip" data-action="nav" data-view="${i.type==='space'?'space':'collection'}:${esc(i.id)}">${icon(i.type==='space'?'space':'folder',12)} ${esc(i.title)}</button>`).join('')||'<span class="small-muted">Unsorted</span>';
+  let body='';
+  if(['bookmark','file','image'].includes(item.type)){
+    body=`${item.url?`<a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer" style="display:block;overflow-wrap:anywhere;font-size:12px;margin:12px 0">${esc(item.url)}</a>`:'<p class="small-muted">No URL added.</p>'}${item.body?`<div class="detail-content">${esc(item.body)}</div>`:''}${item.url?`<div class="detail-buttons"><a class="detail-btn primary" href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${icon('external-link')} Open ${item.type==='bookmark'?'link':'file'}</a></div>`:''}`;
+  }
+  if(item.type==='note')body=`<div class="detail-content">${esc(item.body||'Nothing written yet.')}</div>`;
+  if(item.type==='collection'||item.type==='space'){
+    body=`<p class="detail-content">${members(item.id).length} items belong to this ${item.type}. ${item.type==='space'?'Spaces are broad areas; their collections appear beneath them in the sidebar.':'Collections can hold links, notes, checklists, files and other collections.'}</p>${item.deleted?'':`<div class="detail-buttons"><button class="detail-btn primary" data-action="nav" data-view="${item.type}:${esc(item.id)}">${icon(item.type==='space'?'space':'folder')} Open ${item.type}</button></div>`}`;
+  }
+  if(item.type==='checklist'){
+    const tasks=item.tasks||[],done=tasks.filter(t=>t.done).length;
+    body=`<div class="task-counter">${done} of ${tasks.length} completed · ${tasks.length?Math.round(done/tasks.length*100):0}%</div>${tasks.map((t,idx)=>`<label class="detail-checkline ${t.done?'done':''}"><input type="checkbox" data-action="toggle-task" data-id="${esc(item.id)}" data-index="${idx}" ${t.done?'checked':''}/><span>${esc(t.text)}</span></label>`).join('')}<input class="new-task-input" id="add-task" aria-label="Add task" placeholder="+ Add an item and press Enter" data-id="${esc(item.id)}"/>`;
+  }
+  panel.innerHTML=`<div class="detail-top"><span class="detail-type">${icon(item.type,17)} ${typeLabel(item)}</span><span class="grow"></span>${item.deleted?'':`<button class="icon-btn" data-action="toggle-pin" data-id="${esc(item.id)}" title="${item.pinned?'Remove sidebar bookmark':'Bookmark in sidebar'}" style="${item.pinned?'color:#c3b3f5':''}" aria-label="Bookmark">${icon('bookmark')}</button><button class="icon-btn" data-action="favorite" data-id="${esc(item.id)}" title="${item.favorite?'Unfavorite':'Favorite'}" style="${item.favorite?'color:#f198a1':''}" aria-label="Toggle favorite">${icon('heart')}</button>`}<button class="icon-btn" data-action="edit" data-id="${esc(item.id)}" title="Edit item" aria-label="Edit">${icon('pencil')}</button><button class="icon-btn" data-action="close-detail" title="Close" aria-label="Close">${icon('x')}</button></div><div class="detail-body"><div class="detail-hero">${makeThumb(item)}</div><div class="detail-title">${esc(item.title)}</div>${body}<div class="detail-section"><h3>Collections &amp; spaces</h3><div class="detail-chips">${collections}</div></div><div class="detail-section"><h3>Tags</h3><div class="detail-chips">${tags}</div></div><div class="detail-section"><h3>Details</h3><div class="detail-info">Updated ${friendlyDate(item.updated)} · ${esc(item.color||'slate')} color<br>Stored in this browser only</div></div><div class="detail-buttons"><button class="detail-btn" data-action="edit" data-id="${esc(item.id)}">${icon('pencil')} Edit</button>${item.deleted?`<button class="detail-btn" data-action="restore" data-id="${esc(item.id)}">${icon('rotate')} Restore</button><button class="detail-btn" data-action="purge" data-id="${esc(item.id)}">${icon('trash')} Delete forever</button>`:`<button class="detail-btn" data-action="trash" data-id="${esc(item.id)}">${icon('trash')} Move to Trash</button>`}</div></div>`;
+  panel.classList.add('open');
+}
+
     function render(){renderSidebar();renderContent();renderDetail();renderFilterPopover();renderCreatePopover();$('filter-button').classList.toggle('selected',!!(ui.tag||ui.color||ui.type!=='all'));}
     let toastTimeout;
     function toast(message){const e=$('toast');e.textContent=message;e.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>e.classList.remove('show'),2400)}
-    function setView(view){ui.view=view;ui.mobile=false;ui.detail=null;ui.createOpen=false;ui.filterOpen=false;closeMenus();render();$('main').scrollTop=0;}
+    function findSpaceAncestor(id,seen=new Set()){
+  if(seen.has(id))return null;
+  seen.add(id);
+  const item=one(id);
+  if(!item)return null;
+  if(item.type==='space')return item.deleted?null:item.id;
+  for(const parentId of (item.collectionIds||[])){
+    const parent=one(parentId);
+    if(!parent||parent.deleted)continue;
+    const match=findSpaceAncestor(parentId,seen);
+    if(match)return match;
+  }
+  return null;
+}
+    function setView(view,origin=''){
+  ui.view=view;
+  if(origin!=='bookmark'){
+    if(view.startsWith('space:'))ui.expandedSpace=view.slice(6);
+    else if(view.startsWith('collection:')){
+      const parentSpace=findSpaceAncestor(view.slice(11));
+      if(parentSpace)ui.expandedSpace=parentSpace;
+    }
+  }
+  ui.mobile=false;ui.detail=null;ui.createOpen=false;ui.filterOpen=false;
+  closeMenus();render();$('main').scrollTop=0;
+}
+
     function closeMenus(){$('create-popover').classList.remove('open');$('filter-popover').classList.remove('open');ui.createOpen=false;ui.filterOpen=false;}
     function positionPopover(id,button){const pop=$(id),r=button.getBoundingClientRect(); const left=Math.max(8,Math.min(window.innerWidth-(id==='filter-popover'?295:220),r.left-pop.offsetWidth+button.offsetWidth));pop.style.top=Math.min(window.innerHeight-360,r.bottom+7)+'px';pop.style.left=left+'px';}
     function toggleMenu(id,button){const open=!$(id).classList.contains('open');closeMenus();if(open){$(id).classList.add('open');positionPopover(id,button)} }
-    function openEditor(type,id=null,group=null){
-      closeMenus();const item=id?one(id):null;
-      ui.editor={id,type:item?.type||type,group:group||'Collections'};
-      const current=item||{title:'',url:'',body:'',tasks:[],tags:[],collectionIds:[],color:type==='checklist'?'blue':'slate',favorite:false,group:group||'Collections'};
-      let contents=`<div class="field"><label for="f-title">${type==='collection'?'Collection name':'Title'}</label><input required autofocus id="f-title" name="title" class="text-field" maxlength="200" placeholder="${type==='collection'?'Name this collection':'Give it a name'}" value="${esc(current.title)}" /></div>`;
-      if(['bookmark','image','file'].includes(type))contents+=`<div class="field"><label for="f-url">${type==='bookmark'?'URL':type==='image'?'Image URL':'File URL or path'}</label><input id="f-url" name="url" class="text-field" type="text" placeholder="https://…" value="${esc(current.url||'')}"/><small>${type==='file'?'This first prototype stores file references, not uploaded files.':type==='image'?'Use a direct image URL to display its thumbnail.':'The link opens in a new browser tab.'}</small></div>`;
-      if(type==='note')contents+=`<div class="field"><label for="f-body">Note</label><textarea id="f-body" name="body" class="text-area" style="min-height:190px" placeholder="Write anything…">${esc(current.body)}</textarea></div>`;
-      if(type==='checklist')contents+=`<div class="field"><label for="f-tasks">Checklist items</label><textarea id="f-tasks" name="tasks" class="text-area" style="min-height:165px" placeholder="One item per line">${esc((current.tasks||[]).map(t=>(t.done?'[x] ':'[ ] ')+t.text).join('\n'))}</textarea><small>One task per line. Use [x] for completed, [ ] for incomplete.</small></div>`;
-      if(type==='collection')contents+=`<div class="field"><label for="f-group">Sidebar section</label><select class="text-field" id="f-group" name="group">${['Collections','Work','Personal'].map(g=>`<option value="${g}" ${current.group===g?'selected':''}>${g}</option>`).join('')}</select></div>`;
-      else if(type==='bookmark'||type==='image'||type==='file')contents+=`<div class="field"><label for="f-body">Description (optional)</label><textarea id="f-body" name="body" class="text-area" style="min-height:75px" placeholder="Why save this?">${esc(current.body||'')}</textarea></div>`;
-      if(type!=='collection')contents+=`<div class="field"><label for="f-tags">Tags</label><input id="f-tags" name="tags" class="text-field" placeholder="design, research, personal" value="${esc((current.tags||[]).join(', '))}"/><small>Separate tags with commas. Tags work across every collection.</small></div>`;
-      if(type==='collection')contents+=`<div class="field"><label>Parent collections (optional)</label><div class="choice-grid">${collectionChoices(current,id)}</div><small>Collections can hold other collections.</small></div>`;
-      else contents+=`<div class="field"><label>Add to collections (optional)</label><div class="choice-grid">${collectionChoices(current,id)}</div><small>One item can appear in several collections. Dropping a card onto a folder adds it there, too.</small></div>`;
-      contents+=`<div class="field"><label>Color</label><div class="choice-grid" role="radiogroup" aria-label="Choose a color">${Object.entries(palettes).map(([name,color])=>`<label title="${name}" class="color-choice ${current.color===name?'selected':''}" style="background:${color}"><input type="radio" name="color" value="${name}" ${current.color===name?'checked':''} style="position:absolute;opacity:0;width:0;height:0"/></label>`).join('')}</div></div>`;
-      contents+=`<div class="field"><label class="choice-check" style="display:inline-flex"><input name="favorite" type="checkbox" ${current.favorite?'checked':''}/> Add to favorites</label></div>`;
-      $('modal-content').innerHTML=contents;
-      $('modal-title').textContent=`${id?'Edit':'New'} ${typeLabel({type}).toLowerCase()}`;
-      $('modal-hint').textContent='Changes are stored locally';
-      $('scrim').classList.add('open');
-      setTimeout(()=>$('f-title')?.focus(),10);
-    }
+    function openEditor(type,id=null){
+  closeMenus();
+  const existing=id?one(id):null;
+  const kind=existing?.type||type;
+  ui.editor={id,type:kind};
+  const current=existing||{title:'',url:'',body:'',tasks:[],tags:[],collectionIds:[],color:kind==='checklist'?'blue':'slate',favorite:false,pinned:false};
+  let contents=`<div class="field"><label for="f-title">${kind==='space'?'Space name':kind==='collection'?'Collection name':'Title'}</label><input required autofocus id="f-title" name="title" class="text-field" maxlength="200" placeholder="${kind==='space'?'Name this space':kind==='collection'?'Name this collection':'Give it a name'}" value="${esc(current.title)}"/></div>`;
+  if(['bookmark','image','file'].includes(kind))contents+=`<div class="field"><label for="f-url">${kind==='bookmark'?'URL':kind==='image'?'Image URL':'File URL or path'}</label><input id="f-url" name="url" class="text-field" type="text" placeholder="https://…" value="${esc(current.url||'')}"/><small>${kind==='file'?'This prototype stores file references, not uploaded files.':kind==='image'?'Use a direct image URL to display its thumbnail.':'The link opens in a new tab.'}</small></div>`;
+  if(kind==='note')contents+=`<div class="field"><label for="f-body">Note</label><textarea id="f-body" name="body" class="text-area" style="min-height:190px" placeholder="Write anything…">${esc(current.body)}</textarea></div>`;
+  if(kind==='checklist')contents+=`<div class="field"><label for="f-tasks">Checklist items</label><textarea id="f-tasks" name="tasks" class="text-area" style="min-height:165px" placeholder="One item per line">${esc((current.tasks||[]).map(t=>(t.done?'[x] ':'[ ] ')+t.text).join('\n'))}</textarea><small>One item per line. Use [x] for completed, [ ] for incomplete.</small></div>`;
+  if(['bookmark','image','file'].includes(kind))contents+=`<div class="field"><label for="f-body">Description (optional)</label><textarea id="f-body" name="body" class="text-area" style="min-height:75px" placeholder="Why save this?">${esc(current.body||'')}</textarea></div>`;
+  if(kind!=='space')contents+=`<div class="field"><label>${kind==='collection'?'Inside (optional)':'In spaces or collections (optional)'}</label><div class="choice-grid">${collectionChoices(current,id)}</div><small>${kind==='collection'?'You can nest collections inside spaces or other collections.':'You can add an item to a space directly or to one or more collections.'}</small></div>`;
+  contents+=`<div class="field"><label for="f-tags">Tags</label><input id="f-tags" name="tags" class="text-field" placeholder="design, research, personal" value="${esc((current.tags||[]).join(', '))}"/><small>Separate with commas. Tags work across every space and collection.</small></div>`;
+  contents+=`<div class="field"><label>Color</label><div class="choice-grid" role="radiogroup" aria-label="Choose a color">${Object.entries(palettes).map(([name,color])=>`<label title="${name}" class="color-choice ${current.color===name?'selected':''}" style="background:${color}"><input type="radio" name="color" value="${name}" ${current.color===name?'checked':''} style="position:absolute;opacity:0;width:0;height:0"/></label>`).join('')}</div></div>`;
+  contents+=`<div class="field"><label class="choice-check" style="display:inline-flex"><input name="pinned" type="checkbox" ${current.pinned?'checked':''}/> ${icon('bookmark',15)} Bookmark in sidebar</label></div>`;
+  contents+=`<div class="field"><label class="choice-check" style="display:inline-flex"><input name="favorite" type="checkbox" ${current.favorite?'checked':''}/> ${icon('heart',15)} Add to favorites</label></div>`;
+  $('modal-content').innerHTML=contents;
+  $('modal-title').textContent=`${id?'Edit':'New'} ${typeLabel({type:kind}).toLowerCase()}`;
+  $('modal-hint').textContent='Changes are stored locally';
+  $('editor-trash').hidden=!(id&&(kind==='collection'||kind==='space')&&!current.deleted);
+  $('scrim').classList.add('open');
+  setTimeout(()=>$('f-title')?.focus(),10);
+}
     function collectionChoices(current,id){
-      const list=active().filter(i=>i.type==='collection'&&i.id!==id&&!isDescendant(i.id,id||'_none_'));
-      if(!list.length)return '<span class="small-muted">No collections available.</span>';
-      const selected=current.collectionIds?.length?current.collectionIds:(!id&&ui.view.startsWith('collection:')?[ui.view.slice(11)]:[]);
-      return list.map(i=>`<label class="choice-check"><input type="checkbox" name="collections" value="${esc(i.id)}" ${selected.includes(i.id)?'checked':''}/>${icon('folder',14)}<span>${esc(i.title)}</span></label>`).join('');
-    }
+  const candidates=active().filter(i=>(i.type==='collection'||i.type==='space')&&i.id!==id&&(i.type!=='collection'||!isDescendant(i.id,id||'_none_')));
+  if(!candidates.length)return '<span class="small-muted">No spaces or collections yet.</span>';
+  const selected=current.collectionIds?.length?current.collectionIds:(!id&&ui.view.startsWith('collection:')?[ui.view.slice(11)]:!id&&ui.view.startsWith('space:')?[ui.view.slice(6)]:[]);
+  const group=(title,kind)=>{
+    const available=candidates.filter(i=>i.type===kind).sort((a,b)=>a.title.localeCompare(b.title));
+    return available.length?`<div class="choice-heading">${title}</div>${available.map(i=>`<label class="choice-check"><input type="checkbox" name="collections" value="${esc(i.id)}" ${selected.includes(i.id)?'checked':''}/>${icon(kind==='space'?'space':'folder',14)}<span>${esc(i.title)}</span></label>`).join('')}`:'';
+  };
+  return group('Spaces','space')+group('Collections','collection');
+}
+
     function normalizeUrl(s){let val=s.trim();if(val && !/^[a-z][a-z\d+.-]*:/i.test(val) && !val.startsWith('/') && !val.startsWith('./')) val='https://'+val;return val;}
     function safeUrl(s) {const val=normalizeUrl(s); if(!val)return ''; if(/^https?:\/\//i.test(val))return val; if(val.startsWith('./')||val.startsWith('/'))return val;return '';}
     function parseTasks(raw,old=[]){return raw.split('\n').map(t=>t.trim()).filter(Boolean).map(rawline=>{const m=rawline.match(/^\[([xX ])\]\s*(.*)$/);const text=(m?m[2]:rawline).trim();const existing=old.find(t=>t.text===text);return {text,done:m?m[1].toLowerCase()==='x':existing?.done||false}}).filter(t=>t.text);}
     function saveEditor(e){
-      e.preventDefault();const form=e.target, data=new FormData(form), ctx=ui.editor;if(!ctx)return;
-      const title=String(data.get('title')||'').trim();if(!title){$('f-title').focus();return;}
-      const original=ctx.id?one(ctx.id):null;
-      let url=['bookmark','image','file'].includes(ctx.type)?safeUrl(String(data.get('url')||'')):'';
-      if(['bookmark','image','file'].includes(ctx.type) && String(data.get('url')||'').trim()&&!url){toast('Please use an http(s) URL or a relative file path.');return;}
-      const cols=data.getAll('collections').filter(x=>one(x)&&x!==ctx.id);
-      const item=original||{id:key(),type:ctx.type,created:new Date().toISOString(),deleted:false,thumb:'',group:ctx.group};
-      item.title=title;item.url=url;item.body=String(data.get('body')||'');item.tasks=ctx.type==='checklist'?parseTasks(String(data.get('tasks')||''),original?.tasks||[]):[];
-      item.tags=ctx.type==='collection'?[]:[...new Set(String(data.get('tags')||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean))];
-      item.collectionIds=cols;item.favorite=!!data.get('favorite');item.color=String(data.get('color')||'slate');
-      if(ctx.type==='collection')item.group=String(data.get('group')||'Collections');
-      item.updated=new Date().toISOString();
-      if(!original)items.unshift(item);
-      persist();$('scrim').classList.remove('open');ui.editor=null;ui.detail=item.id;render();toast(original?'Item updated':'Item created');
-    }
-    function editFavorite(id){const i=one(id);if(!i)return;i.favorite=!i.favorite;i.updated=new Date().toISOString();persist();render();}
-    function putInTrash(id){const i=one(id);if(!i)return;i.deleted=true;i.updated=new Date().toISOString();ui.detail=null;persist();render();toast('Moved to Trash');}
+  e.preventDefault();const form=e.target,data=new FormData(form),ctx=ui.editor;
+  if(!ctx)return;
+  const title=String(data.get('title')||'').trim();
+  if(!title){$('f-title').focus();return;}
+  const original=ctx.id?one(ctx.id):null;
+  const url=['bookmark','image','file'].includes(ctx.type)?safeUrl(String(data.get('url')||'')):'';
+  if(['bookmark','image','file'].includes(ctx.type)&&String(data.get('url')||'').trim()&&!url){toast('Please use an http(s) URL or a relative file path.');return;}
+  const cols=ctx.type==='space'?[]:data.getAll('collections').filter(x=>{
+    const p=one(x);return p&&!p.deleted&&(p.type==='collection'||p.type==='space')&&x!==ctx.id;
+  });
+  const item=original||{id:key(),type:ctx.type,created:new Date().toISOString(),deleted:false,thumb:'',group:''};
+  item.title=title;item.url=url;item.body=String(data.get('body')||'');
+  item.tasks=ctx.type==='checklist'?parseTasks(String(data.get('tasks')||''),original?.tasks||[]):[];
+  item.tags=[...new Set(String(data.get('tags')||'').split(',').map(t=>t.trim().toLowerCase()).filter(Boolean))];
+  item.collectionIds=cols;item.favorite=!!data.get('favorite');item.pinned=!!data.get('pinned');item.color=String(data.get('color')||'slate');
+  item.updated=new Date().toISOString();
+  if(!original)items.unshift(item);
+  persist();$('scrim').classList.remove('open');ui.editor=null;ui.detail=item.id;render();
+  toast(original?'Item updated':'Item created');
+}
+
+    function editFavorite(id){
+  const item=one(id);if(!item)return;
+  item.favorite=!item.favorite;item.updated=new Date().toISOString();persist();render();
+}
+    function togglePinned(id){
+  const item=one(id);if(!item||item.deleted)return;
+  item.pinned=!item.pinned;item.updated=new Date().toISOString();persist();render();
+  toast(item.pinned?'Added to sidebar Bookmarks':'Removed from sidebar Bookmarks');
+}
+
+    function putInTrash(id){
+  const item=one(id);if(!item||item.deleted)return;
+  item.deleted=true;item.updated=new Date().toISOString();ui.detail=null;
+  if(ui.view===item.type+':'+id)ui.view='unsorted';
+  if(ui.expandedSpace===id)ui.expandedSpace=null;
+  persist();render();
+  toast(item.type==='collection'||item.type==='space'?'Moved to Trash; contents are preserved.':'Moved to Trash');
+}
+
     function restore(id){const i=one(id);if(!i)return;i.deleted=false;i.updated=new Date().toISOString();persist();render();toast('Item restored');}
     function purge(id){const i=one(id);if(!i)return;if(!confirm(`Delete “${i.title}” permanently?`))return;items=items.filter(x=>x.id!==id);items.forEach(x=>x.collectionIds=x.collectionIds.filter(c=>c!==id));ui.detail=null;persist();render();toast('Deleted permanently');}
-    function exportData(){const blob=new Blob([JSON.stringify({version:1,exported:new Date().toISOString(),items},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='shelf-library-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('Backup exported');}
-    function importData(){const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.addEventListener('change',async()=>{const file=input.files?.[0];if(!file)return;try{const json=JSON.parse(await file.text());if(!Array.isArray(json.items)||json.items.some(i=>!i.id||!i.type||!i.title||!Array.isArray(i.collectionIds)))throw Error('Invalid backup');if(!confirm(`Replace your current library with ${json.items.length} imported items? Export a backup first if needed.`))return;items=json.items;ui.detail=null;setView('all');persist();render();toast('Library imported');}catch(e){alert('Could not import this file. Please select a Shelf JSON backup.');}});input.click();}
-    function dropOnCollection(itemId,collectionId){const item=one(itemId),folder=one(collectionId);if(!item||!folder||item.id===folder.id)return;if(item.type==='collection'&&isDescendant(collectionId,item.id))return toast('A collection cannot contain itself or its ancestor.');if(item.collectionIds.includes(collectionId))return toast('Already in that collection');item.collectionIds.push(collectionId);item.updated=new Date().toISOString();persist();render();toast(`Added to ${folder.title}`);}
+    function exportData(){const blob=new Blob([JSON.stringify({version:2,exported:new Date().toISOString(),items},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='shelf-library-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('Backup exported');}
+    function importData(){const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.addEventListener('change',async()=>{const file=input.files?.[0];if(!file)return;try{const json=JSON.parse(await file.text());if(!Array.isArray(json.items)||json.items.some(i=>!i.id||!i.type||!i.title||!Array.isArray(i.collectionIds)))throw Error('Invalid backup');if(!confirm(`Replace your current library with ${json.items.length} imported items? Export a backup first if needed.`))return;items=adaptLibrary(json.items);ui.detail=null;setView('all');persist();render();toast('Library imported');}catch(e){alert('Could not import this file. Please select a Shelf JSON backup.');}});input.click();}
+    function dropOnCollection(itemId,collectionId){
+  const item=one(itemId),folder=one(collectionId);
+  if(!item||!folder||item.deleted||folder.deleted||item.id===folder.id)return;
+  if(item.type==='space'||!['collection','space'].includes(folder.type))return toast('Spaces cannot be moved into other containers.');
+  if(item.type==='collection'&&isDescendant(collectionId,item.id))return toast('A collection cannot contain itself or a parent.');
+  if(item.collectionIds.includes(collectionId))return toast('Already in this location');
+  item.collectionIds.push(collectionId);item.updated=new Date().toISOString();
+  persist();render();toast(`Added to ${folder.title}`);
+}
+
     document.addEventListener('click',e=>{
       const el=e.target.closest('[data-action]');if(!el){if(!e.target.closest('.popover'))closeMenus();return;}
       const action=el.dataset.action,id=el.dataset.id;
-      if(['favorite','edit','close-detail','trash','restore','purge'].includes(action))e.stopPropagation();
+      if(['favorite','toggle-pin','edit','close-detail','trash','restore','purge','editor-trash','toggle-space-tree'].includes(action))e.stopPropagation();
       switch(action){
-        case 'nav':setView(el.dataset.view);break;
+        case 'nav':setView(el.dataset.view,el.dataset.origin||'');break;
+        case 'toggle-section':ui.sections[el.dataset.section]=!ui.sections[el.dataset.section];renderSidebar();break;
+        case 'toggle-space-tree':ui.expandedSpace=ui.expandedSpace===id?null:id;renderSidebar();break;
+        case 'new-space':openEditor('space');break;
+        case 'open-shortcut':{const target=one(id);if(target){ui.detail=id;ui.mobile=false;renderSidebar();renderDetail();}break;}
+        case 'editor-trash':{const target=ui.editor?.id;$('scrim').classList.remove('open');ui.editor=null;if(target)putInTrash(target);break;}
+        case 'toggle-pin':togglePinned(id);break;
         case 'toggle-mobile':ui.mobile=!ui.mobile;renderSidebar();break;
         case 'toggle-create':{renderCreatePopover();toggleMenu('create-popover',el);break;}
         case 'toggle-filter':{renderFilterPopover();toggleMenu('filter-popover',el);break;}
         case 'new':openEditor(el.dataset.type);break;
-        case 'new-group':openEditor('collection',null,el.dataset.group);break;
-        case 'open-item':{const i=one(el.dataset.itemId);if(!i)return;if(i.type==='collection'&&!i.deleted)setView('collection:'+i.id);else{ui.detail=i.id;renderDetail();}closeMenus();break;}
+        case 'new-group':openEditor('collection');break;
+        case 'open-item':{const i=one(el.dataset.itemId);if(!i)return;if((i.type==='collection'||i.type==='space')&&!i.deleted)setView(i.type+':'+i.id);else{ui.detail=i.id;renderDetail();}closeMenus();break;}
         case 'close-detail':ui.detail=null;renderDetail();break;
         case 'edit':{const item=one(id);if(item)openEditor(item.type,id);break;}
         case 'favorite':editFavorite(id);break;
@@ -564,7 +775,7 @@
         case 'clear-tag':ui.tag='';render();break;
         case 'clear-color':ui.color='';render();break;
         case 'clear-filters':ui.type='all';ui.tag='';ui.color='';ui.search='';$('search-input').value='';closeMenus();render();break;
-        case 'reset':if(confirm('Reset all local changes and restore the sample items? Export a backup first if you want to keep your changes.')){items=seed();ui.detail=null;ui.type='all';ui.tag='';ui.color='';ui.search='';$('search-input').value='';setView('all');persist();toast('Sample library reset');}break;
+        case 'reset':if(confirm('Reset all local changes and restore the sample items? Export a backup first if you want to keep your changes.')){items=adaptLibrary(seed());ui.detail=null;ui.expandedSpace=null;ui.type='all';ui.tag='';ui.color='';ui.search='';$('search-input').value='';setView('all');persist();toast('Sample library reset');}break;
         case 'export':exportData();break;
         case 'import':closeMenus();importData();break;
       }
