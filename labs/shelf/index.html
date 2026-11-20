@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="dark" />
-  <title>Shelf — Spaces experiment (v0.2)</title>
+  <title>Shelf — Pinning & sections (v0.3)</title>
   <style>
     :root { --bg:#111113; --sidebar:#202023; --card:#171719; --panel:#1d1d20; --surface:#29292d; --surface2:#323237; --line:#333338; --text:#ececef; --muted:#85858e; --muted2:#63636b; --blue:#2485d7; --blue2:#339df5; --focus:#5baff5; --radius:11px; color-scheme:dark }
     * { box-sizing:border-box }
@@ -260,6 +260,29 @@
     .modal-footer button.danger:hover {background:#63353e}
     .side-bottom a.bottom-action {text-decoration:none;white-space:nowrap}
     .side-bottom .demo-badge {overflow:hidden;text-overflow:ellipsis}
+
+    /* Shelf v0.3: contextual pinning, stable space trees, and sections */
+    .tag-text-row {padding-left:14px}
+    .tag-text-row .tag-hash {color:#92929b}
+    .content-section {margin:0 0 32px}
+    .content-section-heading {display:flex;align-items:center;gap:9px;margin:1px 0 15px;min-height:20px}
+    .content-section-label {display:flex;align-items:center;gap:8px;font-size:12px;font-weight:650;letter-spacing:.012em;color:#b7b7be}
+    .content-section-label svg {color:#9292a0}
+    .content-section-total {font-size:11px;color:#777782;font-variant-numeric:tabular-nums}
+    .content-section-rule {height:1px;min-width:15px;flex:1;background:#25252a;margin-left:5px}
+    .content-section:last-child {margin-bottom:0}
+    .card-tool.context-pinned,.list-pin.context-pinned,.detail-top .context-pinned {color:#e9c88a}
+    .card-tool.context-pinned {background:#302b22df;border-color:#9b805253}
+    .card-in-context-pin {display:inline-grid;place-items:center;flex-shrink:0;color:#d7b77f;margin-top:1px}
+    .card-in-context-pin svg {width:13px;height:13px;fill:#d7b77f22}
+    .inline-pin {display:inline-grid;vertical-align:middle;color:#d7b77f;margin-left:3px}
+    .list-pin {border:0;border-radius:6px;background:transparent;color:#797984;width:27px;height:27px;display:grid;place-items:center;opacity:0;flex-shrink:0}
+    .list-pin svg {width:16px;height:16px}
+    .list-pin:focus-visible,.list-card:hover .list-pin,.list-pin.context-pinned {opacity:1}
+    .list-pin:hover {background:#313139;color:#fff}
+    .space-nav {padding-left:14px}
+    .tree-folder .nav-item {transition:background .11s; }
+    @media(max-width:660px){.list-pin{opacity:1}.content-section-heading{margin-bottom:12px}.content-section{margin-bottom:27px}}
   </style>
 </head>
 <body>
@@ -271,7 +294,7 @@
         <button class="head-btn" data-action="toggle-create" title="Create new item" aria-label="Create new item" data-icon="plus"></button>
       </div>
       <div class="side-content" id="nav-content"></div>
-      <div class="side-bottom"><span class="demo-badge">LOCAL PROTOTYPE · v0.2</span><a class="bottom-action" href="/labs/shelf/v0.1/" title="Open untouched version 0.1">v0.1</a><button class="bottom-action" data-action="export" title="Export all items as JSON">Export</button></div>
+      <div class="side-bottom"><span class="demo-badge">LOCAL PROTOTYPE · v0.3</span><a class="bottom-action" href="/labs/shelf/v0.2/" title="Return to version 0.2">v0.2</a><button class="bottom-action" data-action="export" title="Export all items as JSON">Export</button></div>
     </aside>
     <main class="main" id="main">
       <div class="main-content">
@@ -335,9 +358,12 @@
     const icon = (name,size=19) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" aria-hidden="true">${svgPath[name]||svgPath.note}</svg>`;
     svgPath.space=svgPath.layers;
     svgPath["chevron-right"]='<path d="m9 18 6-6-6-6"/>';
+    svgPath.hash='<path d="M10 3 6 21M18 3l-4 18M4 9h17M3 15h17"/>';
+    svgPath.pushpin='<path d="m16 3 5 5-2.5 1-2.5 4 .5 2.5-2 2-8-8 2-2 2.5.5 4-2.5z"/><path d="m4 20 6.5-6.5"/>';
     const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-    const storage = 'shelf-everything-v0-2';
-    const legacyStorage = 'shelf-everything-v0-1';
+    const storage = 'shelf-everything-v0-3';
+    const legacyStorages = ['shelf-everything-v0-2','shelf-everything-v0-1'];
+    const sidebarPrefsKey = storage+'-sidebar';
     const palettes = {slate:'#475465', blue:'#41658f', red:'#97585b', amber:'#997b4e', green:'#597b67', violet:'#76648e', charcoal:'#45464c'};
     const types = {bookmark:'Bookmark',note:'Note',checklist:'Checklist',collection:'Collection',space:'Space',image:'Image',file:'File'};
     const now = Date.now();
@@ -367,49 +393,65 @@
         o('music','bookmark','A music discovery playlist',[],{url:'https://music.youtube.com',tags:['music','personal'],color:'red',ago:15})
       ];
     };
-    function adaptLibrary(source) {
-  const incoming=source.map(i=>({
-    ...i,
-    collectionIds:Array.isArray(i.collectionIds)?[...i.collectionIds]:[],
-    tags:Array.isArray(i.tags)?[...i.tags]:[],
-    pinned:typeof i.pinned==='boolean'?i.pinned:['home','project-plan'].includes(i.id)
-  }));
-  if(incoming.some(i=>i.type==='space')) return incoming;
-  const roots=incoming.filter(i=>i.type==='collection'&&!i.collectionIds.length&&!i.deleted);
-  for(const group of ['Work','Personal']){
-    const matches=roots.filter(i=>i.group===group);
-    if(!matches.length) continue;
-    const id='shelf-space-'+group.toLowerCase();
-    if(!incoming.some(i=>i.id===id)){
-      incoming.push({
-        id,type:'space',title:group,collectionIds:[],tags:[],pinned:false,favorite:false,
-        color:group==='Work'?'blue':'green',created:new Date().toISOString(),
-        updated:new Date().toISOString(),deleted:false,body:'',url:'',tasks:[]
-      });
+    function adaptLibrary(source){
+      const incoming=source.map(i=>({
+        ...i,
+        collectionIds:Array.isArray(i.collectionIds)?[...i.collectionIds]:[],
+        tags:Array.isArray(i.tags)?[...i.tags]:[],
+        pinned:typeof i.pinned==='boolean'?i.pinned:['home','project-plan'].includes(i.id),
+        pinnedIn:Array.isArray(i.pinnedIn)?[...new Set(i.pinnedIn.filter(x=>typeof x==='string'))]:[]
+      }));
+      if(incoming.some(i=>i.type==='space'))return incoming;
+      const roots=incoming.filter(i=>i.type==='collection'&&!i.collectionIds.length&&!i.deleted);
+      for(const group of ['Work','Personal']){
+        const matches=roots.filter(i=>i.group===group);
+        if(!matches.length)continue;
+        const id='shelf-space-'+group.toLowerCase();
+        if(!incoming.some(i=>i.id===id)){
+          incoming.push({
+            id,type:'space',title:group,collectionIds:[],tags:[],pinned:false,pinnedIn:[],favorite:false,
+            color:group==='Work'?'blue':'green',created:new Date().toISOString(),
+            updated:new Date().toISOString(),deleted:false,body:'',url:'',tasks:[]
+          });
+        }
+        matches.forEach(i=>{if(!i.collectionIds.includes(id))i.collectionIds.push(id);});
+      }
+      return incoming;
     }
-    matches.forEach(i=>{if(!i.collectionIds.includes(id))i.collectionIds.push(id);});
-  }
-  return incoming;
-}
     function load(){
-  try{
-    const own=JSON.parse(localStorage.getItem(storage));
-    if(own&&Array.isArray(own.items))return adaptLibrary(own.items);
-  }catch(e){}
-  let source=null;
-  try{
-    const previous=JSON.parse(localStorage.getItem(legacyStorage));
-    if(previous&&Array.isArray(previous.items))source=previous.items;
-  }catch(e){}
-  const migrated=adaptLibrary(source||seed());
-  try{localStorage.setItem(storage,JSON.stringify({version:2,items:migrated}));}catch(e){}
-  return migrated;
-}
+      let source=null;
+      for(const key of [storage,...legacyStorages]){
+        try{
+          const raw=JSON.parse(localStorage.getItem(key));
+          if(raw&&Array.isArray(raw.items)){
+            source=raw.items;
+            break;
+          }
+        }catch(e){}
+      }
+      const library=adaptLibrary(source||seed());
+      try{localStorage.setItem(storage,JSON.stringify({version:3,items:library}));}catch(e){}
+      return library;
+    }
+    function loadSidebarPrefs(){
+      try{
+        const raw=JSON.parse(localStorage.getItem(sidebarPrefsKey));
+        if(raw&&typeof raw==='object'){
+          const valid=Array.isArray(raw.expandedSpaces)?raw.expandedSpaces.filter(x=>typeof x==='string'):[];
+          const base={bookmarks:true,spaces:true,filters:true,tags:true};
+          for(const key of Object.keys(base))if(typeof raw.sections?.[key]==='boolean')base[key]=raw.sections[key];
+          return {expandedSpaces:valid,sections:base};
+        }
+      }catch(e){}
+      return {expandedSpaces:[],sections:{bookmarks:true,spaces:true,filters:true,tags:true}};
+    }
 
     let items = load();
-    const ui = {view:'all',search:'',type:'all',tag:'',color:'',sort:'recent',layout:'grid',detail:null,editor:null,filterOpen:false,createOpen:false,mobile:false,expandedSpace:null,sections:{bookmarks:true,spaces:true,filters:true,tags:true}};
+    const savedSidebar = loadSidebarPrefs();
+    const ui = {view:'all',search:'',type:'all',tag:'',color:'',sort:'recent',layout:'grid',detail:null,editor:null,filterOpen:false,createOpen:false,mobile:false,expandedSpaces:new Set(savedSidebar.expandedSpaces),sections:savedSidebar.sections};
+    const persistSidebar = () => {try{localStorage.setItem(sidebarPrefsKey,JSON.stringify({expandedSpaces:[...ui.expandedSpaces],sections:ui.sections}));}catch(e){}};
     const $ = id => document.getElementById(id);
-    const persist = () => { try {localStorage.setItem(storage,JSON.stringify({version:2,items}));}catch(e){toast('Storage is unavailable; changes may not persist.')} };
+    const persist = () => { try {localStorage.setItem(storage,JSON.stringify({version:3,items}));}catch(e){toast('Storage is unavailable; changes may not persist.')} };
     const one = id => items.find(i=>i.id===id);
     const active = () => items.filter(i=>!i.deleted);
     const count = ids => active().filter(i=>ids.includes(i.id)).length;
@@ -471,7 +513,7 @@
   if(seen.has(item.id)||depth>9)return '';
   const visited=new Set([...seen,item.id]);
   const children=active().filter(i=>i.type==='collection'&&i.collectionIds?.includes(item.id)).sort((a,b)=>a.title.localeCompare(b.title));
-  const indent=Math.min(24+(depth-1)*17,160);
+  const indent=Math.min(34+(depth-1)*20,194);
   return `<div class="folder-row tree-folder">${navButton('collection:'+item.id,item.title,'folder',members(item.id).length,'in-space-tree',`style="padding-left:${indent}px" data-origin="tree" data-drop-collection="${esc(item.id)}" title="Open ${esc(item.title)} · Drop an item to add it"`)}<button class="folder-edit-overlay" data-action="edit" data-id="${esc(item.id)}" title="Edit collection (including Trash)" aria-label="Edit ${esc(item.title)}">${icon('more',15)}</button></div>${children.map(child=>navCollection(child,depth+1,visited)).join('')}`;
 }
     function navSection(key,label,extra=''){
@@ -502,7 +544,7 @@
   if(ui.sections.spaces){
     const spaces=live.filter(i=>i.type==='space').sort((a,b)=>a.title.localeCompare(b.title));
     html+=spaces.length?spaces.map(sp=>{
-      const expanded=ui.expandedSpace===sp.id;
+      const expanded=ui.expandedSpaces.has(sp.id);
       const children=expanded?live.filter(i=>i.type==='collection'&&i.collectionIds?.includes(sp.id)).sort((a,b)=>a.title.localeCompare(b.title)):[];
       return `<div class="space-row">${navButton('space:'+sp.id,sp.title,'space',null,'space-nav',`data-origin="space" data-drop-collection="${esc(sp.id)}" title="Open ${esc(sp.title)} · Drop an item to add it"`)}<button class="space-expand ${expanded?'expanded':''}" data-action="toggle-space-tree" data-id="${esc(sp.id)}" aria-label="${expanded?'Collapse':'Expand'} ${esc(sp.title)} collections" aria-expanded="${expanded}" title="${expanded?'Collapse':'Expand'} collections">${icon('chevron-right',15)}</button></div>${children.map(c=>navCollection(c,1,new Set([sp.id]))).join('')}`;
     }).join(''):'<div class="section-empty">Make a space for a broad area of your life.</div>';
@@ -525,7 +567,7 @@
     const tags={};
     live.forEach(i=>(i.tags||[]).forEach(tag=>tags[tag]=(tags[tag]||0)+1));
     html+=Object.entries(tags).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(([tag,n])=>
-      `<button class="nav-item tag-text-row ${ui.tag===tag?'active':''}" data-action="tag" data-tag="${esc(tag)}"><span class="nav-label">${esc(tag)}</span><span class="count">${n}</span></button>`
+      `<button class="nav-item tag-text-row ${ui.tag===tag?'active':''}" data-action="tag" data-tag="${esc(tag)}"><span class="nav-icon tag-hash">${icon('hash',17)}</span><span class="nav-label">${esc(tag)}</span><span class="count">${n}</span></button>`
     ).join('')||'<div class="section-empty">Tags you add will appear here.</div>';
   }
   html+='</div>';
@@ -554,13 +596,67 @@
       if(i.type==='image') return `<div class="card-image thumb-image">${i.url&&/^https?:\/\//i.test(i.url)?`<img src="${esc(i.url)}" alt="" loading="lazy" onerror="this.style.display='none'"/>`:''}<div class="art-sun"></div><div class="art-hill"></div><div class="art-hill two"></div></div>`;
       return `<div class="card-image thumb-file" style="--accent:${palettes[i.color]||palettes.slate}"><div class="file-drawing"><div class="file-ext">${esc((i.title.split('.').pop()||'FILE').slice(0,6).toUpperCase())}</div></div></div>`;
     }
-    function card(i){
-  const pinButton=`<button class="card-tool ${i.pinned?'pinned':''}" data-action="toggle-pin" data-id="${esc(i.id)}" title="${i.pinned?'Remove from sidebar bookmarks':'Bookmark in sidebar'}" aria-label="${i.pinned?'Remove bookmark':'Bookmark'}">${icon('bookmark',15)}</button>`;
-  const trashButton=(i.type==='collection'||i.type==='space')&&!i.deleted?`<button class="card-tool" data-action="trash" data-id="${esc(i.id)}" title="Move ${esc(i.type)} to Trash" aria-label="Move to Trash">${icon('trash',15)}</button>`:'';
-  return `<article class="item-card" tabindex="0" role="button" aria-label="Open ${esc(i.title)}" draggable="${ui.view==='trash'?'false':'true'}" data-item-id="${esc(i.id)}" data-action="open-item"><div class="card-tools">${ui.view==='trash'?'':pinButton+`<button class="card-tool" data-action="favorite" data-id="${esc(i.id)}" title="${i.favorite?'Remove from favorites':'Add to favorites'}" aria-label="Favorite">${icon('heart',15)}</button>`+trashButton}<button class="card-tool" data-action="edit" data-id="${esc(i.id)}" title="Edit item" aria-label="Edit">${icon('pencil',15)}</button></div>${makeThumb(i)}<div class="card-title-row"><div class="card-title">${esc(i.title)}</div>${i.pinned?`<span class="card-pinned" title="Bookmarked">${icon('bookmark',13)}</span>`:''}${i.favorite?`<span class="card-fave">${icon('heart',14)}</span>`:''}</div><div class="card-sub">${esc(summary(i)||typeLabel(i))}</div></article>`;
+    function currentPinContext(item){
+  const view=ui.view;
+  if(item?.deleted||!(view.startsWith('space:')||view.startsWith('collection:')))return '';
+  const id=view.slice(view.indexOf(':')+1);
+  const container=one(id);
+  if(!container||container.deleted)return '';
+  return (item?.collectionIds||[]).includes(id)?view:'';
 }
+    function isContextPinned(item,context=ui.view){
+  return Array.isArray(item.pinnedIn)&&item.pinnedIn.includes(context);
+}
+    function toggleContextPin(id,context=ui.view){
+  const item=one(id);
+  if(!item||!context||item.deleted||context!==currentPinContext(item))return;
+  item.pinnedIn=Array.isArray(item.pinnedIn)?[...item.pinnedIn]:[];
+  if(item.pinnedIn.includes(context))item.pinnedIn=item.pinnedIn.filter(c=>c!==context);
+  else item.pinnedIn.push(context);
+  item.updated=new Date().toISOString();
+  persist();
+  renderContent();renderDetail();
+  toast(isContextPinned(item,context)?'Pinned here':'Unpinned here');
+}
+    function contextPinButton(item,format='card'){
+  const context=currentPinContext(item);
+  if(!context)return '';
+  const selected=isContextPinned(item,context);
+  const label=selected?'Unpin from this '+(context.startsWith('space:')?'space':'collection'):'Pin in this '+(context.startsWith('space:')?'space':'collection');
+  if(format==='detail')return `<button class="icon-btn ${selected?'context-pinned':''}" data-action="pin-context" data-id="${esc(item.id)}" title="${label}" aria-label="${label}">${icon('pushpin',19)}</button>`;
+  if(format==='list')return `<button class="list-pin ${selected?'context-pinned':''}" data-action="pin-context" data-id="${esc(item.id)}" title="${label}" aria-label="${label}">${icon('pushpin',16)}</button>`;
+  return `<button class="card-tool ${selected?'context-pinned':''}" data-action="pin-context" data-id="${esc(item.id)}" title="${label}" aria-label="${label}">${icon('pushpin',15)}</button>`;
+}
+    function card(i){
+      const bookmark=`<button class="card-tool ${i.pinned?'pinned':''}" data-action="toggle-pin" data-id="${esc(i.id)}" title="${i.pinned?'Remove from sidebar bookmarks':'Bookmark in sidebar'}" aria-label="${i.pinned?'Remove bookmark':'Bookmark'}">${icon('bookmark',15)}</button>`;
+      const trash=(i.type==='collection'||i.type==='space')&&!i.deleted?`<button class="card-tool" data-action="trash" data-id="${esc(i.id)}" title="Move ${esc(i.type)} to Trash" aria-label="Move to Trash">${icon('trash',15)}</button>`:'';
+      const pinnedHere=isContextPinned(i)&&!!currentPinContext(i);
+      return `<article class="item-card" tabindex="0" role="button" aria-label="Open ${esc(i.title)}" draggable="${ui.view==='trash'?'false':'true'}" data-item-id="${esc(i.id)}" data-action="open-item"><div class="card-tools">${ui.view==='trash'?'':contextPinButton(i)+bookmark+`<button class="card-tool" data-action="favorite" data-id="${esc(i.id)}" title="${i.favorite?'Remove from favorites':'Add to favorites'}" aria-label="Favorite">${icon('heart',15)}</button>`+trash}<button class="card-tool" data-action="edit" data-id="${esc(i.id)}" title="Edit item" aria-label="Edit">${icon('pencil',15)}</button></div>${makeThumb(i)}<div class="card-title-row"><div class="card-title">${esc(i.title)}</div>${pinnedHere?`<span class="card-in-context-pin" title="Pinned here">${icon('pushpin',13)}</span>`:''}${i.pinned?`<span class="card-pinned" title="Bookmarked">${icon('bookmark',13)}</span>`:''}${i.favorite?`<span class="card-fave">${icon('heart',14)}</span>`:''}</div><div class="card-sub">${esc(summary(i)||typeLabel(i))}</div></article>`;
+    }
+    function listCard(i){
+      const here=isContextPinned(i)&&!!currentPinContext(i);
+      return `<div class="list-card" tabindex="0" role="button" draggable="${ui.view==='trash'?'false':'true'}" data-item-id="${esc(i.id)}" data-action="open-item"><div class="list-thumb" style="color:${palettes[i.color]||'#aab'}">${icon(i.type,22)}</div><div style="min-width:0"><div class="list-title">${esc(i.title)} ${here?`<span class="inline-pin" title="Pinned here">${icon('pushpin',13)}</span>`:''}${i.favorite?'<span style="color:#d78a95">♥</span>':''}</div><div class="list-desc">${esc(typeLabel(i))} · ${esc(summary(i))}</div></div><div class="list-spacer"></div>${contextPinButton(i,'list')}<div class="list-date">${friendlyDate(i.updated)}</div></div>`;
+    }
 
-    function listCard(i) {return `<div class="list-card" tabindex="0" role="button" draggable="${ui.view==='trash'?'false':'true'}" data-item-id="${esc(i.id)}" data-action="open-item"><div class="list-thumb" style="color:${palettes[i.color]||'#aab'}">${icon(i.type,22)}</div><div style="min-width:0"><div class="list-title">${esc(i.title)} ${i.favorite?'<span style="color:#d78a95">♥</span>':''}</div><div class="list-desc">${esc(typeLabel(i))} · ${esc(summary(i))}</div></div><div class="list-spacer"></div><div class="list-date">${friendlyDate(i.updated)}</div></div>`;}
+    function splitContextSections(list){
+      if(!(ui.view.startsWith('space:')||ui.view.startsWith('collection:')))return [{id:'all',name:'',icon:'',items:list}];
+      const pinned=[],collections=[],remaining=[];
+      for(const item of list){
+        if(isContextPinned(item)&&currentPinContext(item))pinned.push(item);
+        else if(item.type==='collection')collections.push(item);
+        else remaining.push(item);
+      }
+      const sections=[];
+      if(pinned.length)sections.push({id:'pinned',name:'Pinned',icon:'pushpin',items:pinned});
+      if(collections.length)sections.push({id:'collections',name:'Collections',icon:'folder',items:collections});
+      if(remaining.length)sections.push({id:'rest',name:sections.length?'Everything else':'',icon:'',items:remaining});
+      return sections;
+    }
+    function renderSection(section){
+      const content=ui.layout==='grid'?`<div class="cards">${section.items.map(card).join('')}</div>`:`<div class="listview">${section.items.map(listCard).join('')}</div>`;
+      const heading=section.name?`<div class="content-section-heading"><div class="content-section-label">${section.icon?icon(section.icon,15):''}<span>${esc(section.name)}</span></div><span class="content-section-total">${section.items.length}</span><div class="content-section-rule"></div></div>`:'';
+      return `<section class="content-section" data-section="${esc(section.id)}">${heading}${content}</section>`;
+    }
     function renderContent(){
       const [title,ico]=viewLabel(),list=filtered();
       $('heading-text').textContent=title;
@@ -574,9 +670,13 @@
       if(ui.tag)chips.push(`<button class="chip-clear" data-action="clear-tag">${esc(ui.tag)} ×</button>`);
       if(ui.color)chips.push(`<button class="chip-clear" data-action="clear-color"><span class="color-dot" style="background:${palettes[ui.color]}"></span>${esc(ui.color)} ×</button>`);
       $('active-filters').innerHTML=chips.length?`<div class="active-chips">${chips.join('')}</div>`:'';
-      if(!list.length) { $('content').innerHTML=`<div class="empty-state"><div class="empty-graphic">${icon(ui.search?'search':'folder',34)}</div><div class="empty-title">${ui.search||ui.type!=='all'||ui.tag||ui.color?'Nothing matches yet':ui.view==='trash'?'Trash is empty':'Nothing here yet'}</div><div class="empty-copy">${ui.search||ui.type!=='all'||ui.tag||ui.color?'Try clearing a filter or using a different search.':'Every item has a place here. Create something, or drag an existing card onto this collection in the sidebar.'}</div>${ui.search||ui.type!=='all'||ui.tag||ui.color?'<button data-action="clear-filters">Clear filters</button>':'<button data-action="toggle-create">Add an item</button>'}</div>`;return; }
-      $('content').innerHTML=ui.layout==='grid'?`<div class="cards">${list.map(card).join('')}</div>`:`<div class="listview">${list.map(listCard).join('')}</div>`;
+      if(!list.length){
+        $('content').innerHTML=`<div class="empty-state"><div class="empty-graphic">${icon(ui.search?'search':'folder',34)}</div><div class="empty-title">${ui.search||ui.type!=='all'||ui.tag||ui.color?'Nothing matches yet':ui.view==='trash'?'Trash is empty':'Nothing here yet'}</div><div class="empty-copy">${ui.search||ui.type!=='all'||ui.tag||ui.color?'Try clearing a filter or using a different search.':'Every item has a place here. Create something, or drag an existing card onto this collection in the sidebar.'}</div>${ui.search||ui.type!=='all'||ui.tag||ui.color?'<button data-action="clear-filters">Clear filters</button>':'<button data-action="toggle-create">Add an item</button>'}</div>`;
+        return;
+      }
+      $('content').innerHTML=splitContextSections(list).map(renderSection).join('');
     }
+
     function renderFilterPopover(){
       let html='<div class="filter-label">Type</div><div class="filter-choices">';
       html+=`<button class="filter-pill ${ui.type==='all'?'active':''}" data-action="filter-type" data-type="all">All types</button>`;
@@ -611,7 +711,7 @@
     const tasks=item.tasks||[],done=tasks.filter(t=>t.done).length;
     body=`<div class="task-counter">${done} of ${tasks.length} completed · ${tasks.length?Math.round(done/tasks.length*100):0}%</div>${tasks.map((t,idx)=>`<label class="detail-checkline ${t.done?'done':''}"><input type="checkbox" data-action="toggle-task" data-id="${esc(item.id)}" data-index="${idx}" ${t.done?'checked':''}/><span>${esc(t.text)}</span></label>`).join('')}<input class="new-task-input" id="add-task" aria-label="Add task" placeholder="+ Add an item and press Enter" data-id="${esc(item.id)}"/>`;
   }
-  panel.innerHTML=`<div class="detail-top"><span class="detail-type">${icon(item.type,17)} ${typeLabel(item)}</span><span class="grow"></span>${item.deleted?'':`<button class="icon-btn" data-action="toggle-pin" data-id="${esc(item.id)}" title="${item.pinned?'Remove sidebar bookmark':'Bookmark in sidebar'}" style="${item.pinned?'color:#c3b3f5':''}" aria-label="Bookmark">${icon('bookmark')}</button><button class="icon-btn" data-action="favorite" data-id="${esc(item.id)}" title="${item.favorite?'Unfavorite':'Favorite'}" style="${item.favorite?'color:#f198a1':''}" aria-label="Toggle favorite">${icon('heart')}</button>`}<button class="icon-btn" data-action="edit" data-id="${esc(item.id)}" title="Edit item" aria-label="Edit">${icon('pencil')}</button><button class="icon-btn" data-action="close-detail" title="Close" aria-label="Close">${icon('x')}</button></div><div class="detail-body"><div class="detail-hero">${makeThumb(item)}</div><div class="detail-title">${esc(item.title)}</div>${body}<div class="detail-section"><h3>Collections &amp; spaces</h3><div class="detail-chips">${collections}</div></div><div class="detail-section"><h3>Tags</h3><div class="detail-chips">${tags}</div></div><div class="detail-section"><h3>Details</h3><div class="detail-info">Updated ${friendlyDate(item.updated)} · ${esc(item.color||'slate')} color<br>Stored in this browser only</div></div><div class="detail-buttons"><button class="detail-btn" data-action="edit" data-id="${esc(item.id)}">${icon('pencil')} Edit</button>${item.deleted?`<button class="detail-btn" data-action="restore" data-id="${esc(item.id)}">${icon('rotate')} Restore</button><button class="detail-btn" data-action="purge" data-id="${esc(item.id)}">${icon('trash')} Delete forever</button>`:`<button class="detail-btn" data-action="trash" data-id="${esc(item.id)}">${icon('trash')} Move to Trash</button>`}</div></div>`;
+  panel.innerHTML=`<div class="detail-top"><span class="detail-type">${icon(item.type,17)} ${typeLabel(item)}</span><span class="grow"></span>${item.deleted?'':contextPinButton(item,'detail')}${item.deleted?'':`<button class="icon-btn" data-action="toggle-pin" data-id="${esc(item.id)}" title="${item.pinned?'Remove sidebar bookmark':'Bookmark in sidebar'}" style="${item.pinned?'color:#c3b3f5':''}" aria-label="Bookmark">${icon('bookmark')}</button><button class="icon-btn" data-action="favorite" data-id="${esc(item.id)}" title="${item.favorite?'Unfavorite':'Favorite'}" style="${item.favorite?'color:#f198a1':''}" aria-label="Toggle favorite">${icon('heart')}</button>`}<button class="icon-btn" data-action="edit" data-id="${esc(item.id)}" title="Edit item" aria-label="Edit">${icon('pencil')}</button><button class="icon-btn" data-action="close-detail" title="Close" aria-label="Close">${icon('x')}</button></div><div class="detail-body"><div class="detail-hero">${makeThumb(item)}</div><div class="detail-title">${esc(item.title)}</div>${body}<div class="detail-section"><h3>Collections &amp; spaces</h3><div class="detail-chips">${collections}</div></div><div class="detail-section"><h3>Tags</h3><div class="detail-chips">${tags}</div></div><div class="detail-section"><h3>Details</h3><div class="detail-info">Updated ${friendlyDate(item.updated)} · ${esc(item.color||'slate')} color<br>Stored in this browser only</div></div><div class="detail-buttons"><button class="detail-btn" data-action="edit" data-id="${esc(item.id)}">${icon('pencil')} Edit</button>${item.deleted?`<button class="detail-btn" data-action="restore" data-id="${esc(item.id)}">${icon('rotate')} Restore</button><button class="detail-btn" data-action="purge" data-id="${esc(item.id)}">${icon('trash')} Delete forever</button>`:`<button class="detail-btn" data-action="trash" data-id="${esc(item.id)}">${icon('trash')} Move to Trash</button>`}</div></div>`;
   panel.classList.add('open');
 }
 
@@ -633,17 +733,21 @@
   return null;
 }
     function setView(view,origin=''){
-  ui.view=view;
-  if(origin!=='bookmark'){
-    if(view.startsWith('space:'))ui.expandedSpace=view.slice(6);
-    else if(view.startsWith('collection:')){
-      const parentSpace=findSpaceAncestor(view.slice(11));
-      if(parentSpace)ui.expandedSpace=parentSpace;
+      ui.view=view;
+      let changed=false;
+      if(origin!=='bookmark'){
+        let spaceId=null;
+        if(view.startsWith('space:'))spaceId=view.slice(6);
+        else if(view.startsWith('collection:'))spaceId=findSpaceAncestor(view.slice(11));
+        if(spaceId&&!ui.expandedSpaces.has(spaceId)){
+          ui.expandedSpaces.add(spaceId);
+          changed=true;
+        }
+      }
+      if(changed)persistSidebar();
+      ui.mobile=false;ui.detail=null;ui.createOpen=false;ui.filterOpen=false;
+      closeMenus();render();$('main').scrollTop=0;
     }
-  }
-  ui.mobile=false;ui.detail=null;ui.createOpen=false;ui.filterOpen=false;
-  closeMenus();render();$('main').scrollTop=0;
-}
 
     function closeMenus(){$('create-popover').classList.remove('open');$('filter-popover').classList.remove('open');ui.createOpen=false;ui.filterOpen=false;}
     function positionPopover(id,button){const pop=$(id),r=button.getBoundingClientRect(); const left=Math.max(8,Math.min(window.innerWidth-(id==='filter-popover'?295:220),r.left-pop.offsetWidth+button.offsetWidth));pop.style.top=Math.min(window.innerHeight-360,r.bottom+7)+'px';pop.style.left=left+'px';}
@@ -700,7 +804,7 @@
   item.title=title;item.url=url;item.body=String(data.get('body')||'');
   item.tasks=ctx.type==='checklist'?parseTasks(String(data.get('tasks')||''),original?.tasks||[]):[];
   item.tags=[...new Set(String(data.get('tags')||'').split(',').map(t=>t.trim().toLowerCase()).filter(Boolean))];
-  item.collectionIds=cols;item.favorite=!!data.get('favorite');item.pinned=!!data.get('pinned');item.color=String(data.get('color')||'slate');
+  item.collectionIds=cols;item.pinnedIn=(item.pinnedIn||[]).filter(c=>{const ix=c.indexOf(':');return ix!==-1&&cols.includes(c.slice(ix+1));});item.favorite=!!data.get('favorite');item.pinned=!!data.get('pinned');item.color=String(data.get('color')||'slate');
   item.updated=new Date().toISOString();
   if(!original)items.unshift(item);
   persist();$('scrim').classList.remove('open');ui.editor=null;ui.detail=item.id;render();
@@ -721,14 +825,14 @@
   const item=one(id);if(!item||item.deleted)return;
   item.deleted=true;item.updated=new Date().toISOString();ui.detail=null;
   if(ui.view===item.type+':'+id)ui.view='unsorted';
-  if(ui.expandedSpace===id)ui.expandedSpace=null;
+  if(ui.expandedSpaces.delete(id))persistSidebar();
   persist();render();
   toast(item.type==='collection'||item.type==='space'?'Moved to Trash; contents are preserved.':'Moved to Trash');
 }
 
     function restore(id){const i=one(id);if(!i)return;i.deleted=false;i.updated=new Date().toISOString();persist();render();toast('Item restored');}
-    function purge(id){const i=one(id);if(!i)return;if(!confirm(`Delete “${i.title}” permanently?`))return;items=items.filter(x=>x.id!==id);items.forEach(x=>x.collectionIds=x.collectionIds.filter(c=>c!==id));ui.detail=null;persist();render();toast('Deleted permanently');}
-    function exportData(){const blob=new Blob([JSON.stringify({version:2,exported:new Date().toISOString(),items},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='shelf-library-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('Backup exported');}
+    function purge(id){const i=one(id);if(!i)return;if(!confirm(`Delete “${i.title}” permanently?`))return;items=items.filter(x=>x.id!==id);items.forEach(x=>{x.collectionIds=x.collectionIds.filter(c=>c!==id);x.pinnedIn=(x.pinnedIn||[]).filter(c=>c!=='space:'+id&&c!=='collection:'+id);});if(ui.expandedSpaces.delete(id))persistSidebar();ui.detail=null;persist();render();toast('Deleted permanently');}
+    function exportData(){const blob=new Blob([JSON.stringify({version:3,exported:new Date().toISOString(),items},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='shelf-library-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('Backup exported');}
     function importData(){const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.addEventListener('change',async()=>{const file=input.files?.[0];if(!file)return;try{const json=JSON.parse(await file.text());if(!Array.isArray(json.items)||json.items.some(i=>!i.id||!i.type||!i.title||!Array.isArray(i.collectionIds)))throw Error('Invalid backup');if(!confirm(`Replace your current library with ${json.items.length} imported items? Export a backup first if needed.`))return;items=adaptLibrary(json.items);ui.detail=null;setView('all');persist();render();toast('Library imported');}catch(e){alert('Could not import this file. Please select a Shelf JSON backup.');}});input.click();}
     function dropOnCollection(itemId,collectionId){
   const item=one(itemId),folder=one(collectionId);
@@ -743,15 +847,16 @@
     document.addEventListener('click',e=>{
       const el=e.target.closest('[data-action]');if(!el){if(!e.target.closest('.popover'))closeMenus();return;}
       const action=el.dataset.action,id=el.dataset.id;
-      if(['favorite','toggle-pin','edit','close-detail','trash','restore','purge','editor-trash','toggle-space-tree'].includes(action))e.stopPropagation();
+      if(['favorite','toggle-pin','pin-context','edit','close-detail','trash','restore','purge','editor-trash','toggle-space-tree'].includes(action))e.stopPropagation();
       switch(action){
         case 'nav':setView(el.dataset.view,el.dataset.origin||'');break;
-        case 'toggle-section':ui.sections[el.dataset.section]=!ui.sections[el.dataset.section];renderSidebar();break;
-        case 'toggle-space-tree':ui.expandedSpace=ui.expandedSpace===id?null:id;renderSidebar();break;
+        case 'toggle-section':ui.sections[el.dataset.section]=!ui.sections[el.dataset.section];persistSidebar();renderSidebar();break;
+        case 'toggle-space-tree':if(ui.expandedSpaces.has(id))ui.expandedSpaces.delete(id);else ui.expandedSpaces.add(id);persistSidebar();renderSidebar();break;
         case 'new-space':openEditor('space');break;
         case 'open-shortcut':{const target=one(id);if(target){ui.detail=id;ui.mobile=false;renderSidebar();renderDetail();}break;}
         case 'editor-trash':{const target=ui.editor?.id;$('scrim').classList.remove('open');ui.editor=null;if(target)putInTrash(target);break;}
         case 'toggle-pin':togglePinned(id);break;
+        case 'pin-context':toggleContextPin(id);break;
         case 'toggle-mobile':ui.mobile=!ui.mobile;renderSidebar();break;
         case 'toggle-create':{renderCreatePopover();toggleMenu('create-popover',el);break;}
         case 'toggle-filter':{renderFilterPopover();toggleMenu('filter-popover',el);break;}
@@ -775,7 +880,7 @@
         case 'clear-tag':ui.tag='';render();break;
         case 'clear-color':ui.color='';render();break;
         case 'clear-filters':ui.type='all';ui.tag='';ui.color='';ui.search='';$('search-input').value='';closeMenus();render();break;
-        case 'reset':if(confirm('Reset all local changes and restore the sample items? Export a backup first if you want to keep your changes.')){items=adaptLibrary(seed());ui.detail=null;ui.expandedSpace=null;ui.type='all';ui.tag='';ui.color='';ui.search='';$('search-input').value='';setView('all');persist();toast('Sample library reset');}break;
+        case 'reset':if(confirm('Reset all local changes and restore the sample items? Export a backup first if you want to keep your changes.')){items=adaptLibrary(seed());ui.detail=null;ui.expandedSpaces.clear();persistSidebar();ui.type='all';ui.tag='';ui.color='';ui.search='';$('search-input').value='';setView('all');persist();toast('Sample library reset');}break;
         case 'export':exportData();break;
         case 'import':closeMenus();importData();break;
       }
