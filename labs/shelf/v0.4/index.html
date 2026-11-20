@@ -283,6 +283,34 @@
     .space-nav {padding-left:14px}
     .tree-folder .nav-item {transition:background .11s; }
     @media(max-width:660px){.list-pin{opacity:1}.content-section-heading{margin-bottom:12px}.content-section{margin-bottom:27px}}
+
+    /* Shelf v0.4: centered object detail and quiet item actions */
+    .detail {inset:0;width:100%;height:100%;z-index:24;background:#0009;backdrop-filter:blur(2px);
+      border:0;box-shadow:none;display:none;align-items:center;justify-content:center;
+      padding:20px;overflow:auto;transform:none;transition:none}
+    .detail.open {display:flex;transform:none}
+    .detail-dialog {background:#232327;border:1px solid #47474d;border-radius:13px;width:min(570px,100%);
+      max-height:min(92vh,850px);min-height:0;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 25px 80px #000a}
+    .detail-top {padding:13px 20px;min-height:57px;height:auto}
+    .detail-body {padding:20px 22px 28px;overflow-y:auto;min-height:0}
+    .detail-hero {height:200px;margin-bottom:23px}
+    .detail-title {font-size:22px}
+    .detail-top .icon-btn {width:30px;height:30px}
+    .detail-top .detail-type {margin-right:7px}
+    .item-popover {z-index:30;min-width:225px;max-width:min(280px,95vw)}
+    .item-popover .pop-item {font-size:12.5px}
+    .card-tools {top:8px;right:8px}
+    .more-tool {width:30px;height:29px}
+    .list-more {border:1px solid #ffffff25;background:#2b2b3099;color:#dedee4;
+      border-radius:6px;width:29px;height:28px;display:grid;place-items:center;flex-shrink:0;opacity:0}
+    .list-card:hover .list-more,.list-card:focus-within .list-more,.list-more:focus-visible {opacity:1}
+    .list-more:hover {background:#41414a}
+    .sub-external {display:inline-flex;vertical-align:-2px;margin-left:4px;color:#929299}
+    .sub-external svg {width:11px;height:11px}
+    #scrim {z-index:26}
+    @media (hover:none){.item-card .card-tools,.list-more {opacity:1}}
+    @media(max-width:660px){.detail {padding:12px}.detail-dialog {max-height:calc(100dvh - 24px)}.detail-hero {height:170px}
+      .detail-body {padding:17px}.detail-top {padding:10px 13px;gap:4px}}
   </style>
 </head>
 <body>
@@ -630,14 +658,15 @@
   return `<button class="card-tool ${selected?'context-pinned':''}" data-action="pin-context" data-id="${esc(item.id)}" title="${label}" aria-label="${label}">${icon('pushpin',15)}</button>`;
 }
     function card(i){
-      const bookmark=`<button class="card-tool ${i.pinned?'pinned':''}" data-action="toggle-pin" data-id="${esc(i.id)}" title="${i.pinned?'Remove from sidebar bookmarks':'Bookmark in sidebar'}" aria-label="${i.pinned?'Remove bookmark':'Bookmark'}">${icon('bookmark',15)}</button>`;
-      const trash=(i.type==='collection'||i.type==='space')&&!i.deleted?`<button class="card-tool" data-action="trash" data-id="${esc(i.id)}" title="Move ${esc(i.type)} to Trash" aria-label="Move to Trash">${icon('trash',15)}</button>`:'';
-      const pinnedHere=isContextPinned(i)&&!!currentPinContext(i);
-      return `<article class="item-card" tabindex="0" role="button" aria-label="Open ${esc(i.title)}" draggable="${ui.view==='trash'?'false':'true'}" data-item-id="${esc(i.id)}" data-action="open-item"><div class="card-tools">${ui.view==='trash'?'':contextPinButton(i)+bookmark+`<button class="card-tool" data-action="favorite" data-id="${esc(i.id)}" title="${i.favorite?'Remove from favorites':'Add to favorites'}" aria-label="Favorite">${icon('heart',15)}</button>`+trash}<button class="card-tool" data-action="edit" data-id="${esc(i.id)}" title="Edit item" aria-label="Edit">${icon('pencil',15)}</button></div>${makeThumb(i)}<div class="card-title-row"><div class="card-title">${esc(i.title)}</div>${pinnedHere?`<span class="card-in-context-pin" title="Pinned here">${icon('pushpin',13)}</span>`:''}${i.pinned?`<span class="card-pinned" title="Bookmarked">${icon('bookmark',13)}</span>`:''}${i.favorite?`<span class="card-fave">${icon('heart',14)}</span>`:''}</div><div class="card-sub">${esc(summary(i)||typeLabel(i))}</div></article>`;
+     const menu=`<button class="card-tool more-tool" data-action="item-menu" data-id="${esc(i.id)}" title="More actions for ${esc(i.title)}" aria-label="More actions for ${esc(i.title)}">${icon('more',18)}</button>`;
+     const pinnedHere=isContextPinned(i)&&!!currentPinContext(i);
+     const direct=i.type==='bookmark'&&!i.deleted;
+     return `<article class="item-card" tabindex="0" role="${direct?'link':'button'}" aria-label="${direct?'Visit':'Open'} ${esc(i.title)}" title="${direct?'Visit link · Use more actions to see details':''}" draggable="${ui.view==='trash'?'false':'true'}" data-item-id="${esc(i.id)}" data-action="open-item"><div class="card-tools">${menu}</div>${makeThumb(i)}<div class="card-title-row"><div class="card-title">${esc(i.title)}</div>${pinnedHere?`<span class="card-in-context-pin" title="Pinned here">${icon('pushpin',13)}</span>`:''}${i.pinned?`<span class="card-pinned" title="Bookmarked">${icon('bookmark',13)}</span>`:''}${i.favorite?`<span class="card-fave">${icon('heart',14)}</span>`:''}</div><div class="card-sub">${esc(summary(i)||typeLabel(i))}${direct?` <span class="sub-external" aria-hidden="true">${icon('external-link',12)}</span>`:''}</div></article>`;
     }
     function listCard(i){
-      const here=isContextPinned(i)&&!!currentPinContext(i);
-      return `<div class="list-card" tabindex="0" role="button" draggable="${ui.view==='trash'?'false':'true'}" data-item-id="${esc(i.id)}" data-action="open-item"><div class="list-thumb" style="color:${palettes[i.color]||'#aab'}">${icon(i.type,22)}</div><div style="min-width:0"><div class="list-title">${esc(i.title)} ${here?`<span class="inline-pin" title="Pinned here">${icon('pushpin',13)}</span>`:''}${i.favorite?'<span style="color:#d78a95">♥</span>':''}</div><div class="list-desc">${esc(typeLabel(i))} · ${esc(summary(i))}</div></div><div class="list-spacer"></div>${contextPinButton(i,'list')}<div class="list-date">${friendlyDate(i.updated)}</div></div>`;
+     const pinnedHere=isContextPinned(i)&&!!currentPinContext(i);
+     const direct=i.type==='bookmark'&&!i.deleted;
+     return `<div class="list-card" tabindex="0" role="${direct?'link':'button'}" aria-label="${direct?'Visit':'Open'} ${esc(i.title)}" draggable="${ui.view==='trash'?'false':'true'}" data-item-id="${esc(i.id)}" data-action="open-item"><div class="list-thumb" style="color:${palettes[i.color]||'#aab'}">${icon(i.type,22)}</div><div style="min-width:0"><div class="list-title">${esc(i.title)} ${pinnedHere?`<span class="inline-pin" title="Pinned here">${icon('pushpin',13)}</span>`:''}${i.favorite?'<span style="color:#d78a95">♥</span>':''}</div><div class="list-desc">${esc(typeLabel(i))} · ${esc(summary(i))}${direct?' ↗':''}</div></div><div class="list-spacer"></div><button class="list-more" data-action="item-menu" data-id="${esc(i.id)}" title="More actions for ${esc(i.title)}" aria-label="More actions for ${esc(i.title)}">${icon('more',18)}</button><div class="list-date">${friendlyDate(i.updated)}</div></div>`;
     }
 
     function splitContextSections(list){
@@ -759,6 +788,41 @@
     function closeMenus(){$('create-popover').classList.remove('open');$('filter-popover').classList.remove('open');$('item-popover').classList.remove('open');ui.menuItem=null;ui.createOpen=false;ui.filterOpen=false;}
     function positionPopover(id,button){const pop=$(id),r=button.getBoundingClientRect();const width=pop.offsetWidth||210,height=pop.offsetHeight||250;const left=Math.max(8,Math.min(window.innerWidth-width-8,r.right-width));const top=r.bottom+7+height>window.innerHeight?Math.max(8,r.top-height-7):r.bottom+7;pop.style.top=Math.max(8,Math.min(window.innerHeight-height-8,top))+'px';pop.style.left=left+'px';}
     function toggleMenu(id,button){const open=!$(id).classList.contains('open');closeMenus();if(open){$(id).classList.add('open');positionPopover(id,button)} }
+    function itemMenuHTML(item){
+ const id=esc(item.id);
+ const option=(action,label,ico)=>`<button class="pop-item" data-action="${action}" data-id="${id}">${icon(ico,17)}<span>${esc(label)}</span></button>`;
+ if(item.deleted)return option('view-details','View details','note')+'<div class="pop-divider"></div>'+option('restore','Restore','rotate')+option('purge','Delete forever','trash');
+ let html='';
+ if(item.type==='bookmark'){
+  html+=option('visit-link','Visit link','external-link');
+  html+=option('view-details','View details','note')+'<div class="pop-divider"></div>';
+ }else html+=option('view-details','View details','note');
+ const ctx=currentPinContext(item);
+ if(ctx)html+=option('pin-context',isContextPinned(item,ctx)?'Unpin here':'Pin here','pushpin');
+ if(item.type!=='space'){
+  html+=option('toggle-pin',item.pinned?'Remove sidebar bookmark':'Bookmark in sidebar','bookmark');
+  html+=option('favorite',item.favorite?'Remove from favorites':'Add to favorites','heart');
+ }
+ html+='<div class="pop-divider"></div>';
+ return html+option('edit','Edit','pencil')+option('trash','Move to Trash','trash');
+}
+    function openItemMenu(trigger,id){
+ const item=one(id);
+ if(!item)return;
+ const pop=$('item-popover');
+ if(pop.classList.contains('open')&&ui.menuItem===id){closeMenus();return;}
+ closeMenus();
+ ui.menuItem=id;
+ pop.innerHTML=itemMenuHTML(item);
+ pop.classList.add('open');
+ positionPopover('item-popover',trigger);
+}
+    function visitLink(item){
+ if(!item||item.type!=='bookmark')return;
+ const url=safeUrl(item.url||'');
+ if(!url){closeMenus();ui.detail=item.id;renderDetail();toast('This bookmark has no valid link yet.');return;}
+ window.open(url,'_blank','noopener,noreferrer');
+}
     function openEditor(type,id=null){
   closeMenus();
   const existing=id?one(id):null;
