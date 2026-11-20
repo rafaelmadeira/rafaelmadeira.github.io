@@ -795,10 +795,8 @@
  }else html+=option('view-details','View details','note');
  const ctx=currentPinContext(item);
  if(ctx)html+=option('pin-context',isContextPinned(item,ctx)?'Unpin here':'Pin here','pushpin');
- if(item.type!=='space'){
-  html+=option('toggle-pin',item.pinned?'Remove sidebar bookmark':'Bookmark in sidebar','bookmark');
-  html+=option('favorite',item.favorite?'Remove from favorites':'Add to favorites','heart');
- }
+ html+=option('toggle-pin',item.pinned?'Remove sidebar bookmark':'Bookmark in sidebar','bookmark');
+ html+=option('favorite',item.favorite?'Remove from favorites':'Add to favorites','heart');
  html+='<div class="pop-divider"></div>';
  return html+option('edit','Edit','pencil')+option('trash','Move to Trash','trash');
 }
@@ -820,65 +818,69 @@
  window.open(url,'_blank','noopener,noreferrer');
 }
     function openEditor(type,id=null){
-  closeMenus();
-  ui.editReturn=id&&ui.detail===id?id:null;
-  if(ui.editReturn){ui.detail=null;$('detail').classList.remove('open');}
-  const existing=id?one(id):null;
-  const kind=existing?.type||type;
-  ui.editor={id,type:kind};
-  const current=existing||{title:'',url:'',body:'',tasks:[],tags:[],collectionIds:[],color:kind==='checklist'?'blue':'slate',favorite:false,pinned:false};
-  let contents=`<div class="field"><label for="f-title">${kind==='space'?'Space name':kind==='collection'?'Collection name':'Title'}</label><input required autofocus id="f-title" name="title" class="text-field" maxlength="200" placeholder="${kind==='space'?'Name this space':kind==='collection'?'Name this collection':'Give it a name'}" value="${esc(current.title)}"/></div>`;
-  if(['bookmark','image','file'].includes(kind))contents+=`<div class="field"><label for="f-url">${kind==='bookmark'?'URL':kind==='image'?'Image URL':'File URL or path'}</label><input id="f-url" name="url" class="text-field" type="text" placeholder="https://…" value="${esc(current.url||'')}"/><small>${kind==='file'?'This prototype stores file references, not uploaded files.':kind==='image'?'Use a direct image URL to display its thumbnail.':'The link opens in a new tab.'}</small></div>`;
-  if(kind==='note')contents+=`<div class="field"><label for="f-body">Note</label><textarea id="f-body" name="body" class="text-area" style="min-height:190px" placeholder="Write anything…">${esc(current.body)}</textarea></div>`;
-  if(kind==='checklist')contents+=`<div class="field"><label for="f-tasks">Checklist items</label><textarea id="f-tasks" name="tasks" class="text-area" style="min-height:165px" placeholder="One item per line">${esc((current.tasks||[]).map(t=>(t.done?'[x] ':'[ ] ')+t.text).join('\n'))}</textarea><small>One item per line. Use [x] for completed, [ ] for incomplete.</small></div>`;
-  if(['bookmark','image','file'].includes(kind))contents+=`<div class="field"><label for="f-body">Description (optional)</label><textarea id="f-body" name="body" class="text-area" style="min-height:75px" placeholder="Why save this?">${esc(current.body||'')}</textarea></div>`;
-  if(kind!=='space')contents+=`<div class="field"><label>${kind==='collection'?'Inside (optional)':'In spaces or collections (optional)'}</label><div class="choice-grid">${collectionChoices(current,id)}</div><small>${kind==='collection'?'You can nest collections inside spaces or other collections.':'You can add an item to a space directly or to one or more collections.'}</small></div>`;
-  if(kind!=='space')contents+=`<div class="field"><label for="f-tags">Tags</label><input id="f-tags" name="tags" class="text-field" placeholder="design, research, personal" value="${esc((current.tags||[]).join(', '))}"/><small>Separate with commas. Tags work across every space and collection.</small></div>`;
-  if(kind!=='space')contents+=`<div class="field"><label>Color</label><div class="choice-grid" role="radiogroup" aria-label="Choose a color">${Object.entries(palettes).map(([name,color])=>`<label title="${name}" class="color-choice ${current.color===name?'selected':''}" style="background:${color}"><input type="radio" name="color" value="${name}" ${current.color===name?'checked':''} style="position:absolute;opacity:0;width:0;height:0"/></label>`).join('')}</div></div>`;
-  if(kind!=='space')contents+=`<div class="field"><label class="choice-check" style="display:inline-flex"><input name="pinned" type="checkbox" ${current.pinned?'checked':''}/> ${icon('bookmark',15)} Bookmark in sidebar</label></div>`;
-  if(kind!=='space')contents+=`<div class="field"><label class="choice-check" style="display:inline-flex"><input name="favorite" type="checkbox" ${current.favorite?'checked':''}/> ${icon('heart',15)} Add to favorites</label></div>`;
-  $('modal-content').innerHTML=contents;
-  $('modal-title').textContent=`${id?'Edit':'New'} ${typeLabel({type:kind}).toLowerCase()}`;
-  $('modal-hint').textContent='Changes are stored locally';
-  $('editor-trash').hidden=!(id&&(kind==='collection'||kind==='space')&&!current.deleted);
-  $('scrim').classList.add('open');
-  setTimeout(()=>$('f-title')?.focus(),10);
-}
-    function collectionChoices(current,id){
-  const candidates=active().filter(i=>(i.type==='collection'||i.type==='space')&&i.id!==id&&(i.type!=='collection'||!isDescendant(i.id,id||'_none_')));
-  if(!candidates.length)return '<span class="small-muted">No spaces or collections yet.</span>';
-  const selected=current.collectionIds?.length?current.collectionIds:(!id&&ui.view.startsWith('collection:')?[ui.view.slice(11)]:!id&&ui.view.startsWith('space:')?[ui.view.slice(6)]:[]);
-  const group=(title,kind)=>{
-    const available=candidates.filter(i=>i.type===kind).sort((a,b)=>a.title.localeCompare(b.title));
-    return available.length?`<div class="choice-heading">${title}</div>${available.map(i=>`<label class="choice-check"><input type="checkbox" name="collections" value="${esc(i.id)}" ${selected.includes(i.id)?'checked':''}/>${icon(kind==='space'?'space':'folder',14)}<span>${esc(i.title)}</span></label>`).join('')}`:'';
-  };
-  return group('Spaces','space')+group('Collections','collection');
-}
+     closeMenus();
+     ui.editReturn=id&&ui.detail===id?id:null;
+     if(ui.editReturn){ui.detail=null;$('detail').classList.remove('open');}
+     const existing=id?one(id):null,kind=existing?.type||type;
+     ui.editor={id,type:kind};
+     const current=existing||{title:'',url:'',body:'',tasks:[],tags:[],collectionIds:[],color:kind==='checklist'?'blue':'slate',favorite:false,pinned:false};
+     let contents=`<div class="field"><label for="f-title">${kind==='folder'?'Folder name':'Title'}</label><input required autofocus id="f-title" name="title" class="text-field" maxlength="200" placeholder="${kind==='folder'?'Name this folder':'Give it a name'}" value="${esc(current.title)}"/></div>`;
+     if(['bookmark','image','file'].includes(kind))contents+=`<div class="field"><label for="f-url">${kind==='bookmark'?'URL':kind==='image'?'Image URL':'File URL or path'}</label><input id="f-url" name="url" class="text-field" type="text" placeholder="https://…" value="${esc(current.url||'')}"/><small>${kind==='file'?'This prototype stores file references, not uploaded files.':kind==='image'?'Use a direct image URL to display its thumbnail.':'The link opens in a new tab.'}</small></div>`;
+     if(kind==='note')contents+=`<div class="field"><label for="f-body">Note</label><textarea id="f-body" name="body" class="text-area" style="min-height:190px" placeholder="Write anything…">${esc(current.body)}</textarea></div>`;
+     if(kind==='checklist')contents+=`<div class="field"><label for="f-tasks">Checklist items</label><textarea id="f-tasks" name="tasks" class="text-area" style="min-height:165px" placeholder="One item per line">${esc((current.tasks||[]).map(t=>(t.done?'[x] ':'[ ] ')+t.text).join('\n'))}</textarea><small>One item per line. Use [x] for completed, [ ] for incomplete.</small></div>`;
+     if(['bookmark','image','file'].includes(kind))contents+=`<div class="field"><label for="f-body">Description (optional)</label><textarea id="f-body" name="body" class="text-area" style="min-height:75px" placeholder="Why save this?">${esc(current.body||'')}</textarea></div>`;
+     contents+=`<div class="field"><label>${kind==='folder'?'Parent folders (optional)':'Add to folders (optional)'}</label><div class="choice-grid">${folderChoices(current,id)}</div><small>${kind==='folder'?'Folders may be nested at any depth. Leave empty to place this folder at the top level.':'Objects can belong to more than one folder.'}</small></div>`;
+     contents+=`<div class="field"><label for="f-tags">Tags</label><input id="f-tags" name="tags" class="text-field" placeholder="design, research, personal" value="${esc((current.tags||[]).join(', '))}"/><small>Separate with commas. Tags work across your library.</small></div>`;
+     contents+=`<div class="field"><label>Color</label><div class="choice-grid" role="radiogroup" aria-label="Choose a color">${Object.entries(palettes).map(([name,color])=>`<label title="${name}" class="color-choice ${current.color===name?'selected':''}" style="background:${color}"><input type="radio" name="color" value="${name}" ${current.color===name?'checked':''} style="position:absolute;opacity:0;width:0;height:0"/></label>`).join('')}</div></div>`;
+     contents+=`<div class="field"><label class="choice-check" style="display:inline-flex"><input name="pinned" type="checkbox" ${current.pinned?'checked':''}/> ${icon('bookmark',15)} Bookmark in sidebar</label></div>`;
+     contents+=`<div class="field"><label class="choice-check" style="display:inline-flex"><input name="favorite" type="checkbox" ${current.favorite?'checked':''}/> ${icon('heart',15)} Add to favorites</label></div>`;
+     $('modal-content').innerHTML=contents;
+     $('modal-title').textContent=`${id?'Edit':'New'} ${typeLabel({type:kind}).toLowerCase()}`;
+     $('modal-hint').textContent='Changes are stored locally';
+     $('editor-trash').hidden=!(id&&kind==='folder'&&!current.deleted);
+     $('scrim').classList.add('open');
+     setTimeout(()=>$('f-title')?.focus(),10);
+    }
+    function folderChoices(current,id){
+     const folders=active().filter(i=>i.type==='folder'&&i.id!==id&&!isDescendant(i.id,id||'_none_')).sort((a,b)=>a.title.localeCompare(b.title));
+     if(!folders.length)return '<span class="small-muted">No folders available yet.</span>';
+     const selected=current.collectionIds?.length?current.collectionIds:(!id&&ui.view.startsWith('folder:')?[ui.view.slice(7)]:[]);
+     return folders.map(i=>`<label class="choice-check"><input type="checkbox" name="collections" value="${esc(i.id)}" ${selected.includes(i.id)?'checked':''}/>${icon('folder',14)}<span>${esc(i.title)}</span></label>`).join('');
+    }
 
     function normalizeUrl(s){let val=s.trim();if(val && !/^[a-z][a-z\d+.-]*:/i.test(val) && !val.startsWith('/') && !val.startsWith('./')) val='https://'+val;return val;}
     function safeUrl(s) {const val=normalizeUrl(s); if(!val)return ''; if(/^https?:\/\//i.test(val))return val; if(val.startsWith('./')||val.startsWith('/'))return val;return '';}
     function parseTasks(raw,old=[]){return raw.split('\n').map(t=>t.trim()).filter(Boolean).map(rawline=>{const m=rawline.match(/^\[([xX ])\]\s*(.*)$/);const text=(m?m[2]:rawline).trim();const existing=old.find(t=>t.text===text);return {text,done:m?m[1].toLowerCase()==='x':existing?.done||false}}).filter(t=>t.text);}
     function saveEditor(e){
-  e.preventDefault();const form=e.target,data=new FormData(form),ctx=ui.editor;
-  if(!ctx)return;
-  const title=String(data.get('title')||'').trim();
-  if(!title){$('f-title').focus();return;}
-  const original=ctx.id?one(ctx.id):null;
-  const url=['bookmark','image','file'].includes(ctx.type)?safeUrl(String(data.get('url')||'')):'';
-  if(['bookmark','image','file'].includes(ctx.type)&&String(data.get('url')||'').trim()&&!url){toast('Please use an http(s) URL or a relative file path.');return;}
-  const cols=ctx.type==='space'?[]:data.getAll('collections').filter(x=>{
-    const p=one(x);return p&&!p.deleted&&(p.type==='collection'||p.type==='space')&&x!==ctx.id;
-  });
-  const item=original||{id:key(),type:ctx.type,created:new Date().toISOString(),deleted:false,thumb:'',group:''};
-  item.title=title;item.url=url;item.body=String(data.get('body')||'');
-  item.tasks=ctx.type==='checklist'?parseTasks(String(data.get('tasks')||''),original?.tasks||[]):[];
-  item.tags=ctx.type==='space'?[]:[...new Set(String(data.get('tags')||'').split(',').map(t=>t.trim().toLowerCase()).filter(Boolean))];
-  item.collectionIds=cols;item.pinnedIn=(item.pinnedIn||[]).filter(c=>{const ix=c.indexOf(':');return ix!==-1&&cols.includes(c.slice(ix+1));});item.favorite=ctx.type==='space'?false:!!data.get('favorite');item.pinned=ctx.type==='space'?false:!!data.get('pinned');item.color=ctx.type==='space'?(item.color||'slate'):String(data.get('color')||'slate');
-  item.updated=new Date().toISOString();
-  if(!original)items.unshift(item);
-  persist();$('scrim').classList.remove('open');ui.editor=null;ui.editReturn=null;ui.detail=item.id;render();
-  toast(original?'Item updated':'Item created');
-}
+     e.preventDefault();
+     const data=new FormData(e.target),ctx=ui.editor;
+     if(!ctx)return;
+     const title=String(data.get('title')||'').trim();
+     if(!title){$('f-title').focus();return;}
+     const original=ctx.id?one(ctx.id):null;
+     const url=['bookmark','image','file'].includes(ctx.type)?safeUrl(String(data.get('url')||'')):'';
+     if(['bookmark','image','file'].includes(ctx.type)&&String(data.get('url')||'').trim()&&!url){toast('Please use an http(s) URL or a relative file path.');return;}
+     const folders=data.getAll('collections').filter(id=>{
+      const parent=one(id);
+      return parent&&!parent.deleted&&parent.type==='folder'&&id!==ctx.id&&(ctx.type!=='folder'||!isDescendant(id,ctx.id||'_none_'));
+     });
+     const item=original||{id:key(),type:ctx.type,created:new Date().toISOString(),deleted:false,thumb:'',group:''};
+     item.title=title;item.url=url;item.body=String(data.get('body')||'');
+     item.tasks=ctx.type==='checklist'?parseTasks(String(data.get('tasks')||''),original?.tasks||[]):[];
+     item.tags=[...new Set(String(data.get('tags')||'').split(',').map(t=>t.trim().toLowerCase()).filter(Boolean))];
+     item.collectionIds=[...new Set(folders)];
+     item.pinnedIn=(item.pinnedIn||[]).filter(c=>c.startsWith('folder:')&&item.collectionIds.includes(c.slice(7)));
+     item.favorite=!!data.get('favorite');item.pinned=!!data.get('pinned');
+     item.color=String(data.get('color')||'slate');
+     item.updated=new Date().toISOString();
+     if(!original)items.unshift(item);
+     if(!original&&ctx.type==='folder'&&folders.length){
+      folders.forEach(id=>ui.expandedFolders.add(id));
+      persistSidebar();
+     }
+     persist();$('scrim').classList.remove('open');ui.editor=null;ui.editReturn=null;ui.detail=item.id;render();
+     toast(original?'Item updated':'Item created');
+    }
 
     function closeEditor(){
  $('scrim').classList.remove('open');ui.editor=null;
@@ -896,27 +898,28 @@
 }
 
     function putInTrash(id){
-  const item=one(id);if(!item||item.deleted)return;
-  item.deleted=true;item.updated=new Date().toISOString();ui.detail=null;
-  if(ui.view===item.type+':'+id)ui.view='unsorted';
-  if(ui.expandedSpaces.delete(id))persistSidebar();
-  persist();render();
-  toast(item.type==='collection'||item.type==='space'?'Moved to Trash; contents are preserved.':'Moved to Trash');
-}
+     const item=one(id);if(!item||item.deleted)return;
+     item.deleted=true;item.updated=new Date().toISOString();ui.detail=null;
+     if(ui.view==='folder:'+id)ui.view='unsorted';
+     if(ui.expandedFolders.delete(id))persistSidebar();
+     persist();render();
+     toast(item.type==='folder'?'Moved to Trash; folder contents are preserved.':'Moved to Trash');
+    }
 
     function restore(id){const i=one(id);if(!i)return;i.deleted=false;i.updated=new Date().toISOString();persist();render();toast('Item restored');}
-    function purge(id){const i=one(id);if(!i)return;if(!confirm(`Delete “${i.title}” permanently?`))return;items=items.filter(x=>x.id!==id);items.forEach(x=>{x.collectionIds=x.collectionIds.filter(c=>c!==id);x.pinnedIn=(x.pinnedIn||[]).filter(c=>c!=='space:'+id&&c!=='collection:'+id);});if(ui.expandedSpaces.delete(id))persistSidebar();ui.detail=null;persist();render();toast('Deleted permanently');}
+    function purge(id){const i=one(id);if(!i)return;if(!confirm(`Delete “${i.title}” permanently?`))return;items=items.filter(x=>x.id!==id);items.forEach(x=>{x.collectionIds=x.collectionIds.filter(c=>c!==id);x.pinnedIn=(x.pinnedIn||[]).filter(c=>c!=='folder:'+id);});if(ui.expandedFolders.delete(id))persistSidebar();ui.detail=null;persist();render();toast('Deleted permanently');}
     function exportData(){const blob=new Blob([JSON.stringify({version:5,exported:new Date().toISOString(),items},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='shelf-library-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('Backup exported');}
     function importData(){const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.addEventListener('change',async()=>{const file=input.files?.[0];if(!file)return;try{const json=JSON.parse(await file.text());if(!Array.isArray(json.items)||json.items.some(i=>!i.id||!i.type||!i.title||!Array.isArray(i.collectionIds)))throw Error('Invalid backup');if(!confirm(`Replace your current library with ${json.items.length} imported items? Export a backup first if needed.`))return;items=adaptLibrary(json.items);ui.detail=null;setView('all');persist();render();toast('Library imported');}catch(e){alert('Could not import this file. Please select a Shelf JSON backup.');}});input.click();}
-    function dropOnCollection(itemId,collectionId){
-  const item=one(itemId),folder=one(collectionId);
-  if(!item||!folder||item.deleted||folder.deleted||item.id===folder.id)return;
-  if(item.type==='space'||!['collection','space'].includes(folder.type))return toast('Spaces cannot be moved into other containers.');
-  if(item.type==='collection'&&isDescendant(collectionId,item.id))return toast('A collection cannot contain itself or a parent.');
-  if(item.collectionIds.includes(collectionId))return toast('Already in this location');
-  item.collectionIds.push(collectionId);item.updated=new Date().toISOString();
-  persist();render();toast(`Added to ${folder.title}`);
-}
+    function dropOnFolder(itemId,folderId){
+     const item=one(itemId),folder=one(folderId);
+     if(!item||!folder||item.deleted||folder.deleted||item.id===folder.id)return;
+     if(folder.type!=='folder')return toast('Drop items onto folders.');
+     if(item.type==='folder'&&isDescendant(folderId,item.id))return toast('A folder cannot contain itself or an ancestor.');
+     if(item.collectionIds.includes(folderId))return toast('Already in this folder');
+     item.collectionIds.push(folderId);item.updated=new Date().toISOString();
+     ui.expandedFolders.add(folderId);persistSidebar();
+     persist();render();toast(`Added to ${folder.title}`);
+    }
 
     document.addEventListener('click',e=>{
       const el=e.target.closest('[data-action]');if(!el){if(!e.target.closest('.popover'))closeMenus();return;}
