@@ -784,6 +784,14 @@
     function isContextPinned(item,context=ui.view){
   return Array.isArray(item.pinnedIn)&&item.pinnedIn.includes(context);
 }
+    function toggleTaskDone(id){
+      const item=one(id);
+      if(!item||item.deleted||item.type!=='task')return;
+      item.status=item.status==='done'?'todo':'done';
+      item.updated=new Date().toISOString();
+      persist();renderContent();renderDetail();
+      toast(item.status==='done'?'Task completed':'Task reopened');
+    }
     function toggleContextPin(id,context=ui.view){
   const item=one(id);
   if(!item||!context||item.deleted||context!==currentPinContext(item))return;
@@ -888,6 +896,30 @@
       const n=members(item.id).length;
       body=`<p class="detail-content">${n} ${n===1?'item belongs':'items belong'} to this folder. Folders can contain other folders, links, notes, checklists, images, and files.</p>${item.deleted?'':`<div class="detail-buttons"><button class="detail-btn primary" data-action="nav" data-view="folder:${esc(item.id)}">${icon('folder')} Open folder</button></div>`}`;
      }
+     if(item.type==='task'){
+       const done=item.status==='done',status=taskStates[item.status]||'To do';
+       const priority=taskPriorities[item.priority]||'Normal';
+       const notes=item.body?`<div class="object-notes-label">Notes</div><div class="detail-content">${esc(item.body)}</div>`:'';
+       body=`<div class="object-facts">
+         <div class="object-fact"><div class="object-fact-label">${icon('task',14)} Status</div><div class="object-fact-value">${esc(status)}</div></div>
+         <div class="object-fact"><div class="object-fact-label">${icon('event',14)} Due</div><div class="object-fact-value">${esc(item.dueDate?dateLabel(item.dueDate,true):'No due date')}</div></div>
+         <div class="object-fact"><div class="object-fact-label">Priority</div><div class="object-fact-value">${esc(priority)}</div></div>
+       </div>${notes}${item.deleted?'':`<div class="detail-buttons"><button class="detail-btn ${done?'':'primary'}" data-action="toggle-task-done" data-id="${esc(item.id)}">${icon('task',16)} ${done?'Reopen task':'Mark as done'}</button></div>`}`;
+     }
+     if(item.type==='event'){
+       const start=item.startDate?dateLabel(item.startDate,true):'Date not set';
+       const end=item.endDate?dateLabel(item.endDate,true):start;
+       const dateAndTime=date=>date+(item.allDay?' · All day':'');
+       const startText=start+(item.allDay?'':item.startTime?' · '+timeLabel(item.startTime):'');
+       const endText=end+(item.allDay?'':item.endTime?' · '+timeLabel(item.endTime):'');
+       const notes=item.body?`<div class="object-notes-label">Notes</div><div class="detail-content">${esc(item.body)}</div>`:'';
+       body=`<div class="object-facts">
+         <div class="object-fact"><div class="object-fact-label">${icon('event',14)} Starts</div><div class="object-fact-value">${esc(startText)}</div></div>
+         <div class="object-fact"><div class="object-fact-label">${icon('event',14)} Ends</div><div class="object-fact-value">${esc(endText)}</div></div>
+         <div class="object-fact"><div class="object-fact-label">${icon('map-pin',14)} Location</div><div class="object-fact-value">${esc(item.location||'No location')}</div></div>
+         <div class="object-fact"><div class="object-fact-label">Type</div><div class="object-fact-value">${item.allDay?'All-day event':'Timed event'}</div></div>
+       </div>${notes}`;
+     }
      if(item.type==='checklist'){
       const tasks=item.tasks||[],done=tasks.filter(t=>t.done).length;
       body=`<div class="task-counter">${done} of ${tasks.length} completed · ${tasks.length?Math.round(done/tasks.length*100):0}%</div>${tasks.map((t,idx)=>`<label class="detail-checkline ${t.done?'done':''}"><input type="checkbox" data-action="toggle-task" data-id="${esc(item.id)}" data-index="${idx}" ${t.done?'checked':''}/><span>${esc(t.text)}</span></label>`).join('')}<input class="new-task-input" id="add-task" aria-label="Add task" placeholder="+ Add an item and press Enter" data-id="${esc(item.id)}"/>`;
@@ -927,6 +959,7 @@
   html+=option('visit-link','Visit link','external-link');
   html+=option('view-details','View details','note')+'<div class="pop-divider"></div>';
  }else html+=option('view-details','View details','note');
+ if(item.type==='task')html+=option('toggle-task-done',item.status==='done'?'Reopen task':'Mark as done','task');
  const ctx=currentPinContext(item);
  if(ctx)html+=option('pin-context',isContextPinned(item,ctx)?'Unpin here':'Pin here','pushpin');
  html+=option('toggle-pin',item.pinned?'Remove sidebar bookmark':'Bookmark in sidebar','bookmark');
@@ -1015,6 +1048,10 @@
      const title=String(data.get('title')||'').trim();
      if(!title){$('f-title').focus();return;}
      const original=ctx.id?one(ctx.id):null;
+     if(ctx.type==='task'){
+       const due=String(data.get('dueDate')||'');
+       if(due&&!parseLocalDate(due)){toast('Choose a valid due date.');return;}
+     }
      const url=['bookmark','image','file'].includes(ctx.type)?safeUrl(String(data.get('url')||'')):'';
      if(['bookmark','image','file'].includes(ctx.type)&&String(data.get('url')||'').trim()&&!url){toast('Please use an http(s) URL or a relative file path.');return;}
      const folders=data.getAll('collections').filter(id=>{
@@ -1031,7 +1068,7 @@
        if(!parseLocalDate(startDate)||!parseLocalDate(endDate)){toast('Choose a valid event date.');return;}
        if(endDate<startDate){toast('End date cannot come before start date.');return;}
        if(!allDay){
-         if(!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(startTime)||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(endTime)){
+         if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime)){
            toast('Enter a start and end time, or choose All-day.');return;
          }
          if(endDate+'T'+endTime<startDate+'T'+startTime){toast('Event must end after it begins.');return;}
@@ -1042,7 +1079,6 @@
      if(ctx.type==='task'){
        const status=String(data.get('status')||'todo'),priority=String(data.get('priority')||'normal');
        const dueDate=String(data.get('dueDate')||'');
-       if(dueDate&&!parseLocalDate(dueDate)){toast('Choose a valid due date.');return;}
        item.status=Object.hasOwn(taskStates,status)?status:'todo';
        item.priority=Object.hasOwn(taskPriorities,priority)?priority:'normal';
        item.dueDate=dueDate;
@@ -1112,7 +1148,7 @@
     document.addEventListener('click',e=>{
       const el=e.target.closest('[data-action]');if(!el){if(!e.target.closest('.popover'))closeMenus();return;}
       const action=el.dataset.action,id=el.dataset.id;
-      if(['favorite','toggle-pin','pin-context','edit','close-detail','trash','restore','purge','editor-trash','item-menu','visit-link','view-details'].includes(action))e.stopPropagation();
+      if(['favorite','toggle-pin','pin-context','toggle-task-done','edit','close-detail','trash','restore','purge','editor-trash','item-menu','visit-link','view-details'].includes(action))e.stopPropagation();
       switch(action){
         case 'nav':setView(el.dataset.view,el.dataset.origin||'');break;
         case 'toggle-section':ui.sections[el.dataset.section]=!ui.sections[el.dataset.section];persistSidebar();renderSidebar();break;
@@ -1124,6 +1160,7 @@
         case 'editor-trash':{const target=ui.editor?.id;$('scrim').classList.remove('open');ui.editor=null;ui.editReturn=null;if(target)putInTrash(target);break;}
         case 'toggle-pin':togglePinned(id);closeMenus();break;
         case 'pin-context':toggleContextPin(id);closeMenus();break;
+        case 'toggle-task-done':toggleTaskDone(id);closeMenus();break;
         case 'toggle-mobile':ui.mobile=!ui.mobile;renderSidebar();break;
         case 'toggle-create':{renderCreatePopover();toggleMenu('create-popover',el);break;}
         case 'toggle-filter':{renderFilterPopover();toggleMenu('filter-popover',el);break;}
