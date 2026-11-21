@@ -344,17 +344,6 @@ function renderLibrary(){
 function safeRich(raw){
  var src=document.createElement("template");src.innerHTML=String(raw||"");
  var allowed=new Set(["P","DIV","BR","B","STRONG","I","EM","U","UL","OL","LI","H2","H3","BLOCKQUOTE","A"]);
- function clean(node){
-  Array.from(node.childNodes).forEach(function(ch){
-   if(ch.nodeType===8){ch.remove();return}
-   if(ch.nodeType!==1)return;
-   if(["SCRIPT","STYLE","IFRAME","OBJECT","SVG","MATH","FORM","INPUT","BUTTON"].includes(ch.tagName)){ch.remove();return}
-   clean(ch);
-   if(!allowed.has(ch.tagName)){while(ch.firstChild)ch.parentNode.insertBefore(ch.firstChild,ch);ch.remove();return}
-   Array.from(ch.attributes).forEach(function(attr){ch.removeAttribute(attr.name)});
-   if(ch.tagName==="A"){var h=safeUrl(ch.getAttribute("href"));if(h){ch.setAttribute("href",h);ch.setAttribute("rel","noopener noreferrer");ch.setAttribute("target","_blank")}}
-  })
- }
  // Keep only trusted formatting and drop attributes from pasted/generated markup.
  function sanitizeElement(node){
   Array.from(node.childNodes).forEach(function(ch){
@@ -429,7 +418,8 @@ function relatedSection(e){
  return out
 }
 function detailSidebar(e){
- var src=sources(e),s='<div class="panel"><h3>Context</h3>'+
+ var src=sources(e);[e.notebookId,e.folderId].filter(Boolean).forEach(function(id){var p=get(id);if(p&&!src.includes(p))src.push(p)});
+ var s='<div class="panel"><h3>Context</h3>'+
  (src.length?src.map(function(p){return '<div class="related-context">'+ic(typeIcon(p),15)+'<button data-act="open" data-id="'+p.id+'">'+esc(objTitle(p))+'</button><button class="icon-button" data-act="unlink" data-id="'+e.id+'" data-parent="'+p.id+'" title="Unlink from '+esc(objTitle(p))+'">'+ic("x",12)+'</button></div>'}).join(""):'<div style="font-size:11.5px;color:#9ba5a8">An independent item. It is still searchable everywhere.</div>')+
  '<div class="context-actions"><button class="button" data-act="attach-existing" data-context="'+e.id+'">'+ic("link",14)+' Link something</button></div></div>';
  if(e.type==="event"||e.type==="project"||e.type==="task"||e.type==="journal"){
@@ -512,6 +502,8 @@ function captureSave(contextId){
 function primaryType(t){return {home:null,journal:"journal",calendar:"event",planner:"task",notebooks:"note",library:"resource"}[t]}
 function openCreate(type,contextId,opts){
  opts=opts||{};if(type==="journal"){journalToday();return}
+ if(!contextId&&type==="note"&&state.ui.tool==="notebooks"&&state.ui.view.startsWith("book:"))contextId=state.ui.view.slice(5);
+ if(!contextId&&type==="resource"&&state.ui.tool==="library"&&state.ui.view.startsWith("folder:"))contextId=state.ui.view.slice(7);
  modalState={mode:"create",type:type,contextId:contextId||state.ui.focusId||null,opts:opts};
  var e=get(modalState.contextId),hint=e?"This will be connected to "+objTitle(e)+".":"No setup needed. You can always organize it later.";
  var title="New "+typeName(type).toLowerCase(),field='<div class="field"><label for="new-title">Title</label><input id="new-title" placeholder="'+(type==="event"?"e.g. Dentist, 2 PM":type==="project"?"e.g. Alpine Park HOA":"Give it a name")+'" required></div>';
@@ -564,7 +556,11 @@ function attachModal(contextId){
 }
 function updateAttachResults(q){
  var el=$("attach-results");if(!el||!modalState)return;
- var target=get(modalState.contextId),arr=list().filter(function(e){return e.id!==target.id&&!["folder","notebook"].includes(e.type)&&!(e.contextIds||[]).includes(target.id)&&searchMatch(e,q)}).sort(byRecent).slice(0,40);
+ var target=get(modalState.contextId);if(!target)return;
+ var arr=list().filter(function(e){if(e.id===target.id||["folder","notebook"].includes(e.type)||!searchMatch(e,q))return false;
+ if(target.type==="notebook")return e.type==="note"&&e.notebookId!==target.id;
+ if(target.type==="folder")return e.type==="resource"&&e.folderId!==target.id;
+ return !(e.contextIds||[]).includes(target.id)}).sort(byRecent).slice(0,40);
  el.innerHTML=arr.length?arr.map(function(e){return '<button class="search-result" data-act="attach-one" data-id="'+e.id+'">'+ic(typeIcon(e),18)+'<span><strong>'+esc(objTitle(e))+'</strong><small>'+esc(typeName(e.type))+(contextName(e)?" · "+esc(contextName(e)):"")+'</small></span>'+ic("plus",16)+'</button>'}).join(""):'<div class="modal-empty">Nothing else to link.</div>'
 }
 function detailsMenu(e){
@@ -581,7 +577,7 @@ function detailsMenu(e){
 }
 function toggleTask(id){var e=get(id);if(!e)return;e.completed=!e.completed;touched(e);paint();toast(e.completed?"Task completed":"Task reopened")}
 function focusContext(id){state.ui.focusId=state.ui.focusId===id?null:id;save();closeModal();paint();toast(state.ui.focusId?"Working on "+objTitle(get(id)):"Context cleared")}
-function unlink(id,parentId){var e=get(id);if(!e)return;e.contextIds=(e.contextIds||[]).filter(function(x){return x!==parentId});touched(e);paint();toast("Link removed; item kept in its own tool")}
+function unlink(id,parentId){var e=get(id);if(!e)return;e.contextIds=(e.contextIds||[]).filter(function(x){return x!==parentId});if(e.folderId===parentId)e.folderId=null;if(e.notebookId===parentId)e.notebookId=null;touched(e);paint();toast("Link removed; item kept in its own tool")}
 function archiveItem(id){var e=get(id);if(!e)return;e.archived=!e.archived;touched(e);closeModal();if(state.ui.detailId===id)back();else paint();toast(e.archived?"Archived":"Restored")}
 function trashItem(id){var e=get(id);if(!e)return;e.trashed=true;e.archived=false;touched(e);closeModal();if(state.ui.detailId===id)back();else paint();toast("Moved to Trash")}
 function restoreItem(id){var e=get(id);if(!e)return;e.trashed=false;touched(e);closeModal();paint();toast("Restored")}
@@ -595,7 +591,7 @@ async function fillPreviews(){
  for(var img of elems){try{var blob=await loadBlob(img.getAttribute("data-preview"));if(blob&&img.isConnected){var u=URL.createObjectURL(blob);mediaUrls.push(u);img.src=u}}catch(e){}}
 }
 async function handleUpload(files){
- files=Array.from(files||[]);if(!files.length)return;var context=get(uploadContext);uploadContext=null;var saved=0;
+ files=Array.from(files||[]);if(!files.length)return;var context=get(uploadContext||(state.ui.tool==="library"&&state.ui.view.startsWith("folder:")?state.ui.view.slice(7):null));uploadContext=null;var saved=0;
  for(var file of files){try{
   var kind=file.type.startsWith("image/")?"image":file.type.startsWith("video/")?"video":file.type.startsWith("audio/")?"music": "document";
   var e=ent("resource",file.name.replace(/\.[^/.]+$/,""),{resourceKind:kind,fileName:file.name,mime:file.type,fileSize:file.size,blobId:uid()});
@@ -640,8 +636,9 @@ function onClick(ev){
  if(act==="attach-existing"){attachModal(ctx||state.ui.detailId);return}
  if(act==="attach-one"){
   var target=get(modalState&&modalState.contextId);if(!current||!target)return;
-  if(!current.contextIds)current.contextIds=[];
-  if(!current.contextIds.includes(target.id))current.contextIds.push(target.id);
+  if(target.type==="notebook"&&current.type==="note")current.notebookId=target.id;
+  else if(target.type==="folder"&&current.type==="resource")current.folderId=target.id;
+  else{if(!current.contextIds)current.contextIds=[];if(!current.contextIds.includes(target.id))current.contextIds.push(target.id)}
   touched(current);closeModal();paint();toast("Linked to "+objTitle(target)+" · no duplicate created");return
  }
  if(act==="unlink"){unlink(id,b.getAttribute("data-parent"));return}
