@@ -432,7 +432,7 @@ function detailSidebar(e){
 }
 function renderDetail(e){
  var fromTool=state.ui.lastTool||state.ui.tool,backTitle=TOOLS.find(function(x){return x.id===fromTool});
- var back='<div class="backline"><button data-act="back">'+ic("arrow",16)+' Back to '+esc(backTitle?backTitle.name:"Shelf")+'</button> <span>/</span> <span>'+esc(typeName(e.type))+'</span></div>';
+ var parentId=(state.ui.detailTrail||[]).slice(-1)[0],parent=parentId?get(parentId):null;var back='<div class="backline"><button data-act="back">'+ic("arrow",16)+' Back to '+esc(parent?objTitle(parent):backTitle?backTitle.name:"Shelf")+'</button> <span>/</span> <span>'+esc(typeName(e.type))+'</span></div>';
  var head='<div class="detail-head"><span class="detail-big-icon">'+ic(typeIcon(e),26)+'</span><div class="detail-head-main"><div class="detail-kind">'+esc(typeName(e.type))+(e.demo?' · EXAMPLE':"")+'</div>'+
  '<div class="'+(e.type==="task"?"check-title":"")+'">'+(e.type==="task"?'<button class="task-check'+(e.completed?" checked":"")+'" data-act="toggle-task" data-id="'+e.id+'">'+(e.completed?ic("check",16):"")+'</button>':"")+
  '<input id="detail-title" class="detail-title-input" data-edit="title" aria-label="Title" value="'+esc(e.title)+'" placeholder="'+(e.type==="journal"?humanDay(e.date):"Untitled")+'"></div></div>'+
@@ -460,9 +460,9 @@ function renderWorkspace(){
  fillPreviews()
 }
 function paint(){renderRail();renderSidebar();renderWorkspace()}
-function go(tool,view,stay){if(!stay&&state.ui.detailId){state.ui.detailId=null}state.ui.tool=tool;state.ui.view=view||({home:"today",journal:"today",calendar:"month",planner:"today",notebooks:"all",library:"all"}[tool]||"today");save();paint();workspace.scrollTop=0}
-function openEntity(id){var e=get(id);if(!e)return;state.ui.lastTool=state.ui.tool;state.ui.lastView=state.ui.view;state.ui.detailId=id;addRecent(id);save();paint();workspace.scrollTop=0}
-function back(){state.ui.detailId=null;state.ui.tool=state.ui.lastTool||state.ui.tool;state.ui.view=state.ui.lastView||state.ui.view;save();paint()}
+function go(tool,view,stay){if(!stay&&state.ui.detailId){state.ui.detailId=null}state.ui.detailTrail=[];state.ui.tool=tool;state.ui.view=view||({home:"today",journal:"today",calendar:"month",planner:"today",notebooks:"all",library:"all"}[tool]||"today");save();paint();workspace.scrollTop=0}
+function openEntity(id){var e=get(id);if(!e)return;if(state.ui.detailId&&state.ui.detailId!==id){state.ui.detailTrail=(state.ui.detailTrail||[]).concat(state.ui.detailId).slice(-15)}else if(!state.ui.detailId){state.ui.detailTrail=[];state.ui.lastTool=state.ui.tool;state.ui.lastView=state.ui.view}state.ui.detailId=id;addRecent(id);save();paint();workspace.scrollTop=0}
+function back(){if(state.ui.detailTrail&&state.ui.detailTrail.length){state.ui.detailId=state.ui.detailTrail.pop();save();paint();workspace.scrollTop=0;return}state.ui.detailId=null;state.ui.tool=state.ui.lastTool||state.ui.tool;state.ui.view=state.ui.lastView||state.ui.view;save();paint();workspace.scrollTop=0}
 function journalToday(){var j=list("journal").find(function(e){return e.date===today()});if(!j){j=ent("journal","",{date:today()});state.entities.unshift(j);save()}openEntity(j.id)}
 function classifyUrl(url){
  var u=new URL(url),h=u.hostname.toLowerCase(),p=u.pathname.toLowerCase();
