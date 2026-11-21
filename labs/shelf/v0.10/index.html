@@ -448,7 +448,7 @@ function chooseContent(s){
  else if(/reddit\.com|twitter\.com|x\.com|instagram\.com|tiktok\.com|facebook\.com|threads\.net|linkedin\.com|bsky\.app|mastodon/.test(h)){cat="social"}
  else if(/medium\.com|substack\.com|theguardian\.com|nytimes\.com|bbc\.com|theverge\.com|arstechnica\.com/.test(h)||/\/(news|articles?|blog|posts?|story|stories)\//.test(path)){cat="article"}
  var filename=u.pathname.split("/").filter(Boolean).pop()||"";
- var guess=decodeURIComponent(filename).replace(/\.(html?|php|aspx?)$/i,"").replace(/[-_]+/g," ").replace(/\s+/g," ").trim();
+ var readable=filename;try{readable=decodeURIComponent(filename)}catch(e){}var guess=readable.replace(/\.(html?|php|aspx?)$/i,"").replace(/[-_]+/g," ").replace(/\s+/g," ").trim();
  if(guess.length>5&&!/^[a-z0-9_-]{24,}$/i.test(guess)&&!['index','home','watch','post'].includes(guess.toLowerCase()))title=guess.slice(0,95);
  if(!title)title=({'youtube.com':'YouTube video','youtu.be':'YouTube video','developer.mozilla.org':'MDN Web Docs','goodreads.com':'Goodreads','letterboxd.com':'Letterboxd','music.apple.com':'Apple Music','reddit.com':'Reddit'})[h]||h;
  var saved=makeObject(kind,title,"",{url:url,category:cat});
@@ -464,6 +464,7 @@ function showDetail(id){var o=obj(id);if(!o)return;openId=id;hidePicker();layer.
 function closeDetail(){if(openId)paint();openId=null;layer.classList.remove("open");layer.setAttribute("aria-hidden","true");hidePicker()}
 function renderDetail(){
  var o=obj(openId);if(!o)return;
+ document.getElementById("detail-dialog").style.setProperty("--detail-bg",color(o.color));
  document.getElementById("detail-type").innerHTML=icon(iconsFor[o.kind],15)+" "+esc(editLabel(o))+(o.archived?" · Archived":o.trashed?" · In trash":"");
  document.getElementById("detail-pin").innerHTML=icon(o.pinned?"pinfill":"pin",17);document.getElementById("detail-pin").classList.toggle("active",o.pinned);
  document.getElementById("detail-star").innerHTML=icon(o.starred?"starfill":"star",17);document.getElementById("detail-star").classList.toggle("active",o.starred);
@@ -489,13 +490,13 @@ function renderDetail(){
  loadDetailImage(o);
 }
 function menuAt(anchor,html){var r=anchor.getBoundingClientRect(),w=255;picker.style.left=Math.max(10,Math.min(window.innerWidth-w-12,r.left))+"px";picker.style.top=Math.max(10,Math.min(window.innerHeight-280,r.bottom+5))+"px";picker.innerHTML=html;picker.classList.add("open")}
-function hidePicker(){picker.classList.remove("open");picker.innerHTML="";pickerOptions=[]}
+function hidePicker(){picker.classList.remove("open");picker.innerHTML="";pickerOptions=[];picker.dataset.targetId=""}
 function pickerMenu(anchor,entries){pickerOptions=entries;menuAt(anchor,entries.map(function(x,i){return x.separator?'<div class="pop-break"></div>':'<button class="pop-row'+(x.danger?" danger":"")+'" data-pick="'+i+'">'+icon(x.icon||"note",16)+' '+esc(x.label)+'</button>'}).join(""))}
 function confirmDelete(o){if(!confirm("Move "+bestTitle(o)+" to Trash?"))return;trashObject(o)}
-function trashObject(o){o.trashed=true;o.archived=false;touch(o);if(o.id===openId)closeDetail();paint();toast("Moved to Trash")}
-function archiveObject(o){o.archived=!o.archived;touch(o);if(o.id===openId)closeDetail();paint();toast(o.archived?"Archived":"Restored")}
+function trashObject(o){var affected=o.kind==="folder"?descendantsOf(o.id):new Set([o.id]);state.objects.forEach(function(x){if(affected.has(x.id)){x.trashed=true;x.archived=false;x.updatedAt=time()}});save();if(affected.has(openId))closeDetail();paint();toast("Moved to Trash")}
+function archiveObject(o){var restore=o.archived,affected=o.kind==="folder"?descendantsOf(o.id):new Set([o.id]);state.objects.forEach(function(x){if(affected.has(x.id)){x.archived=!restore;x.updatedAt=time()}});save();if(affected.has(openId))closeDetail();paint();toast(restore?"Restored":"Archived")}
 function renameFolder(o){showDialog("Rename folder","Change this folder's name.",o.title,"Save",function(name){o.title=name;touch(o);paint();if(openId===o.id)renderDetail()})}
-function colorMenu(o,anchor){menuAt(anchor,'<div class="colors">'+COLOR_OPTIONS.map(function(c){return '<button class="color-choice'+(c.id===o.color?" selected":"")+'" style="background:'+c.value+'" title="'+c.id+'" data-action="set-color" data-color="'+c.id+'"></button>'}).join("")+'</div>')}
+function colorMenu(o,anchor){picker.dataset.targetId=o.id;menuAt(anchor,'<div class="colors">'+COLOR_OPTIONS.map(function(c){return '<button class="color-choice'+(c.id===o.color?" selected":"")+'" style="background:'+c.value+'" title="'+c.id+'" data-action="set-color" data-color="'+c.id+'"></button>'}).join("")+'</div>')}
 function moveMenu(o,anchor){
  var folders=normal().filter(function(x){return x.kind==="folder"&&x.id!==o.id});
  var bad=o.kind==="folder"?descendantsOf(o.id):new Set();
@@ -516,7 +517,10 @@ function objectMenu(o,anchor){pickerMenu(anchor,[
  ...(o.trashed?[{label:"Delete forever",icon:"trash",danger:true,run:function(){if(confirm("Permanently delete this item?")){state.objects=state.objects.filter(function(x){return x.id!==o.id});save();if(openId===o.id)closeDetail();paint()}}}]:[])
  ])}
 function reminderMenu(o,anchor){
- var value=o.reminderAt?new Date(o.reminderAt).toISOString().slice(0,16):"";
+ picker.dataset.targetId=o.id;
+ var d=o.reminderAt?new Date(o.reminderAt):null;
+ if(d)d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
+ var value=d?d.toISOString().slice(0,16):"";
  menuAt(anchor,'<div class="date-pop"><label for="reminder-input">Reminder date and time</label><input id="reminder-input" type="datetime-local" value="'+esc(value)+'"><div class="row"><button data-action="clear-reminder">Clear</button><button data-action="save-reminder">Save</button></div><div style="font-size:10px;color:#9ba1a4;margin-top:11px">Listed in Reminders; notifications are not enabled yet.</div></div>')
 }
 function showDialog(title,copy,initial,button,callback){dialogCallback=callback;document.getElementById("dialog-heading").textContent=title;document.getElementById("dialog-copy").textContent=copy||"";document.getElementById("dialog-input").value=initial||"";document.getElementById("dialog-submit").textContent=button||"Save";document.getElementById("dialog-overlay").classList.add("open");setTimeout(function(){var f=document.getElementById("dialog-input");f.focus();f.select()},35)}
@@ -549,8 +553,8 @@ async function importBackup(file){try{var d=JSON.parse(await file.text());if(d.f
 document.addEventListener("click",function(e){
  var pick=e.target.closest("[data-pick]");if(pick){var x=pickerOptions[Number(pick.getAttribute("data-pick"))];hidePicker();if(x&&x.run)x.run();return}
  var btn=e.target.closest("[data-action]");if(!btn){if(!e.target.closest("#picker"))hidePicker();return}
- var a=btn.getAttribute("data-action"),id=btn.getAttribute("data-id"),o=id?obj(id):obj(openId),viewName=btn.getAttribute("data-view");
- if(!["card-menu","detail-more","move-menu","color-menu","reminder-menu","set-color"].includes(a))hidePicker();
+ var a=btn.getAttribute("data-action"),id=btn.getAttribute("data-id"),o=id?obj(id):obj(picker.dataset.targetId||openId),viewName=btn.getAttribute("data-view");
+ if(!["card-menu","detail-more","move-menu","color-menu","reminder-menu","set-color","save-reminder","clear-reminder"].includes(a))hidePicker();
  if(a==="nav"){navigate(viewName,btn.getAttribute("data-id"));return}
  if(a==="go-starred"){navigate("starred");return}
  if(a==="section-folders"){var r=normal().find(function(x){return x.kind==="folder"&&!x.folderId});if(r)navigate("folder",r.id);else newFolder();return}
@@ -575,10 +579,10 @@ document.addEventListener("click",function(e){
  if(a==="toggle-quick"&&o){o.quickLink=!o.quickLink;touch(o);renderDetail();paintSide();return}
  if(a==="move-menu"&&o){moveMenu(o,btn);return}
  if(a==="color-menu"&&o){colorMenu(o,btn);return}
- if(a==="set-color"&&o){o.color=btn.getAttribute("data-color");touch(o);document.getElementById("detail-dialog").style.setProperty("--detail-bg",color(o.color));paint();hidePicker();return}
+ if(a==="set-color"&&o){o.color=btn.getAttribute("data-color");touch(o);if(openId===o.id)renderDetail();paint();hidePicker();return}
  if(a==="reminder-menu"&&o){reminderMenu(o,btn);return}
- if(a==="save-reminder"&&o){var t=document.getElementById("reminder-input");o.reminderAt=t&&t.value?new Date(t.value).toISOString():"";touch(o);hidePicker();renderDetail();paint();toast("Reminder saved");return}
- if(a==="clear-reminder"&&o){o.reminderAt="";touch(o);hidePicker();renderDetail();paint();return}
+ if(a==="save-reminder"&&o){var t=document.getElementById("reminder-input");o.reminderAt=t&&t.value?new Date(t.value).toISOString():"";touch(o);hidePicker();if(openId===o.id)renderDetail();paint();toast("Reminder saved");return}
+ if(a==="clear-reminder"&&o){o.reminderAt="";touch(o);hidePicker();if(openId===o.id)renderDetail();paint();return}
  if(a==="archive-one"&&o){archiveObject(o);return}
  if(a==="download-file"&&o){downloadFile(o);return}
  if(a==="cancel-dialog"){closeDialog();return}
