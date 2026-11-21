@@ -513,8 +513,8 @@ function objectMenu(o,anchor){pickerMenu(anchor,[
  {label:"Set reminder…",icon:"bell",run:function(){reminderMenu(o,anchor)}},
  {separator:true},
  {label:o.archived?"Restore from Archive":"Archive",icon:"archive",run:function(){archiveObject(o)}},
- {label:o.trashed?"Restore from Trash":"Move to Trash",icon:o.trashed?"restore":"trash",run:function(){if(o.trashed){o.trashed=false;touch(o);paint()}else confirmDelete(o)}},
- ...(o.trashed?[{label:"Delete forever",icon:"trash",danger:true,run:function(){if(confirm("Permanently delete this item?")){state.objects=state.objects.filter(function(x){return x.id!==o.id});save();if(openId===o.id)closeDetail();paint()}}}]:[])
+ {label:o.trashed?"Restore from Trash":"Move to Trash",icon:o.trashed?"restore":"trash",run:function(){if(o.trashed){var restored=o.kind==="folder"?descendantsOf(o.id):new Set([o.id]);state.objects.forEach(function(x){if(restored.has(x.id)){x.trashed=false;x.updatedAt=time()}});save();paint();toast("Restored")}else confirmDelete(o)}},
+ ...(o.trashed?[{label:"Delete forever",icon:"trash",danger:true,run:function(){if(confirm("Permanently delete this item?")){var doomed=o.kind==="folder"?descendantsOf(o.id):new Set([o.id]);state.objects=state.objects.filter(function(x){return !doomed.has(x.id)});save();if(doomed.has(openId))closeDetail();paint()}}}]:[])
  ])}
 function reminderMenu(o,anchor){
  picker.dataset.targetId=o.id;
