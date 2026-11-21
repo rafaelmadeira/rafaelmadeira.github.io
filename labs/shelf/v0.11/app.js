@@ -538,8 +538,10 @@ function closeModal(){modalRoot.classList.remove("open");modalRoot.setAttribute(
 function newMenu(){
  var t=state.ui.tool;
  var types=[{type:"task",title:"Task",help:"Something to do",icon:"check-circle"},{type:"event",title:"Calendar event",help:"Something on your schedule",icon:"calendar"},{type:"note",title:"Note",help:"Something to write or remember",icon:"note"},{type:"resource",title:"Link or file",help:"Something worth keeping",icon:"link"},{type:"project",title:"Project",help:"Something to work on",icon:"clipboard"},{type:"notebook",title:"Notebook",help:"A place for written things",icon:"notebook"}];
- openModal('<div class="modal-header"><h2>Add something</h2><button class="icon-button" data-act="modal-close">'+ic("x",19)+'</button></div><div class="modal-scroll"><p class="modal-help">Choose a familiar tool. Shelf handles the rest.</p><div class="menu-list">'+types.map(function(x){return '<button class="menu-choice" data-act="create" data-type="'+x.type+'">'+ic(x.icon,20)+'<span><b style="font-size:12.5px">'+x.title+'</b><br><small>'+x.help+'</small></span>'+ic("chevron-right",16)+'</button>'}).join("")+'</div></div>');
+ openModal('<div class="modal-header"><h2>Save anything</h2><button class="icon-button" data-act="modal-close">'+ic("x",19)+'</button></div><div class="modal-scroll"><p class="modal-help">Paste a link or jot down a thought. No setup needed.</p><div class="capture-box" style="margin:0 0 15px"><textarea id="global-capture" placeholder="Write, paste a URL, or type “todo: ” for a task…" aria-label="Save anything"></textarea><div class="capture-actions"><span class="capture-tip" style="margin:0 0 0 7px;flex:1">Enter to save · Shift+Enter for a new line</span><button class="button primary" data-act="global-capture-save">'+ic("plus",14)+' Save</button></div></div><div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:#a3adae;margin:15px 0 8px">OR ADD USING A TOOL</div><div class="menu-list">'+types.map(function(x){return '<button class="menu-choice" data-act="create" data-type="'+x.type+'">'+ic(x.icon,20)+'<span><b style="font-size:12.5px">'+x.title+'</b><br><small>'+x.help+'</small></span>'+ic("chevron-right",16)+'</button>'}).join("")+'</div></div>');
+ setTimeout(function(){var t=$("global-capture");if(t)t.focus()},10);
 }
+function saveGlobalCapture(){var el=$("global-capture");if(!el||!el.value.trim())return;var x=captureObject(el.value,state.ui.focusId||null,"auto");if(!x)return;closeModal();paint();toast(typeName(x.type)+" saved"+(x.sourceId&&get(x.sourceId)?" · linked to "+objTitle(get(x.sourceId)):""))}
 function searchModal(){
  modalState={mode:"search"};
  openModal('<div class="modal-header"><h2>Find anything</h2><button class="icon-button" data-act="modal-close">'+ic("x",19)+'</button></div><div class="modal-scroll"><input id="global-search" class="search-input" type="search" placeholder="Find a note, event, file, task, project…" autocomplete="off" aria-label="Search all items"><div id="search-results" class="search-results"></div></div>');
@@ -621,6 +623,7 @@ function onClick(ev){
  if(act==="open"){closeModal();openEntity(id);return}
  if(act==="back"){back();return}
  if(act==="new-menu"){newMenu();return}
+ if(act==="global-capture-save"){saveGlobalCapture();return}
  if(act==="create-primary"){var t=primaryType(state.ui.tool);if(!t)newMenu();else openCreate(t,null);return}
  if(act==="create"){openCreate(type,ctx||null,{date:b.getAttribute("data-date")||null});return}
  if(act==="journal-today"){journalToday();return}
@@ -675,6 +678,7 @@ document.addEventListener("keydown",function(ev){
  if(ev.key==="Escape"){if(modalRoot.classList.contains("open")){closeModal();return}if(state.ui.detailId){back();return}}
  if(ev.key==="/"&&!["INPUT","TEXTAREA"].includes(tag)&&!target.isContentEditable&&!ev.ctrlKey&&!ev.metaKey){ev.preventDefault();searchModal();return}
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="home-capture"){ev.preventDefault();captureSave(null);return}
+ if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="global-capture"){ev.preventDefault();saveGlobalCapture();return}
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="planner-quick"){ev.preventDefault();var b=document.querySelector('[data-act="planner-quick"]');if(b)b.click();return}
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="context-capture"){ev.preventDefault();captureSave(state.ui.detailId);return}
 });
