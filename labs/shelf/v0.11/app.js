@@ -411,9 +411,9 @@ function relatedSection(e){
  var content=rels(e),tasks=content.filter(function(x){return x.type==="task"}),notes=content.filter(function(x){return ["note","journal"].includes(x.type)}),
  resources=content.filter(function(x){return x.type==="resource"}),others=content.filter(function(x){return !["task","note","journal","resource"].includes(x.type)});
  var out="";
- if(tasks.length)out+='<div class="detail-section"><h3>'+ic("check-circle",15)+' Tasks <span>'+tasks.filter(function(t){return t.completed}).length+' / '+tasks.length+'</span></h3>'+rows(tasks,taskRow)+'</div>';
- if(notes.length)out+='<div class="detail-section"><h3>'+ic("note",15)+' Notes <span>'+notes.length+'</span></h3>'+rows(notes,noteRow)+'</div>';
- if(resources.length)out+='<div class="detail-section"><h3>'+ic("attach",15)+' Resources <span>'+resources.length+'</span></h3>'+rows(resources,resourceRow)+'</div>';
+ if(tasks.length)out+='<div class="detail-section"><h3>'+ic("check-circle",15)+' Related tasks <span>'+tasks.filter(function(t){return t.completed}).length+' / '+tasks.length+'</span></h3>'+rows(tasks,taskRow)+'</div>';
+ if(notes.length)out+='<div class="detail-section"><h3>'+ic("note",15)+' Related notes <span>'+notes.length+'</span></h3>'+rows(notes,noteRow)+'</div>';
+ if(resources.length)out+='<div class="detail-section"><h3>'+ic("attach",15)+' Related resources <span>'+resources.length+'</span></h3>'+rows(resources,resourceRow)+'</div>';
  if(others.length)out+='<div class="detail-section"><h3>'+ic("layers",15)+' Related things <span>'+others.length+'</span></h3>'+rows(others,contextRow)+'</div>';
  return out
 }
@@ -487,6 +487,7 @@ function captureObject(value,contextId,mode){
  else if(mode!=="note"&&recognized){type="resource";title=hostname(recognized);extra.url=recognized;extra.resourceKind=classifyUrl(recognized)}
  else{type="note";title=t.split(/\n/)[0].slice(0,85);extra.html="<p>"+esc(t).replace(/\n/g,"</p><p>")+"</p>"}
  var context=get(contextId),id=context?context.id:null;
+ if(id)extra.sourceId=id;
  if(context&&context.type==="notebook"&&type==="note")extra.notebookId=id;
  else if(context&&context.type==="folder"&&type==="resource")extra.folderId=id;
  else if(id)extra.contextIds=[id];
@@ -526,6 +527,7 @@ function submitCreate(){
  if(type==="event"){extra.date=$("new-date").value||today();extra.time=$("new-time").value;extra.location=$("new-location").value.trim()}
  if(type==="task")extra.dueDate=$("new-due").value||"";
  if((type==="note"||type==="project")&&$("new-body")){extra.body=$("new-body").value.trim();if(type==="note")extra.html=extra.body?"<p>"+esc(extra.body).replace(/\n/g,"</p><p>")+"</p>":""}
+ if(context)extra.sourceId=context.id;
  if(context&&context.type==="notebook"&&type==="note")extra.notebookId=context.id;
  else if(context&&context.type==="folder"&&type==="resource")extra.folderId=context.id;
  else if(context)extra.contextIds=[context.id];
@@ -595,7 +597,7 @@ async function handleUpload(files){
  for(var file of files){try{
   var kind=file.type.startsWith("image/")?"image":file.type.startsWith("video/")?"video":file.type.startsWith("audio/")?"music": "document";
   var e=ent("resource",file.name.replace(/\.[^/.]+$/,""),{resourceKind:kind,fileName:file.name,mime:file.type,fileSize:file.size,blobId:uid()});
-  if(context&&context.type==="folder")e.folderId=context.id;else if(context)e.contextIds=[context.id];
+  if(context){e.sourceId=context.id;if(context.type==="folder")e.folderId=context.id;else e.contextIds=[context.id]}
   await storeBlob(e.blobId,file);state.entities.unshift(e);saved++;
  }catch(err){toast("Some files could not be stored")}}
  save();closeModal();paint();toast(saved+" file"+(saved===1?"":"s")+" saved"+(context?" · linked to "+objTitle(context):"")+". Also in Library")}
