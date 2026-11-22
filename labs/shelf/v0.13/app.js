@@ -951,6 +951,49 @@ function submitCreateCategory(){
  var c=ent("category",name,{areaId:area.id});
  state.entities.push(c);state.ui.expandedAreaId=area.id;save();closeModal();go("planner","category:"+c.id);toast("Category created in "+objTitle(area))
 }
+function journalOptions(id){
+ var book=get(id);if(!book||book.type!=="journalbook"||book.trashed)return;
+ var count=state.entities.filter(function(e){return e.type==="journal"&&e.journalBookId===book.id&&!e.trashed}).length;
+ modalState={mode:"journal-options",id:book.id};
+ openModal('<div class="modal-header"><h2>'+esc(objTitle(book))+'</h2><button class="icon-button" data-act="modal-close" aria-label="Close">'+ic("x",19)+'</button></div>'+
+ '<div class="modal-scroll"><div class="menu-list">'+
+ '<button class="menu-choice" data-act="journal-rename" data-id="'+esc(book.id)+'">'+ic("pen",19)+'<span>Rename journal</span></button>'+
+ '<button class="menu-choice" data-act="journal-delete" data-id="'+esc(book.id)+'" style="color:#b1786f">'+ic("trash",19)+'<span>Delete journal <small style="display:block;color:#9ba5a8;font-size:10px;margin-top:4px">Moves the journal and its '+count+' entr'+(count===1?"y":"ies")+' to Trash</small></span></button>'+
+ '</div></div>')
+}
+function openRenameJournal(id){
+ var book=get(id);if(!book||book.type!=="journalbook"||book.trashed)return;
+ modalState={mode:"rename-journal",id:book.id};
+ openModal('<div class="modal-header"><h2>Rename journal</h2><button class="icon-button" data-act="modal-close" aria-label="Close">'+ic("x",19)+'</button></div>'+
+ '<div class="modal-scroll"><form id="rename-journal-form"><div class="field"><label for="journal-name">Journal name</label>'+
+ '<input id="journal-name" maxlength="100" required value="'+esc(book.title)+'"></div>'+
+ '<div class="modal-buttons"><button type="button" class="button" data-act="modal-close">Cancel</button>'+
+ '<button type="submit" class="button primary">Save</button></div></form></div>');
+ var field=$("journal-name");if(field){field.focus();field.select()}
+}
+function submitRenameJournal(){
+ if(!modalState||modalState.mode!=="rename-journal")return;
+ var book=get(modalState.id),field=$("journal-name"),name=field?field.value.trim():"";
+ if(!book||book.type!=="journalbook"||book.trashed||!name)return;
+ if(list("journalbook").some(function(x){return x.id!==book.id&&x.title.trim().toLowerCase()===name.toLowerCase()})){
+  toast("A journal with this name already exists");return
+ }
+ book.title=name;touched(book);closeModal();paint();toast("Journal renamed")
+}
+function deleteJournal(id){
+ var book=get(id);if(!book||book.type!=="journalbook"||book.trashed)return;
+ var children=state.entities.filter(function(e){return e.type==="journal"&&e.journalBookId===book.id&&!e.trashed});
+ if(!confirm("Move '"+objTitle(book)+"' and its "+children.length+" entr"+(children.length===1?"y":"ies")+" to Trash? You can restore the journal and its entries from Trash."))return;
+ book.trashed=true;book.archived=false;book.journalDefault=false;
+ children.forEach(function(e){e.trashedWithJournal=book.id;e.archivedBeforeJournalTrash=!!e.archived;e.archived=false;e.trashed=true;e.updatedAt=now()});
+ var available=list("journalbook"),fallback=available.find(function(x){return x.id===state.ui.defaultJournalId})||available[0];
+ if(!fallback){fallback=ent("journalbook","Journal",{journalDefault:true});state.entities.push(fallback)}
+ fallback.journalDefault=true;state.ui.defaultJournalId=fallback.id;
+ if(state.ui.journalDayBookId===book.id)state.ui.journalDayBookId=fallback.id;
+ if(state.ui.detailId&&children.some(function(e){return e.id===state.ui.detailId}))state.ui.detailId=null;
+ save();closeModal();go("journal","journalbook:"+fallback.id);
+ toast("Journal and entries moved to Trash")
+}
 function openRenameCategory(id){
  var c=get(id);if(!c||c.type!=="category"||c.trashed)return;
  modalState={mode:"rename-category",id:c.id};
