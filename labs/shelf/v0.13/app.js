@@ -1040,6 +1040,123 @@ function quickToggleCurrent(){
  paint();toast(on?"Shortcut removed from Desk":"Page pinned to Desk")
 }
 
+// Universal capture is deliberately independent of the currently open tool and focus.
+var UNIVERSAL_TYPES=[
+ {type:"note",label:"Note",icon:"note",where:"Notebook"},
+ {type:"task",label:"Task",icon:"check-circle",where:"Planner · Inbox"},
+ {type:"event",label:"Event",icon:"calendar",where:"Calendar"},
+ {type:"project",label:"Project",icon:"clipboard",where:"Planner · Projects"},
+ {type:"resource",label:"Link",icon:"link",where:"Library · Bookmarks"},
+ {type:"journal",label:"Journal entry",icon:"book-open",where:"Journal"}
+];
+function normalizeCaptureUrl(value){
+ var text=String(value||"").trim();
+ if(/^www\./i.test(text))text="https://"+text;
+ if(!/^https?:\/\//i.test(text)&&/^[\w-]+(\.[\w-]+)+(\/\S*)?$/i.test(text))text="https://"+text;
+ return safeUrl(text)
+}
+function captureIntent(raw){
+ var text=String(raw||"").trim(),prefix=text.match(/^(todo|task|tarefa|note|nota|event|evento|appointment|meeting|compromisso|project|projeto|link|bookmark|journal|diary|diário)\s*:\s*/i);
+ var names={todo:"task",task:"task",tarefa:"task",note:"note",nota:"note",event:"event",evento:"event",appointment:"event",meeting:"event",compromisso:"event",project:"project",projeto:"project",link:"resource",bookmark:"resource",journal:"journal",diary:"journal","diário":"journal"};
+ var body=prefix?text.slice(prefix[0].length).trim():text,auto=prefix?names[prefix[1].toLowerCase()]:normalizeCaptureUrl(body)?"resource":"note";
+ return {raw:text,body:body,type:auto,url:normalizeCaptureUrl(body)}
+}
+function universalDateInfo(text){
+ var t=String(text||""),date=today(),time="";
+ var match=t.match(/\b20\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\b/);
+ if(match){var candidate=match[0],day=new Date(candidate+"T12:00:00");if(!isNaN(day.getTime())&&ndate(day)===candidate){date=candidate;t=t.replace(match[0]," ")}}
+ else{var rel=t.match(/\b(tomorrow|amanhã|amanha|today|hoje)\b/i);
+  if(rel){date=/tomorrow|amanh/i.test(rel[0])?offsetDay(today(),1):today();t=t.replace(rel[0]," ")}}
+ var tm=t.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/)||t.match(/\b([01]?\d|2[0-3])h([0-5]\d)?\b/i);
+ if(tm){time=tm[1].padStart(2,"0")+":"+(tm[2]||"00");t=t.replace(tm[0]," ")}
+ return {date:date,time:time,title:t.replace(/\s{2,}/g," ").trim().replace(/^[,@:\s-]+|[,@:\s-]+$/g,"")}
+}
+function universalHtml(text){return "<p>"+esc(String(text||"")).replace(/\r?\n/g,"</p><p>")+"</p>"}
+function universalCapture(raw,chosenType){
+ var intent=captureIntent(raw),type=chosenType&&chosenType!=="auto"?chosenType:intent.type;
+ var body=intent.body;if(!body){toast("Write something to capture");return null}
+ var info=UNIVERSAL_TYPES.find(function(x){return x.type===type});if(!info)return null;
+ var first=body.split(/\r?\n/)[0].trim(),rest=body.split(/\r?\n/).slice(1).join("\n").trim(),extra={},title=first;
+ if(type==="resource"){
+  var url=intent.url;
+  if(!url&&/^(https?:\/\/|www\.)/i.test(first))url=normalizeCaptureUrl(first);
+  if(!url){toast("Paste an http(s) link to save a bookmark");return null}
+  title=hostname(url);extra.url=url;extra.resourceKind=classifyUrl(url)
+ }else if(type==="task"){
+  title=first;extra.inbox=true;if(rest)extra.body=rest
+ }else if(type==="note"){
+  title=first.slice(0,85);extra.html=universalHtml(body)
+ }else if(type==="project"){
+  title=first;if(rest)extra.body=rest
+ }else if(type==="event"){
+  var event=universalDateInfo(first);
+  title=event.title||first;extra.date=event.date;extra.time=event.time;if(rest)extra.body=rest
+ }else if(type==="journal"){
+  var bookId=state.ui.defaultJournalId,existing=list("journal").find(function(e){return e.date===today()&&e.journalBookId===bookId});
+  if(existing){
+   existing.html=(existing.html||"")+universalHtml(body);touched(existing);
+   return {item:existing,label:"Added to today's Journal",where:"Journal"}
+  }
+  title="";extra.date=today();extra.journalBookId=bookId;extra.html=universalHtml(body)
+ }
+ var item=ent(type,title,extra);
+ state.entities.unshift(item);save();
+ return {item:item,label:info.label+" saved",where:info.where}
+}
+function commitUniversalCapture(raw,type){
+ var result=universalCapture(raw,type);
+ if(!result)return false;
+ closeModal();paint();toast(result.label+" · "+result.where);return true
+}
+function universalTypeOption(x,active){
+ return '<button class="universal-type'+(active?" active":"")+'" type="button" data-act="universal-type" data-type="'+x.type+'" aria-pressed="'+(active?"true":"false")+'">'+ic(x.icon,15)+' '+esc(x.label)+'</button>'
+}
+function openUniversalCapture(prefill){
+ modalState={mode:"universal",captureType:"auto"};
+ openModal('<div class="modal-header"><h2>Quick capture</h2><button class="icon-button" data-act="modal-close" aria-label="Close">'+ic("x",19)+'</button></div>'+
+ '<div class="modal-scroll"><div class="universal-capture-box"><textarea id="universal-capture" rows="4" placeholder="A thought, a link, todo: a task, event: an appointment…" aria-label="Capture anything">'+esc(prefill||"")+'</textarea>'+
+ '<div class="universal-capture-hint">Automatically organized by type. No area or folder required.</div>'+
+ '<div class="universal-types"><button class="universal-type active" type="button" data-act="universal-type" data-type="auto" aria-pressed="true">'+ic("sparkle",15)+' Auto</button>'+
+ UNIVERSAL_TYPES.map(function(x){return universalTypeOption(x,false)}).join("")+'</div>'+
+ '<div id="universal-prediction" class="universal-prediction"></div>'+
+ '<div class="universal-actions"><button class="button" data-act="universal-file">'+ic("attach",15)+' Add file</button>'+
+ '<span class="universal-key-tip">Enter to save · Shift+Enter for a new line</span>'+
+ '<button class="button primary" id="universal-save-button" data-act="universal-save">'+ic("plus",15)+' Save</button></div></div></div>');
+ updateUniversalPreview();var input=$("universal-capture");if(input)input.focus()
+}
+function updateUniversalPreview(){
+ if(!modalState||modalState.mode!=="universal")return;
+ var input=$("universal-capture"),raw=input?input.value:"",intent=captureIntent(raw),choice=modalState.captureType||"auto";
+ var type=choice==="auto"?intent.type:choice,info=UNIVERSAL_TYPES.find(function(x){return x.type===type})||UNIVERSAL_TYPES[0];
+ var canSave=!!intent.body&&(type!=="resource"||!!intent.url);
+ var preview=$("universal-prediction"),saveButton=$("universal-save-button");
+ if(preview)preview.innerHTML=ic(info.icon,15)+' <strong>'+esc(info.label)+'</strong><span>Saved to '+esc(info.where)+(type==="resource"&&!intent.url?" · Paste a URL":"")+'</span>';
+ if(saveButton)saveButton.disabled=!canSave;
+ document.querySelectorAll('[data-act="universal-type"]').forEach(function(b){
+  var active=b.getAttribute("data-type")===choice;
+  b.classList.toggle("active",active);b.setAttribute("aria-pressed",String(active))
+ })
+}
+function universalCaptureFromModal(){
+ if(!modalState||modalState.mode!=="universal")return;
+ var input=$("universal-capture");
+ if(input)commitUniversalCapture(input.value,modalState.captureType)
+}
+function universalSearchCreate(type){
+ var input=$("global-search");if(input)commitUniversalCapture(input.value,type||"auto")
+}
+function searchCreateOptions(query){
+ var intent=captureIntent(query),info=UNIVERSAL_TYPES.find(function(x){return x.type===intent.type})||UNIVERSAL_TYPES[0];
+ return '<div class="omni-create-group"><div class="omni-section-label">CREATE NEW</div>'+
+ '<button class="search-result omni-suggested" data-act="search-create" data-type="auto">'+
+ '<span class="row-icon">'+ic(info.icon,18)+'</span><span><strong>Save as '+esc(info.label)+'</strong>'+
+ '<small>'+esc(trim(intent.body,105))+' · '+esc(info.where)+'</small></span><kbd>Enter</kbd></button>'+
+ '<div class="omni-alternates">'+UNIVERSAL_TYPES.filter(function(x){return x.type!==info.type}).map(function(x){
+  return '<button data-act="search-create" data-type="'+x.type+'"'+(x.type==="resource"&&!intent.url?' disabled title="Paste a URL to create a link"':"")+'>'+
+   ic(x.icon,13)+' '+esc(x.label)+'</button>'
+ }).join("")+'</div></div>'
+}
+
 function searchModal(){
  modalState={mode:"search"};
  openModal('<div class="modal-header"><h2>Find anything</h2><button class="icon-button" data-act="modal-close">'+ic("x",19)+'</button></div><div class="modal-scroll"><input id="global-search" class="search-input" type="search" placeholder="Find a note, event, file, task, project…" autocomplete="off" aria-label="Search all items"><div id="search-results" class="search-results"></div></div>');
