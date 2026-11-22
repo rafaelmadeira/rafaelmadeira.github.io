@@ -131,7 +131,7 @@ state.ui=state.ui||seed().ui;
 var $=function(id){return document.getElementById(id)};
 var rail=$("toolrail"),sidebar=$("sidebar"),workspace=$("workspace"),modalRoot=$("modal-root"),toastEl=$("toast");
 var activeComposer="auto",composerFor=null,composerText="",modalState=null,uploadContext=null,mediaUrls=[],toastTimer=null;
-var lastToolView=null,workingSearch="";
+var lastToolView=null,workingSearch="",draggingAreaItem=null;
 function get(id){return state.entities.find(function(x){return x.id===id})}
 function list(type,includeHidden){return state.entities.filter(function(x){return (!type||x.type===type)&&(includeHidden||(!x.archived&&!x.trashed))})}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){toast("Cannot save: browser storage may be full. Export a backup.")}}
@@ -250,7 +250,7 @@ function pageHeader(title,subtitle,actions,eyebrow){return '<div class="page-hea
 function btn(label,action,iconName,type){return '<button class="button'+(type==="primary"?" primary":type==="subtle"?" subtle":"")+'" data-act="'+esc(action)+'">'+(iconName?ic(iconName,15):"")+esc(label)+'</button>'}
 function empty(iconName,title,subtitle,action,type){return '<div class="empty"><div class="empty-icon">'+ic(iconName,27)+'</div><h3>'+esc(title)+'</h3><p>'+esc(subtitle)+'</p>'+(action?'<button class="button" data-act="create" data-type="'+esc(type)+'">'+ic("plus",14)+' '+esc(action)+'</button>':"")+'</div>'}
 function shortContext(e){var names=sources(e).map(function(x){return objTitle(x)});return names.length?names.slice(0,2).join(" · "):""}
-function taskRow(e){return '<div class="task-row'+(e.completed?" done":"")+'"><button class="task-check'+(e.completed?" checked":"")+'" data-act="toggle-task" data-id="'+e.id+'" title="'+(e.completed?"Mark incomplete":"Complete task")+'" aria-label="'+(e.completed?"Mark incomplete":"Complete task")+'">'+(e.completed?ic("check",13):"")+'</button><button class="item-open" data-act="open" data-id="'+e.id+'"><div class="row-title">'+esc(objTitle(e))+'</div><div class="row-sub">'+esc(shortContext(e)|| (e.dueDate?humanDay(e.dueDate):"No due date"))+'</div></button>'+(outOfDate(e)?'<span class="row-right" style="color:#bb7266">Overdue</span>':"")+'</div>'}
+function taskRow(e){return '<div class="task-row'+(e.completed?" done":"")+'" draggable="true" data-area-drag="'+esc(e.id)+'"><button class="task-check'+(e.completed?" checked":"")+'" data-act="toggle-task" data-id="'+e.id+'" title="'+(e.completed?"Mark incomplete":"Complete task")+'" aria-label="'+(e.completed?"Mark incomplete":"Complete task")+'">'+(e.completed?ic("check",13):"")+'</button><button class="item-open" data-act="open" data-id="'+e.id+'"><div class="row-title">'+esc(objTitle(e))+'</div><div class="row-sub">'+esc(shortContext(e)|| (e.dueDate?humanDay(e.dueDate):"No due date"))+'</div></button>'+(outOfDate(e)?'<span class="row-right" style="color:#bb7266">Overdue</span>':"")+'</div>'}
 function eventRow(e){return '<div class="event-row"><span class="row-time">'+esc(e.time||"All day")+'</span><div class="row-icon">'+ic("calendar",16)+'</div><button class="item-open" data-act="open" data-id="'+e.id+'"><div class="row-title">'+esc(objTitle(e))+'</div><div class="row-sub">'+esc(e.location||humanDay(e.date))+'</div></button><span class="row-right">'+rels(e).length?rels(e).length+" related":""+'</span></div>'}
 function noteRow(e){return '<div class="note-row"><span class="row-icon">'+ic("note",16)+'</span><button class="item-open" data-act="open" data-id="'+e.id+'"><div class="row-title">'+esc(objTitle(e))+'</div><div class="row-sub">'+esc(shortContext(e)||trim(stripHtml(e.html)||e.body,100))+'</div></button></div>'}
 function resourceRow(e){return '<div class="file-row"><span class="row-icon">'+ic(typeIcon(e),16)+'</span><button class="item-open" data-act="open" data-id="'+e.id+'"><div class="row-title">'+esc(objTitle(e))+'</div><div class="row-sub">'+esc(shortContext(e)||hostname(e.url)||e.fileName||"Saved resource")+'</div></button>'+(e.blobId?'<button class="icon-button" data-act="download-resource" data-id="'+e.id+'" title="Download file">'+ic("download",15)+'</button>':"")+'</div>'}
@@ -262,7 +262,7 @@ function entityCard(e){
  var color=e.color==="blue"?"#f1f7fa":e.color==="yellow"?"#fff9e9":e.color==="pink"?"#fff3f3":"#fff";
  var desc=e.type==="note"?stripHtml(e.html||e.body):e.body||e.location||hostname(e.url)||"";
  var content='<div class="card-top">'+ic(typeIcon(e),17)+'<span style="font-size:10px">'+esc(typeName(e.type))+'</span></div><div class="card-title">'+esc(objTitle(e))+'</div>'+(desc?'<div class="card-excerpt">'+esc(trim(desc,190))+'</div>':"")+'<div class="card-footer">'+ic("clock",12)+'<span>'+esc(shortContext(e)||humanDay(e.date||e.dueDate||ndate(e.updatedAt)))+'</span></div>';
- return '<article class="item-card" style="--card-bg:'+color+'"><button class="card-open" data-act="open" data-id="'+e.id+'">'+content+'</button>'+(e.starred?'<span style="position:absolute;top:10px;right:10px;color:#c3a563">'+ic("starfill",14)+'</span>':"")+'</article>'
+ return '<article class="item-card" style="--card-bg:'+color+'"'+(["task","project"].includes(e.type)?' draggable="true" data-area-drag="'+esc(e.id)+'"':"")+'><button class="card-open" data-act="open" data-id="'+e.id+'">'+content+'</button>'+(e.starred?'<span style="position:absolute;top:10px;right:10px;color:#c3a563">'+ic("starfill",14)+'</span>':"")+'</article>'
 }
 function resourceCard(e){
  var kind=e.resourceKind,thumb='<div class="resource-preview '+(kind==="image"?"image":kind==="video"?"video":"")+'">'+
@@ -688,7 +688,7 @@ function unlink(id,parentId){var e=get(id);if(!e)return;e.contextIds=(e.contextI
 function archiveItem(id){var e=get(id);if(!e)return;e.archived=!e.archived;touched(e);closeModal();if(state.ui.detailId===id)back();else paint();toast(e.archived?"Archived":"Restored")}
 function trashItem(id){var e=get(id);if(!e)return;e.trashed=true;e.archived=false;touched(e);closeModal();if(state.ui.detailId===id)back();else paint();toast("Moved to Trash")}
 function restoreItem(id){var e=get(id);if(!e)return;e.trashed=false;touched(e);closeModal();paint();toast("Restored")}
-function deleteForever(id){if(!confirm("Permanently delete this item? This cannot be undone."))return;state.entities=state.entities.filter(function(x){return x.id!==id});state.entities.forEach(function(x){x.contextIds=(x.contextIds||[]).filter(function(y){return y!==id});if(x.folderId===id)x.folderId=null;if(x.notebookId===id)x.notebookId=null});save();closeModal();if(state.ui.detailId===id)back();else paint();toast("Deleted permanently")}
+function deleteForever(id){if(!confirm("Permanently delete this item? This cannot be undone."))return;state.entities=state.entities.filter(function(x){return x.id!==id});state.entities.forEach(function(x){x.contextIds=(x.contextIds||[]).filter(function(y){return y!==id});if(x.folderId===id)x.folderId=null;if(x.notebookId===id)x.notebookId=null;if(x.areaId===id)x.areaId=null});save();closeModal();if(state.ui.detailId===id)back();else paint();toast("Deleted permanently")}
 function resourceDownload(e){if(e.blobId){loadBlob(e.blobId).then(function(blob){if(!blob){toast("File missing from local storage");return}var link=document.createElement("a"),url=URL.createObjectURL(blob);link.href=url;link.download=e.fileName||objTitle(e);link.click();setTimeout(function(){URL.revokeObjectURL(url)},6000)}).catch(function(){toast("Could not load file")})}else if(safeUrl(e.url)){window.open(safeUrl(e.url),"_blank","noopener,noreferrer")}else{toast("This is an illustrative resource, not an attached file")}}
 function openDb(){return new Promise(function(resolve,reject){var req=indexedDB.open(DB,1);req.onupgradeneeded=function(){if(!req.result.objectStoreNames.contains("files"))req.result.createObjectStore("files")};req.onsuccess=function(){resolve(req.result)};req.onerror=function(){reject(req.error)}})}
 async function storeBlob(id,blob){var db=await openDb();try{await new Promise(function(resolve,reject){var t=db.transaction("files","readwrite");t.objectStore("files").put(blob,id);t.oncomplete=resolve;t.onerror=function(){reject(t.error)}})}finally{db.close()}}
@@ -708,12 +708,12 @@ async function handleUpload(files){
  save();closeModal();paint();toast(saved+" file"+(saved===1?"":"s")+" saved"+(context?" · linked to "+objTitle(context):"")+". Also in Library")}
 function toB64(b){return new Promise(function(resolve,reject){var reader=new FileReader();reader.onload=function(){resolve(String(reader.result).split(",")[1])};reader.onerror=reject;reader.readAsDataURL(b)})}
 function fromB64(data,mime){var raw=atob(data),chunks=[];for(var i=0;i<raw.length;i+=8192){var bit=raw.slice(i,i+8192),a=new Uint8Array(bit.length);for(var j=0;j<bit.length;j++)a[j]=bit.charCodeAt(j);chunks.push(a)}return new Blob(chunks,{type:mime||"application/octet-stream"})}
-async function exportAll(){try{var out={format:"shelf-v011",savedAt:new Date().toISOString(),data:state,files:[]};
+async function exportAll(){try{var out={format:"shelf-v012",savedAt:new Date().toISOString(),data:state,files:[]};
  var ids=Array.from(new Set(state.entities.map(function(e){return e.blobId}).filter(Boolean)));
  for(var id of ids){var b=await loadBlob(id);if(b)out.files.push({id:id,mime:b.type,data:await toB64(b)})}
- var url=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download="shelf-v011-backup-"+today()+".json";a.click();setTimeout(function(){URL.revokeObjectURL(url)},10000);toast("Backup exported")
+ var url=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download="shelf-v012-backup-"+today()+".json";a.click();setTimeout(function(){URL.revokeObjectURL(url)},10000);toast("Backup exported")
  }catch(err){toast("Export failed: "+err.message)}}
-async function importAll(file){try{var d=JSON.parse(await file.text());if(!d||d.format!=="shelf-v011"||!d.data||!Array.isArray(d.data.entities))throw Error("Invalid v0.11 backup");if(!confirm("Replace the current v0.11 library with the backup?"))return;for(var f of d.files||[]){await storeBlob(f.id,fromB64(f.data,f.mime))}state=d.data;state.ui.detailId=null;save();paint();toast("Backup restored")}catch(err){toast("Import failed: "+err.message)}}
+async function importAll(file){try{var d=JSON.parse(await file.text());if(!d||!["shelf-v012","shelf-v011"].includes(d.format)||!d.data||!Array.isArray(d.data.entities))throw Error("Invalid Shelf backup");if(!confirm("Replace current v0.12 content with this backup?"))return;for(var f of d.files||[]){await storeBlob(f.id,fromB64(f.data,f.mime))}state=d.data;ensureAreas();state.ui.detailId=null;save();paint();toast("Backup restored")}catch(err){toast("Import failed: "+err.message)}}
 function assignArea(e,id){
  if(!e||!["task","project"].includes(e.type))return false;
  var next=id?get(id):null;if(id&&(!next||next.type!=="area"||next.trashed))return false;
@@ -817,7 +817,29 @@ document.addEventListener("paste",function(ev){
 });
 $("upload-input").addEventListener("change",function(){handleUpload(this.files);this.value=""});
 $("backup-input").addEventListener("change",function(){if(this.files[0])importAll(this.files[0]);this.value=""});
-document.addEventListener("dragover",function(ev){if(ev.dataTransfer&&Array.from(ev.dataTransfer.types||[]).includes("Files"))ev.preventDefault()});
+document.addEventListener("dragstart",function(ev){
+ var item=ev.target.closest("[data-area-drag]");if(!item)return;
+ draggingAreaItem=item.getAttribute("data-area-drag");
+ if(ev.dataTransfer){ev.dataTransfer.effectAllowed="move";ev.dataTransfer.setData("text/plain",draggingAreaItem)}
+});
+document.addEventListener("dragend",function(){draggingAreaItem=null;document.querySelectorAll(".area-drop-hover").forEach(function(x){x.classList.remove("area-drop-hover")})});
+document.addEventListener("dragover",function(ev){
+ var target=ev.target.closest("[data-area-drop]");
+ if(target&&draggingAreaItem){ev.preventDefault();if(ev.dataTransfer)ev.dataTransfer.dropEffect="move";target.classList.add("area-drop-hover")}
+ if(ev.dataTransfer&&Array.from(ev.dataTransfer.types||[]).includes("Files"))ev.preventDefault()
+});
+document.addEventListener("dragleave",function(ev){
+ var target=ev.target.closest("[data-area-drop]");
+ if(target&&!target.contains(ev.relatedTarget))target.classList.remove("area-drop-hover")
+});
+document.addEventListener("drop",function(ev){
+ var target=ev.target.closest("[data-area-drop]");
+ if(!target||!draggingAreaItem)return;
+ ev.preventDefault();
+ var item=get(draggingAreaItem),area=get(target.getAttribute("data-area-drop"));draggingAreaItem=null;
+ if(item&&area&&assignArea(item,area.id)){paint();toast(objTitle(item)+" moved to "+objTitle(area))}
+ else paint()
+});
 document.addEventListener("drop",function(ev){if(ev.dataTransfer&&ev.dataTransfer.files&&ev.dataTransfer.files.length){ev.preventDefault();uploadContext=state.ui.detailId||state.ui.focusId||null;handleUpload(ev.dataTransfer.files)}});
 save();paint();
 })();
