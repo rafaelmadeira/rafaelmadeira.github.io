@@ -394,7 +394,7 @@ function sidebarMiniCalendar(tool){
  var marks=new Set(),selection=miniDateForTool(tool);
  sidebarDateItems(tool).forEach(function(e){
   var created=createdDate(e);
-  if(created)marks.add(created);
+  if(created&&!(tool==="journal"&&e.type==="journal")&&!(tool==="calendar"&&e.type==="event"))marks.add(created);
   if(["event","journal"].includes(e.type)&&e.date)marks.add(e.date);
   if(e.type==="task"&&e.dueDate)marks.add(e.dueDate)
  });
@@ -1508,7 +1508,7 @@ function editField(target){
 }
 function applyRichEdit(){var e=get(state.ui.detailId),el=$("rich-content");if(!e||!el)return;e.html=safeRich(el.innerHTML);e.body=stripHtml(e.html);touched(e)}
 function formatRich(command){var el=$("rich-content");if(!el)return;el.focus();document.execCommand(command,false,null);applyRichEdit()}
-function monthMove(dir){state.ui.month=monthStep(state.ui.month||monthKey(today()),dir);state.ui.selectedDate=state.ui.month+"-01";state.ui.detailId=null;save();paint()}
+function monthMove(dir){state.ui.month=monthStep(state.ui.month||monthKey(today()),dir);state.ui.selectedDate=state.ui.month+"-01";miniCalendarPreferences("calendar").month=state.ui.month;state.ui.detailId=null;save();paint()}
 function onClick(ev){
  var b=ev.target.closest("[data-act]");if(!b)return;
  var act=b.getAttribute("data-act"),id=b.getAttribute("data-id"),type=b.getAttribute("data-type"),ctx=b.getAttribute("data-context"),view=b.getAttribute("data-view"),tool=b.getAttribute("data-tool"),current=get(id);
@@ -1556,10 +1556,10 @@ function onClick(ev){
  if(act==="universal-save"){universalCaptureFromModal();return}
  if(act==="search-create"){universalSearchCreate(b.getAttribute("data-type"));return}
  if(act==="universal-file"){universalUpload=true;uploadContext=null;$("upload-input").click();return}
- if(act==="date"){state.ui.selectedDate=b.getAttribute("data-date");state.ui.month=monthKey(state.ui.selectedDate);go("calendar","month");return}
+ if(act==="date"){state.ui.selectedDate=b.getAttribute("data-date");state.ui.month=monthKey(state.ui.selectedDate);miniCalendarPreferences("calendar").month=state.ui.month;go("calendar","month");return}
  if(act==="month-prev"){monthMove(-1);return}
  if(act==="month-next"){monthMove(1);return}
- if(act==="calendar-today"){state.ui.selectedDate=today();state.ui.month=monthKey(today());go("calendar","month");return}
+ if(act==="calendar-today"){state.ui.selectedDate=today();state.ui.month=monthKey(today());miniCalendarPreferences("calendar").month=state.ui.month;go("calendar","month");return}
  if(act==="toggle-task"){toggleTask(id);return}
  if(act==="clear-inbox"){clearInbox(id);return}
  if(act==="mark-inbox"){markInbox(id);return}
