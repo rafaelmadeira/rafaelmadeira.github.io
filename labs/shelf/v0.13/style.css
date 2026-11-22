@@ -356,7 +356,7 @@ svg{flex-shrink:0;vertical-align:middle}
 
 /* Fixed global Archive & Trash destinations in the left rail */
 .toolrail{height:100dvh}
-.rail-footer-tools{margin-top:auto;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;width:100%;padding-top:10px;border-top:1px solid #e3e5e2}
+.rail-footer-tools{margin-top:auto;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;width:100%;padding-top:10px}
 .rail-footer-tools .rail-bottom{width:65px;min-height:51px;padding:6px 3px;gap:3px}
 .rail-footer-tools .rail-bottom span{font-size:9px}
 .rail-footer-tools .rail-bottom svg{stroke-width:1.75}
