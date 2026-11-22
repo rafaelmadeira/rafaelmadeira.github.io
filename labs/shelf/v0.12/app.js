@@ -172,7 +172,7 @@ function renderRail(){
  TOOLS.map(function(t){return '<button class="rail-item'+(state.ui.tool===t.id?" active":"")+'" data-act="tool" data-tool="'+t.id+'" title="'+t.name+'" aria-label="'+t.name+'">'+ic(t.icon,21)+'<span>'+t.name+'</span></button>'}).join("")+
  '<span class="rail-spacer"></span><button class="rail-footer-btn" data-act="search" title="Search everything" aria-label="Search">'+ic("search",18)+'</button>';
 }
-function sr(label,view,icon,opts){opts=opts||{};var sel=state.ui.view===view&&state.ui.tool===(opts.tool||state.ui.tool);return '<button class="sb-row'+(sel?" active":"")+(opts.sub?" sb-sub":"")+'" data-act="navigate" data-tool="'+esc(opts.tool||state.ui.tool)+'" data-view="'+esc(view)+'"><span class="sb-ico">'+ic(icon,16)+'</span><span class="label">'+esc(label)+'</span>'+(opts.count==null?"":'<span class="sb-num">'+opts.count+'</span>')+'</button>'}
+function sr(label,view,icon,opts){opts=opts||{};var sel=state.ui.view===view&&state.ui.tool===(opts.tool||state.ui.tool);return '<button class="sb-row'+(sel?" active":"")+(opts.sub?" sb-sub":"")+'" data-act="navigate" data-tool="'+esc(opts.tool||state.ui.tool)+'" data-view="'+esc(view)+'"'+(opts.areaDrop?' data-area-drop="'+esc(opts.areaDrop)+'"':"")+'><span class="sb-ico">'+ic(icon,16)+'</span><span class="label">'+esc(label)+'</span>'+(opts.count==null?"":'<span class="sb-num">'+opts.count+'</span>')+'</button>'}
 function sh(label,createType){return '<div class="sb-section-heading"><span>'+esc(label)+'</span>'+(createType?'<button data-act="create" data-type="'+createType+'" title="New '+createType+'">'+ic("plus",14)+'</button>':"")+'</div>'}
 function miniCalendar(){
  var key=state.ui.month||monthKey(today()),year=+key.slice(0,4),m=+key.slice(5,7)-1;
@@ -208,9 +208,15 @@ function renderSidebar(){
   var tasks=list("task");
   html+=sr("Today","today","sun",{count:tasks.filter(function(x){return !x.completed&&x.dueDate&&x.dueDate<=today()}).length});
   html+=sr("Inbox","inbox","inbox",{count:tasks.filter(function(x){return !x.completed&&!x.dueDate}).length});
-  html+=sr("Upcoming","upcoming","calendar-days")+sr("Completed","completed","check");
-  html+=sh("Projects","project");
-  html+=list("project").sort(byRecent).map(function(p){return '<button class="sb-row" data-act="open" data-id="'+p.id+'"><span class="sb-ico">'+ic("folder",16)+'</span><span class="label">'+esc(objTitle(p))+'</span><span class="sb-num">'+rels(p).filter(function(e){return e.type==="task"&&!e.completed}).length+'</span></button>'}).join("")||'<div class="sidebar-empty">No projects yet</div>';
+  html+=sr("Upcoming","upcoming","calendar-days");
+  html+=sr("All tasks","all","check-circle",{count:tasks.length});
+  html+=sr("All projects","projects","clipboard",{count:count("project")});
+  html+=sr("Completed","completed","check");
+  html+=sh("Areas","area");
+  html+=list("area").map(function(a){
+   var n=tasks.filter(function(e){return inArea(e,a)&&!e.completed}).length;
+   return sr(objTitle(a),"area:"+a.id,areaIcon(a),{count:n,areaDrop:a.id})
+  }).join("")||'<div class="sidebar-empty">Create your first area</div>';
  }
  if(t==="notebooks"){
   html+=sr("All notes","all","note",{count:list("note").length})+sr("Starred","starred","star");
@@ -223,7 +229,7 @@ function renderSidebar(){
  }
  if(t==="library"){
   var rs=list("resource"),folders=list("folder");
-  html+=sr("All items","all","library",{count:rs.length})+sr("Unsorted","unsorted","inbox",{count:rs.filter(function(x){return !x.folderId&&!meaningfulContext(x)}).length})+sr("Starred","starred","star");
+  html+=sr("All items","all","library",{count:rs.length})+sr("Unsorted","unsorted","inbox",{count:rs.filter(function(x){return !x.folderId&&!meaningfulContext(x)&&!isBookmark(x)}).length})+sr("Bookmarks","bookmarks","bookmark",{count:rs.filter(isBookmark).length})+sr("Starred","starred","star");
   html+=sh("Folders","folder");
   html+=folders.map(function(f){return sr(objTitle(f),"folder:"+f.id,"folder",{count:rs.filter(function(r){return r.folderId===f.id}).length})}).join("")||'<div class="sidebar-empty">No folders yet</div>';
   html+=sh("Collections");
@@ -351,7 +357,8 @@ function renderNotebooks(){
 function resourcesForView(){var v=state.ui.view,arr=list("resource");
  if(v==="archive")return state.entities.filter(function(e){return e.archived&&!e.trashed});
  if(v==="trash")return state.entities.filter(function(e){return e.trashed});
- if(v==="unsorted")return arr.filter(function(e){return !e.folderId&&!meaningfulContext(e)});
+ if(v==="unsorted")return arr.filter(function(e){return !e.folderId&&!meaningfulContext(e)&&!isBookmark(e)});
+ if(v==="bookmarks")return arr.filter(isBookmark);
  if(v==="starred")return arr.filter(function(e){return e.starred});
  if(v==="from-events")return arr.filter(function(e){return sources(e).some(function(p){return p.type==="event"})});
  if(v==="from-projects")return arr.filter(function(e){return sources(e).some(function(p){return p.type==="project"||p.type==="task"})});
@@ -362,6 +369,7 @@ function resourcesForView(){var v=state.ui.view,arr=list("resource");
 function renderLibrary(){
  var v=state.ui.view,all=resourcesForView().sort(byRecent),title="All items",sub="Keep resources, not the work of maintaining a library.";
  if(v==="unsorted"){title="Unsorted";sub="Only things without a meaningful context appear here."}
+ if(v==="bookmarks"){title="Bookmarks";sub="Links you saved, whether or not they belong to a project or folder."}
  if(v==="starred")title="Starred";
  if(v==="from-events"){title="From Calendar";sub="Files and references attached to calendar events."}
  if(v==="from-projects"){title="From Planner";sub="Resources supporting your work."}
