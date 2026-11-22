@@ -672,7 +672,7 @@ function renderNotebook(){
 }
 function resourcesForView(){var v=state.ui.view,arr=list("resource");
  if(v==="archive")return state.entities.filter(function(e){return e.archived&&!e.trashed});
- if(v==="trash")return state.entities.filter(function(e){return e.trashed});
+ if(v==="trash")return state.entities.filter(function(e){return e.trashed&&!(e.type==="journal"&&e.trashedWithJournal&&get(e.trashedWithJournal)&&get(e.trashedWithJournal).trashed)});
  if(v==="unsorted")return arr.filter(function(e){return !e.folderId&&!meaningfulContext(e)&&!isBookmark(e)});
  if(v==="bookmarks")return arr.filter(isBookmark);
  if(v==="starred")return arr.filter(function(e){return e.starred});
@@ -695,7 +695,16 @@ function renderLibrary(){
  if(v.startsWith("folder:")){var f=get(v.slice(7));title=f?objTitle(f):"Collection"}
  var actions=(v==="trash"||v==="archive")?"":'<button class="button" data-act="create" data-type="folder">'+ic("folder",15)+' Collection</button><button class="button primary" data-act="create" data-type="resource">'+ic("plus",15)+' Save anything</button>';
  var folderView=v==="all"?list("folder").length?"<div class=\"card-grid\">"+list("folder").map(entityCard).join("")+"</div>":"":"";
- var normalCards=all.map(function(e){return e.type==="resource"?resourceCard(e):entityCard(e)}).join("");
+ var normalCards=all.map(function(e){
+  if(v==="trash"&&e.type==="journalbook"){
+   var linked=state.entities.filter(function(x){return x.type==="journal"&&x.trashed&&x.trashedWithJournal===e.id}).length;
+   return '<article class="item-card journal-trash-card"><div class="card-top">'+ic("book-open",17)+' Journal</div>'+
+    '<div class="card-title">'+esc(objTitle(e))+'</div><div class="card-excerpt">'+linked+' entr'+(linked===1?"y":"ies")+' in Trash</div>'+
+    '<div class="journal-trash-actions"><button class="button primary" data-act="restore-item" data-id="'+esc(e.id)+'">Restore journal</button>'+
+    '<button class="button" data-act="delete-forever" data-id="'+esc(e.id)+'">Delete forever</button></div></article>'
+  }
+  return e.type==="resource"?resourceCard(e):entityCard(e)
+ }).join("");
  return pageHeader(title,sub,actions,"LIBRARY")+
  (folderView?section("Folders",folderView,list("folder").length):"")+
  section("Saved resources",all.length?'<div class="card-grid">'+normalCards+'</div>':empty("library","Nothing here yet","Save a link, image or file. Shelf will remember its context.","Save something","resource"),all.length);
@@ -1254,8 +1263,39 @@ function focusContext(id){state.ui.focusId=state.ui.focusId===id?null:id;save();
 function unlink(id,parentId){var e=get(id);if(!e)return;e.contextIds=(e.contextIds||[]).filter(function(x){return x!==parentId});if(e.folderId===parentId)e.folderId=null;if(e.notebookId===parentId)e.notebookId=null;touched(e);paint();toast("Link removed; item kept in its own tool")}
 function archiveItem(id){var e=get(id);if(!e)return;e.archived=!e.archived;touched(e);closeModal();if(state.ui.detailId===id)back();else paint();toast(e.archived?"Archived":"Restored")}
 function trashItem(id){var e=get(id);if(!e)return;e.trashed=true;e.archived=false;touched(e);closeModal();if(state.ui.detailId===id)back();else paint();toast("Moved to Trash")}
-function restoreItem(id){var e=get(id);if(!e)return;e.trashed=false;touched(e);closeModal();paint();toast("Restored")}
-function deleteForever(id){if(!confirm("Permanently delete this item? This cannot be undone."))return;state.entities=state.entities.filter(function(x){return x.id!==id});state.entities.forEach(function(x){x.contextIds=(x.contextIds||[]).filter(function(y){return y!==id});if(x.folderId===id)x.folderId=null;if(x.notebookId===id)x.notebookId=null;if(x.areaId===id)x.areaId=null;if(x.categoryId===id)x.categoryId=null});save();closeModal();if(state.ui.detailId===id)back();else paint();toast("Deleted permanently")}
+function restoreItem(id){
+ var e=get(id);if(!e)return;
+ e.trashed=false;
+ if(e.type==="journalbook"){
+  var children=state.entities.filter(function(x){return x.type==="journal"&&x.trashed&&x.trashedWithJournal===e.id});
+  children.forEach(function(x){
+   x.trashed=false;x.archived=!!x.archivedBeforeJournalTrash;
+   delete x.trashedWithJournal;delete x.archivedBeforeJournalTrash
+  });
+  touched(e);closeModal();paint();toast("Journal and "+children.length+" entr"+(children.length===1?"y":"ies")+" restored");return
+ }
+ if(e.type==="journal"){
+  var book=get(e.journalBookId);
+  if(!book||book.trashed)e.journalBookId=state.ui.defaultJournalId;
+  delete e.trashedWithJournal;delete e.archivedBeforeJournalTrash
+ }
+ touched(e);closeModal();paint();toast("Restored")
+}
+function deleteForever(id){
+ var entity=get(id),journal=entity&&entity.type==="journalbook";
+ var children=journal?state.entities.filter(function(x){return x.type==="journal"&&x.trashedWithJournal===id&&x.trashed}):[];
+ if(!confirm(journal?"Permanently delete this journal and its "+children.length+" trashed entr"+(children.length===1?"y":"ies")+"? This cannot be undone.":"Permanently delete this item? This cannot be undone."))return;
+ var childIds=new Set(children.map(function(x){return x.id}));
+ state.entities=state.entities.filter(function(x){return x.id!==id&&!childIds.has(x.id)});
+ state.entities.forEach(function(x){
+  x.contextIds=(x.contextIds||[]).filter(function(y){return y!==id});
+  if(x.folderId===id)x.folderId=null;if(x.notebookId===id)x.notebookId=null;
+  if(x.areaId===id)x.areaId=null;if(x.categoryId===id)x.categoryId=null;
+  if(x.journalBookId===id)x.journalBookId=state.ui.defaultJournalId
+ });
+ if(journal&&state.ui.defaultJournalId===id)ensureJournals();
+ save();closeModal();if(state.ui.detailId===id)back();else paint();toast("Deleted permanently")
+}
 function resourceDownload(e){if(e.blobId){loadBlob(e.blobId).then(function(blob){if(!blob){toast("File missing from local storage");return}var link=document.createElement("a"),url=URL.createObjectURL(blob);link.href=url;link.download=e.fileName||objTitle(e);link.click();setTimeout(function(){URL.revokeObjectURL(url)},6000)}).catch(function(){toast("Could not load file")})}else if(safeUrl(e.url)){window.open(safeUrl(e.url),"_blank","noopener,noreferrer")}else{toast("This is an illustrative resource, not an attached file")}}
 function openDb(){return new Promise(function(resolve,reject){var req=indexedDB.open(DB,1);req.onupgradeneeded=function(){if(!req.result.objectStoreNames.contains("files"))req.result.createObjectStore("files")};req.onsuccess=function(){resolve(req.result)};req.onerror=function(){reject(req.error)}})}
 async function storeBlob(id,blob){var db=await openDb();try{await new Promise(function(resolve,reject){var t=db.transaction("files","readwrite");t.objectStore("files").put(blob,id);t.oncomplete=resolve;t.onerror=function(){reject(t.error)}})}finally{db.close()}}
@@ -1343,6 +1383,9 @@ function onClick(ev){
  if(act==="area-open"){state.ui.expandedAreaId=id;go("planner","area:"+id);return}
  if(act==="category-open"){var c=get(id);if(c){state.ui.expandedAreaId=c.areaId;go("planner","category:"+id)}return}
  if(act==="create-category"){openCreateCategory(b.getAttribute("data-area"));return}
+ if(act==="journal-options"){journalOptions(id);return}
+ if(act==="journal-rename"){openRenameJournal(id);return}
+ if(act==="journal-delete"){deleteJournal(id);return}
  if(act==="rename-category"){openRenameCategory(id);return}
  if(act==="delete-category"){deleteCategory(id);return}
  if(act==="rename-area"){openRenameArea(id);return}
@@ -1416,7 +1459,7 @@ function onClick(ev){
  if(act==="import"){$("backup-input").click();return}
 }
 document.addEventListener("click",onClick);
-document.addEventListener("submit",function(ev){if(ev.target.id==="create-form"){ev.preventDefault();submitCreate()}else if(ev.target.id==="rename-area-form"){ev.preventDefault();submitRenameArea()}else if(ev.target.id==="create-category-form"){ev.preventDefault();submitCreateCategory()}else if(ev.target.id==="rename-category-form"){ev.preventDefault();submitRenameCategory()}});
+document.addEventListener("submit",function(ev){if(ev.target.id==="create-form"){ev.preventDefault();submitCreate()}else if(ev.target.id==="rename-area-form"){ev.preventDefault();submitRenameArea()}else if(ev.target.id==="create-category-form"){ev.preventDefault();submitCreateCategory()}else if(ev.target.id==="rename-category-form"){ev.preventDefault();submitRenameCategory()}else if(ev.target.id==="rename-journal-form"){ev.preventDefault();submitRenameJournal()}});
 document.addEventListener("input",function(ev){
  var el=ev.target;
  if(el.id==="quick-search"){updateQuickResults(el.value);return}
