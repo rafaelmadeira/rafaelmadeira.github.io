@@ -406,3 +406,17 @@ svg{flex-shrink:0;vertical-align:middle}
 .omni-bottom-bar span{font-size:10px;color:#9ca8aa;line-height:1.5}
 .omni-bottom-bar button{flex:0 0 auto;font-size:11px;padding:7px 9px}
 @media(max-width:570px){.universal-key-tip{display:none}.universal-prediction{flex-wrap:wrap}.universal-prediction span{margin-left:0}.omni-bottom-bar span{font-size:9px}.universal-types{gap:4px}.universal-type{padding:6px}}
+
+/* Journal list: entry counts plus a contextual overflow menu per journal */
+.sb-journal-item{position:relative;min-width:0}
+.sb-journal-item>.sb-row{width:100%;padding-right:37px}
+.sb-journal-item .sb-num{margin-left:auto;min-width:17px;text-align:right}
+.sb-journal-more{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:27px;height:27px;color:#96a5aa;border:0;background:transparent;border-radius:7px;opacity:.12;transition:opacity .12s,background .12s;z-index:1}
+.sb-journal-item:hover .sb-journal-more,.sb-journal-item:focus-within .sb-journal-more{opacity:1}
+.sb-journal-more:hover,.sb-journal-more:focus-visible{background:#e5eced;color:#506f80;opacity:1}
+.journal-trash-card{padding:15px 17px;min-height:160px}
+.journal-trash-card .card-top{display:flex;align-items:center;gap:7px;color:#82959e;font-size:11px}
+.journal-trash-card .card-title{margin-top:10px}
+.journal-trash-card .card-excerpt{font-size:11px;color:#8e9da3;margin:8px 0 15px}
+.journal-trash-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+@media(hover:none){.sb-journal-more{opacity:.8}}
