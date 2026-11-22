@@ -1,6 +1,6 @@
 (function(){
 "use strict";
-var KEY="shelf-everyday-v013", LEGACY="shelf-everyday-v012", LEGACY_OLD="shelf-everyday-v011", DB="shelf-v011-files";
+var KEY="shelf-everyday-v014", LEGACY="shelf-everyday-v013", LEGACY_OLD="shelf-everyday-v012", LEGACY_ANCIENT="shelf-everyday-v011", DB="shelf-v011-files";
 var LIBRARY_TYPES=[
  {id:"article",name:"Articles",icon:"file"},{id:"image",name:"Images",icon:"image"},
  {id:"video",name:"Videos",icon:"video"},{id:"document",name:"Documents",icon:"file"},
@@ -9,15 +9,24 @@ var LIBRARY_TYPES=[
  {id:"movie",name:"Movies",icon:"video"},{id:"comic",name:"Comics",icon:"book"},
  {id:"other",name:"Other",icon:"folder"}];
 var TOOLS=[
-  {id:"home",name:"Desk",icon:"desk"},
-  {id:"journal",name:"Journal",icon:"book-open"},
-  {id:"calendar",name:"Calendar",icon:"calendar"},
-  {id:"planner",name:"Planner",icon:"clipboard"},
-  {id:"notebooks",name:"Notebook",icon:"notebook"},
-  {id:"library",name:"Library",icon:"library"}
+ {id:"home",name:"Home",icon:"house"},
+ {id:"todo",name:"To do",icon:"check-circle"},
+ {id:"calendar",name:"Calendar",icon:"calendar"},
+ {id:"notes",name:"Notes",icon:"note"},
+ {id:"journals",name:"Journals",icon:"book-open"},
+ {id:"goals",name:"Goals",icon:"target"},
+ {id:"habits",name:"Habits",icon:"flame"},
+ {id:"routines",name:"Routines",icon:"list-checks"},
+ {id:"projects",name:"Projects",icon:"folder-kanban"},
+ {id:"bookmarks",name:"Bookmarks",icon:"bookmark"},
+ {id:"resources",name:"Resources",icon:"library"}
 ];
 // Icon paths: official Lucide SVGs (ISC License). See LUCIDE-LICENSE.txt.
 var ICONS={
+ "target":"<circle cx=\"12\" cy=\"12\" r=\"10\" /><circle cx=\"12\" cy=\"12\" r=\"6\" /><circle cx=\"12\" cy=\"12\" r=\"2\" />",
+ "flame":"<path d=\"M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4\" />",
+ "list-checks":"<path d=\"M13 5h8\" /><path d=\"M13 12h8\" /><path d=\"M13 19h8\" /><path d=\"m3 17 2 2 4-4\" /><path d=\"m3 7 2 2 4-4\" />",
+ "folder-kanban":"<path d=\"M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z\" /><path d=\"M8 10v4\" /><path d=\"M12 10v2\" /><path d=\"M16 10v6\" />",
  "desk":"<path d=\"M10.293 2.293a1 1 0 0 1 1.414 0l2.5 2.5 5.994 1.227a1 1 0 0 1 .506 1.687l-7 7a1 1 0 0 1-1.687-.506l-1.227-5.994-2.5-2.5a1 1 0 0 1 0-1.414z\" /><path d=\"m14.207 4.793-3.414 3.414\" /><path d=\"M3 20a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z\" /><path d=\"m9.086 6.5-4.793 4.793a1 1 0 0 0-.18 1.17L7 18\" />",
  "briefcase":"<path d=\"M12 12h.01\" /><path d=\"M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2\" /><path d=\"M22 13a18.15 18.15 0 0 1-20 0\" /><rect width=\"20\" height=\"14\" x=\"2\" y=\"6\" rx=\"2\" />",
  "graduation":"<path d=\"M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z\" /><path d=\"M22 10v6\" /><path d=\"M6 12.5V16a6 3 0 0 0 12 0v-3.5\" />",
@@ -93,6 +102,7 @@ function plain(v){return String(v||"").replace(/<[^>]*>/g," ").replace(/\s+/g," 
 function trim(v,n){return String(v||"").slice(0,n||180)}
 function ent(type,title,extra){return Object.assign({
  id:uid(),type:type,title:title||"",body:"",html:"",createdAt:now(),updatedAt:now(),contextIds:[],
+ goalStatus:"active",goalProgress:0,targetDate:"",frequency:"daily",habitLog:[],routineSteps:[],routineLog:{},
  notebookId:null,folderId:null,journalBookId:null,areaId:null,categoryId:null,sourceId:null,inbox:false,starred:false,pinned:false,archived:false,trashed:false,
  date:"",time:"",endTime:"",dueDate:"",location:"",completed:false,projectStatus:"active",
  url:"",resourceKind:"link",blobId:null,fileName:"",mime:"",fileSize:0,tags:[],color:"default",demo:false
@@ -116,13 +126,13 @@ function seed(){
  var r2=ent("resource","Exame anterior.pdf",{resourceKind:"document",fileName:"Exame anterior.pdf",contextIds:[visit.id],body:"Arquivo ilustrativo. Anexe seu próprio PDF para testar um arquivo real.",demo:true});
  var r3=ent("resource","MDN Web Docs",{url:"https://developer.mozilla.org/en-US/",resourceKind:"link",starred:true,demo:true});
  var journal=ent("journal","",{date:yesterday,html:"<p>Um registro de exemplo para demonstrar como o diário funciona.</p><p>As notas adicionadas a esta entrada também podem ser encontradas em Notebook.</p>",demo:true});
- return {version:13,entities:[aI,aT,aC,aP,project,visit,t1,t2,t3,t4,notebook1,notebook2,n1,n2,n3,n4,r1,r2,r3,journal],
+ return {version:14,entities:[aI,aT,aC,aP,project,visit,t1,t2,t3,t4,notebook1,notebook2,n1,n2,n3,n4,r1,r2,r3,journal],
  ui:{tool:"home",view:"today",selectedDate:d,month:monthKey(d),focusId:null,detailId:null,lastTool:"home",lastView:"today",recent:[project.id,visit.id],quickAccess:[],search:""},demo:true}
 }
 var state;
 try{
- var existing=localStorage.getItem(KEY),legacy=localStorage.getItem(LEGACY),old=localStorage.getItem(LEGACY_OLD);
- state=JSON.parse(existing||legacy||old||"null");
+ var existing=localStorage.getItem(KEY),legacy=localStorage.getItem(LEGACY),old=localStorage.getItem(LEGACY_OLD),ancient=localStorage.getItem(LEGACY_ANCIENT);
+ state=JSON.parse(existing||legacy||old||ancient||"null");
  if(!state||!Array.isArray(state.entities))state=seed();
 }catch(e){state=seed()}
 function ensureAreas(){
@@ -183,6 +193,49 @@ function ensureJournals(){
  if(state.ui.tool==="journal"&&(!state.ui.view||["today","timeline"].includes(state.ui.view)))state.ui.view="journalbook:"+def.id;
 }
 ensureJournals();
+function canonicalTool(tool,view){
+ if(tool==="planner")return view==="projects"?"projects":"todo";
+ if(tool==="notebooks")return "notes";
+ if(tool==="journal")return "journals";
+ if(tool==="library")return view==="bookmarks"?"bookmarks":"resources";
+ return tool
+}
+function ensureV14(){
+ if(!state.ui)state.ui={};
+ var oldTool=state.ui.tool||"home",oldView=state.ui.view||"today";
+ state.ui.tool=canonicalTool(oldTool,oldView);
+ state.ui.view=oldTool==="planner"&&oldView==="projects"?"all":
+  oldTool==="library"&&oldView==="bookmarks"?"all":oldView;
+ state.ui.lastTool=canonicalTool(state.ui.lastTool||"home",state.ui.lastView);
+ if(state.ui.lastTool==="projects"&&state.ui.lastView==="projects")state.ui.lastView="all";
+ if(Array.isArray(state.ui.quickAccess)){
+  state.ui.quickAccess.forEach(function(q){
+   if(q.kind!=="view")return;
+   var old=q.tool||"home",view=q.view;
+   q.tool=canonicalTool(old,view);
+   if(old==="planner"&&view==="projects"||old==="library"&&view==="bookmarks")q.view="all";
+  })
+ }
+ if(state.ui.sidebarDateFilters){
+  var oldFilters=state.ui.sidebarDateFilters;
+  ["planner","notebooks","journal","library"].forEach(function(k){
+   if(oldFilters[k]){oldFilters[canonicalTool(k)]=oldFilters[k];delete oldFilters[k]}
+  })
+ }
+ if(state.ui.miniCalendars){
+  var oldCal=state.ui.miniCalendars;
+  ["planner","notebooks","journal","library"].forEach(function(k){
+   if(oldCal[k]){oldCal[canonicalTool(k)]=oldCal[k];delete oldCal[k]}
+  })
+ }
+ state.entities.forEach(function(e){
+  if(e.type==="goal"){if(typeof e.goalProgress!=="number")e.goalProgress=0;if(!e.goalStatus)e.goalStatus="active"}
+  if(e.type==="habit"){if(!Array.isArray(e.habitLog))e.habitLog=[];if(!e.frequency)e.frequency="daily"}
+  if(e.type==="routine"){if(!Array.isArray(e.routineSteps))e.routineSteps=[];if(!e.routineLog||typeof e.routineLog!=="object")e.routineLog={}}
+ });
+ state.version=14
+}
+ensureV14();
 if(state.ui.expandedAreaId===undefined){
  var remembered=state.ui.view&&state.ui.view.startsWith("area:")?state.ui.view.slice(5):null;
  var first=state.entities.find(function(e){return e.type==="area"&&String(e.title).toLowerCase()==="ivrnet"&&!e.trashed});
@@ -227,8 +280,8 @@ function count(type){return list(type).length}
 function inInbox(e){return e&&e.type==="task"&&!e.completed&&e.inbox===true}
 function inboxCount(){return list("task").filter(inInbox).length}
 function toast(s){toastEl.textContent=s;toastEl.classList.add("open");clearTimeout(toastTimer);toastTimer=setTimeout(function(){toastEl.classList.remove("open")},2800)}
-function typeIcon(e){if(!e)return "layers";if(e.type==="resource")return e.resourceKind==="image"?"image":e.resourceKind==="video"?"video":e.resourceKind==="link"?"link":"file";return {event:"calendar",task:"check-circle",note:"note",project:"clipboard",journal:"book-open",journalbook:"book-open",notebook:"notebook",folder:"folder",area:"layers",category:"folder"}[e.type]||"layers"}
-function typeName(type){return {event:"Event",task:"Task",note:"Note",resource:"Resource",project:"Project",journal:"Journal entry",journalbook:"Journal",notebook:"Notebook",folder:"Collection",area:"Area",category:"Category"}[type]||"Item"}
+function typeIcon(e){if(!e)return "layers";if(e.type==="resource")return e.resourceKind==="image"?"image":e.resourceKind==="video"?"video":e.resourceKind==="link"?"link":"file";return {event:"calendar",task:"check-circle",note:"note",project:"clipboard",journal:"book-open",journalbook:"book-open",notebook:"notebook",folder:"folder",area:"layers",category:"folder",goal:"target",habit:"flame",routine:"list-checks"}[e.type]||"layers"}
+function typeName(type){return {event:"Event",task:"Task",note:"Note",resource:"Resource",project:"Project",journal:"Journal entry",journalbook:"Journal",notebook:"Notebook",folder:"Collection",area:"Area",category:"Category",goal:"Goal",habit:"Habit",routine:"Routine"}[type]||"Item"}
 function objTitle(e){return e.title|| (e.type==="journal"?humanDay(e.date):e.fileName||hostname(e.url)||"Untitled")}
 function outOfDate(e){return !!(e.dueDate&&!e.completed&&e.dueDate<today())}
 function contextName(e){var p=sources(e);return p.length?p.map(function(x){return objTitle(x)}).join(" · "):""}
