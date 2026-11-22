@@ -1,6 +1,13 @@
 (function(){
 "use strict";
 var KEY="shelf-everyday-v012", LEGACY="shelf-everyday-v011", DB="shelf-v011-files";
+var LIBRARY_TYPES=[
+ {id:"article",name:"Articles",icon:"file"},{id:"image",name:"Images",icon:"image"},
+ {id:"video",name:"Videos",icon:"video"},{id:"document",name:"Documents",icon:"file"},
+ {id:"book",name:"Books",icon:"book"},{id:"podcast",name:"Podcasts",icon:"book-open"},
+ {id:"music",name:"Music",icon:"book-open"},{id:"social",name:"Social",icon:"link"},
+ {id:"movie",name:"Movies",icon:"video"},{id:"comic",name:"Comics",icon:"book"},
+ {id:"other",name:"Other",icon:"folder"}];
 var TOOLS=[
   {id:"home",name:"Desk",icon:"desk"},
   {id:"journal",name:"Journal",icon:"book-open"},
@@ -234,8 +241,8 @@ function renderSidebar(){
   html+=folders.map(function(f){return sr(objTitle(f),"folder:"+f.id,"folder",{count:rs.filter(function(r){return r.folderId===f.id}).length})}).join("")||'<div class="sidebar-empty">No folders yet</div>';
   html+=sh("Collections");
   html+=sr("From Calendar","from-events","calendar-days")+sr("From Planner","from-projects","clipboard");
-  html+=sh("By type");
-  ["Links","Documents","Images","Videos","Other"].forEach(function(k){var map={Links:["link","article","social","book","movie","comic","music","podcast"],Documents:["document"],Images:["image"],Videos:["video"],Other:["other"]};html+=sr(k,"kind:"+k.toLowerCase(),({Links:"link",Documents:"file",Images:"image",Videos:"video",Other:"folder"})[k],{count:rs.filter(function(r){return map[k].includes(r.resourceKind)}).length})});
+  html+=sh("Filters");
+  LIBRARY_TYPES.forEach(function(item){var n=rs.filter(function(r){return r.resourceKind===item.id}).length;if(n)html+=sr(item.name,"kind:"+item.id,item.icon,{count:n})});
  }
  html+='</div><div class="sb-foot"><button class="sb-row" data-act="navigate" data-tool="library" data-view="archive"><span class="sb-ico">'+ic("archive",16)+'</span><span class="label">Archive</span></button><button class="sb-row" data-act="navigate" data-tool="library" data-view="trash"><span class="sb-ico">'+ic("trash",16)+'</span><span class="label">Trash</span></button><small><span>SHELF · v0.11</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></small></div>';
  sidebar.innerHTML=html;
@@ -407,7 +414,7 @@ function renderLibrary(){
  if(v==="from-projects"){title="From Planner";sub="Resources supporting your work."}
  if(v==="archive"){title="Archive";sub="Out of sight, but not forgotten."}
  if(v==="trash"){title="Trash";sub="Restore or permanently remove an item."}
- if(v.startsWith("kind:"))title=v.slice(5).charAt(0).toUpperCase()+v.slice(6);
+ if(v.startsWith("kind:")){var filter=LIBRARY_TYPES.find(function(x){return x.id===v.slice(5)});title=filter?filter.name:"Resources"}
  if(v.startsWith("folder:")){var f=get(v.slice(7));title=f?objTitle(f):"Folder"}
  var actions=(v==="trash"||v==="archive")?"":'<button class="button" data-act="create" data-type="folder">'+ic("folder",15)+' Folder</button><button class="button primary" data-act="create" data-type="resource">'+ic("plus",15)+' Save anything</button>';
  var folderView=v==="all"?list("folder").length?"<div class=\"card-grid\">"+list("folder").map(entityCard).join("")+"</div>":"":"";
