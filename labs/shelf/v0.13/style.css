@@ -397,7 +397,7 @@ svg{flex-shrink:0;vertical-align:middle}
 .omni-existing-heading{padding:7px 4px 6px}
 .omni-suggested{border:0;border-radius:7px;padding:10px 8px}
 .omni-suggested:hover{background:#edf6fa}
-.omni-suggested kbd{font:10px inherit;color:#9aa9ae;border:1px solid #d9e5e8;padding:4px 7px;border-radius:5px}
+.omni-suggested kbd{font-size:10px;font-family:inherit;color:#9aa9ae;border:1px solid #d9e5e8;padding:4px 7px;border-radius:5px}
 .omni-alternates{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 2px}
 .omni-alternates button{background:#f2f6f7;color:#63808e;font-size:10.5px;display:flex;align-items:center;gap:5px;padding:6px 8px;border:0;border-radius:6px}
 .omni-alternates button:not(:disabled):hover{background:#e5f0f5;color:#346f8e}
