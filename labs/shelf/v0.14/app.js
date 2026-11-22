@@ -1069,6 +1069,130 @@ function renderDetail(e){
  '</div><div class="detail-side">'+detailSidebar(e)+'</div></div></div>';
  return detail
 }
+
+function renderProjects(){
+ var view=state.ui.view||"all",all=list("project").sort(byRecent);
+ var filtered=all;
+ if(view==="active"||view==="waiting"||view==="completed")filtered=all.filter(function(e){return e.projectStatus===view});
+ else if(view==="unassigned")filtered=all.filter(function(e){return !areaOf(e)});
+ else if(view.startsWith("area:"))filtered=all.filter(function(e){return inArea(e,get(view.slice(5)))});
+ var heading=view==="all"?"Projects":view==="active"?"Active projects":view==="waiting"?"Waiting projects":
+  view==="completed"?"Completed projects":view==="unassigned"?"Without an area":
+  view.startsWith("area:")?objTitle(get(view.slice(5))||{title:"Area"}):"Projects";
+ var date=miniDateForTool("projects");
+ if(date){
+  var dated=filtered.filter(function(e){return createdDate(e)===date});
+  return calendarDateHeader("Projects",date,"Projects created on this date · "+heading,"")+
+   (dated.length?'<div class="card-grid">'+dated.map(entityCard).join("")+'</div>':empty("folder-kanban","No projects created on this date","Clear the date to see all projects."))
+ }
+ var actions='<button class="button primary" data-act="create" data-type="project">'+ic("plus",15)+' Project</button>';
+ var out=pageHeader(heading,"All your projects, one click away. Areas remain optional.",actions,"PROJECTS");
+ if(view==="all"){
+  var active=filtered.filter(function(p){return p.projectStatus==="active"}),waiting=filtered.filter(function(p){return p.projectStatus==="waiting"}),completed=filtered.filter(function(p){return p.projectStatus==="completed"});
+  if(active.length)out+=section("Active",'<div class="card-grid">'+active.map(entityCard).join("")+'</div>',active.length);
+  if(waiting.length)out+=section("Waiting",'<div class="card-grid">'+waiting.map(entityCard).join("")+'</div>',waiting.length);
+  if(completed.length)out+=section("Completed",'<div class="card-grid">'+completed.map(entityCard).join("")+'</div>',completed.length);
+ }else if(filtered.length)out+='<div class="card-grid">'+filtered.map(entityCard).join("")+'</div>';
+ return filtered.length?out:out+empty("folder-kanban","No projects here yet","Create a project and start working without defining a hierarchy.","New project","project")
+}
+function bookmarksForView(){
+ var items=list("resource").filter(isBookmark),view=state.ui.view||"all";
+ if(view==="starred")return items.filter(function(e){return e.starred});
+ if(view==="unsorted")return items.filter(function(e){return !e.folderId});
+ if(view.startsWith("folder:"))return items.filter(function(e){return e.folderId===view.slice(7)});
+ return items
+}
+function renderBookmarks(){
+ var view=state.ui.view||"all",items=bookmarksForView().sort(byRecent);
+ var title=view==="starred"?"Starred bookmarks":view==="unsorted"?"Unsorted bookmarks":
+  view.startsWith("folder:")?objTitle(get(view.slice(7))||{title:"Collection"}):"Bookmarks";
+ var date=miniDateForTool("bookmarks");
+ if(date){
+  items=items.filter(function(e){return createdDate(e)===date});
+  var out=calendarDateHeader("Bookmarks",date,"Bookmarks saved on this day · "+title,"");
+  return out+(items.length?'<div class="card-grid">'+items.map(resourceCard).join("")+'</div>':empty("bookmark","No bookmarks from this date","Choose another day or clear the date."))
+ }
+ var actions='<button class="button primary" data-act="create" data-type="resource">'+ic("plus",15)+' Save link</button>';
+ return pageHeader(title,"Every saved link is here, even when related to a project.",actions,"BOOKMARKS")+
+ (items.length?'<div class="card-grid">'+items.map(resourceCard).join("")+'</div>':
+ empty("bookmark","No bookmarks here yet","Paste a link into Quick capture (Q), or save one here.","Save a link","resource"))
+}
+function goalListItem(e){
+ var progress=Math.max(0,Math.min(100,Number(e.goalProgress)||0)),status=e.goalStatus||"active";
+ return '<div class="life-row"><span class="life-row-icon">'+ic("target",18)+'</span>'+
+ '<button class="life-row-main" data-act="open" data-id="'+esc(e.id)+'"><strong>'+esc(objTitle(e))+'</strong>'+
+ '<small>'+esc(status==="achieved"?"Achieved":status==="paused"?"On hold":e.targetDate?"Target: "+humanDay(e.targetDate):"In progress")+'</small></button>'+
+ '<div class="goal-meter" aria-label="'+progress+' percent complete"><span style="width:'+progress+'%"></span></div>'+
+ '<span class="life-row-stat">'+progress+'%</span></div>'
+}
+function renderGoals(){
+ var view=state.ui.view||"active",all=list("goal"),items=all.filter(function(e){
+  return view==="all"||view==="active"&&e.goalStatus==="active"||view==="achieved"&&e.goalStatus==="achieved"||view==="paused"&&e.goalStatus==="paused"
+ }).sort(byRecent),date=miniDateForTool("goals");
+ var name={active:"Active goals",all:"All goals",achieved:"Achieved goals",paused:"On hold"}[view]||"Goals";
+ if(date){
+  items=items.filter(function(e){return createdDate(e)===date||e.targetDate===date});
+  return calendarDateHeader("Goals",date,"Goals created or targeted on this date","")+
+    (items.length?'<div class="life-list">'+items.map(goalListItem).join("")+'</div>':empty("target","No goals related to this day","Try another date or clear the selection."))
+ }
+ var actions='<button class="button primary" data-act="create" data-type="goal">'+ic("plus",15)+' Goal</button>';
+ return pageHeader(name,"Know what you are working toward. No setup or framework required.",actions,"GOALS")+
+ (items.length?'<div class="life-list">'+items.map(goalListItem).join("")+'</div>':empty("target","No goals yet","A goal can start as just a title.","Add goal","goal"))
+}
+function habitDone(e,date){
+ var log=Array.isArray(e.habitLog)?e.habitLog:[];
+ if(e.frequency==="weekly"){
+  var d=new Date(date+"T12:00:00"),dow=d.getDay();d.setDate(d.getDate()-dow);
+  var start=ndate(d),end=offsetDay(start,6);
+  return log.some(function(x){return x>=start&&x<=end})
+ }
+ return log.includes(date)
+}
+function habitStreak(e){
+ var count=0;
+ for(var k=0;k<365;k++){if(!habitDone(e,offsetDay(today(),-k)))break;count++}
+ return count
+}
+function habitRow(e,date){
+ var complete=habitDone(e,date);
+ return '<div class="life-row">'+
+ '<button class="habit-check'+(complete?" done":"")+'" data-act="habit-toggle" data-id="'+esc(e.id)+'" data-date="'+date+'" title="'+(complete?"Undo check-in":"Mark done")+'" aria-label="'+(complete?"Undo "+objTitle(e):"Complete "+objTitle(e))+'">'+
+ (complete?ic("check",18):"")+'</button>'+
+ '<button class="life-row-main" data-act="open" data-id="'+esc(e.id)+'"><strong>'+esc(objTitle(e))+'</strong>'+
+ '<small>'+esc(e.frequency==="weekly"?"Once a week":"Every day")+'</small></button>'+
+ '<span class="life-row-stat">'+(complete?"Done":habitStreak(e)+" day streak")+'</span></div>'
+}
+function renderHabits(){
+ var v=state.ui.view||"today",date=miniDateForTool("habits")||today(),items=list("habit").sort(byRecent);
+ var out=pageHeader(v==="all"?"All habits":date===today()?"Habits · Today":"Habits · "+humanDay(date),
+ "Check in with one click; no separate tasks to create.",
+ '<button class="button primary" data-act="create" data-type="habit">'+ic("plus",15)+' Habit</button>',"HABITS");
+ if(miniDateForTool("habits"))out+=calendarDateHeader("Habits",date,"Check-in history for this day","").replace(/<div class="page-header">[\s\S]*?<\/div><\/div>/,"");
+ return out+(items.length?'<div class="life-list">'+items.map(function(e){return habitRow(e,date)}).join("")+'</div>':
+ empty("flame","No habits yet","Add a habit and start checking it off.","Add habit","habit"))
+}
+function routineStepsForDate(e,date){
+ return e.routineLog&&Array.isArray(e.routineLog[date])?e.routineLog[date]:[]
+}
+function routineItemRow(e,date){
+ var steps=Array.isArray(e.routineSteps)?e.routineSteps:[],done=routineStepsForDate(e,date).length;
+ return '<div class="life-row"><span class="life-row-icon">'+ic("list-checks",18)+'</span>'+
+ '<button class="life-row-main" data-act="open" data-id="'+esc(e.id)+'"><strong>'+esc(objTitle(e))+'</strong>'+
+ '<small>'+steps.length+' step'+(steps.length===1?"":"s")+' · '+(e.frequency==="weekly"?"Weekly":"Daily")+'</small></button>'+
+ '<span class="life-row-stat">'+(steps.length?done+"/"+steps.length+" done":"Add steps")+'</span></div>'
+}
+function renderRoutines(){
+ var v=state.ui.view||"today",date=miniDateForTool("routines")||today(),items=list("routine").sort(byRecent);
+ if(miniDateForTool("routines"))return calendarDateHeader("Routines",date,"Routines and checklists for this date","")+
+ (items.length?'<div class="life-list">'+items.map(function(e){return routineItemRow(e,date)}).join("")+'</div>':
+ empty("list-checks","No routines yet","Add one when you need a repeatable checklist."));
+ return pageHeader(v==="all"?"All routines":"Routines · Today",
+ "Reusable checklists that reset each day. No need to rebuild your tasks.",
+ '<button class="button primary" data-act="create" data-type="routine">'+ic("plus",15)+' Routine</button>',"ROUTINES")+
+ (items.length?'<div class="life-list">'+items.map(function(e){return routineItemRow(e,date)}).join("")+'</div>':
+ empty("list-checks","No routines yet","A routine can begin with a name; add steps as you use it.","Add routine","routine"))
+}
+
 function renderWorkspace(){
  var inner;
  if(state.ui.detailId){
