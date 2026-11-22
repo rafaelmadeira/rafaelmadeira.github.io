@@ -205,7 +205,15 @@ var QUICK_PAGES=[
  {tool:"journal",view:"today",label:"Today's journal",icon:"book-open"},
  {tool:"journal",view:"timeline",label:"Journal timeline",icon:"clock"}
 ];
-function quickKey(q){return q.kind==="entity"?"entity:"+q.id:"view:"+q.tool+":"+q.view}
+function quickKey(q){
+ if(q.kind==="entity")return "entity:"+q.id;
+ if(q.kind==="view"){
+  if(q.tool==="planner"&&q.view.startsWith("area:"))return "entity:"+q.view.slice(5);
+  if(q.tool==="notebooks"&&q.view.startsWith("book:"))return "entity:"+q.view.slice(5);
+  if(q.tool==="library"&&q.view.startsWith("folder:"))return "entity:"+q.view.slice(7)
+ }
+ return "view:"+q.tool+":"+q.view
+}
 function quickHas(q){return (state.ui.quickAccess||[]).some(function(x){return quickKey(x)===quickKey(q)})}
 function quickVisible(q){
  if(q.kind==="entity"){var e=get(q.id);return !!(e&&!e.trashed&&!e.archived)}
