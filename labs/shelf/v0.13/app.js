@@ -1,6 +1,6 @@
 (function(){
 "use strict";
-var KEY="shelf-everyday-v012", LEGACY="shelf-everyday-v011", DB="shelf-v011-files";
+var KEY="shelf-everyday-v013", LEGACY="shelf-everyday-v012", LEGACY_OLD="shelf-everyday-v011", DB="shelf-v011-files";
 var LIBRARY_TYPES=[
  {id:"article",name:"Articles",icon:"file"},{id:"image",name:"Images",icon:"image"},
  {id:"video",name:"Videos",icon:"video"},{id:"document",name:"Documents",icon:"file"},
@@ -88,7 +88,7 @@ function plain(v){return String(v||"").replace(/<[^>]*>/g," ").replace(/\s+/g," 
 function trim(v,n){return String(v||"").slice(0,n||180)}
 function ent(type,title,extra){return Object.assign({
  id:uid(),type:type,title:title||"",body:"",html:"",createdAt:now(),updatedAt:now(),contextIds:[],
- notebookId:null,folderId:null,areaId:null,sourceId:null,starred:false,pinned:false,archived:false,trashed:false,
+ notebookId:null,folderId:null,areaId:null,sourceId:null,inbox:false,starred:false,pinned:false,archived:false,trashed:false,
  date:"",time:"",endTime:"",dueDate:"",location:"",completed:false,projectStatus:"active",
  url:"",resourceKind:"link",blobId:null,fileName:"",mime:"",fileSize:0,tags:[],color:"default",demo:false
 },extra||{})}
@@ -111,17 +111,17 @@ function seed(){
  var r2=ent("resource","Exame anterior.pdf",{resourceKind:"document",fileName:"Exame anterior.pdf",contextIds:[visit.id],body:"Arquivo ilustrativo. Anexe seu próprio PDF para testar um arquivo real.",demo:true});
  var r3=ent("resource","MDN Web Docs",{url:"https://developer.mozilla.org/en-US/",resourceKind:"link",starred:true,demo:true});
  var journal=ent("journal","",{date:yesterday,html:"<p>Um registro de exemplo para demonstrar como o diário funciona.</p><p>As notas adicionadas a esta entrada também podem ser encontradas em Notebooks.</p>",demo:true});
- return {version:12,entities:[aI,aT,aC,aP,project,visit,t1,t2,t3,t4,notebook1,notebook2,n1,n2,n3,n4,r1,r2,r3,journal],
- ui:{tool:"home",view:"today",selectedDate:d,month:monthKey(d),focusId:null,detailId:null,lastTool:"home",lastView:"today",recent:[project.id,visit.id],search:""},demo:true}
+ return {version:13,entities:[aI,aT,aC,aP,project,visit,t1,t2,t3,t4,notebook1,notebook2,n1,n2,n3,n4,r1,r2,r3,journal],
+ ui:{tool:"home",view:"today",selectedDate:d,month:monthKey(d),focusId:null,detailId:null,lastTool:"home",lastView:"today",recent:[project.id,visit.id],quickAccess:[],search:""},demo:true}
 }
 var state;
 try{
- var existing=localStorage.getItem(KEY),legacy=localStorage.getItem(LEGACY);
- state=JSON.parse(existing||legacy||"null");
+ var existing=localStorage.getItem(KEY),legacy=localStorage.getItem(LEGACY),old=localStorage.getItem(LEGACY_OLD);
+ state=JSON.parse(existing||legacy||old||"null");
  if(!state||!Array.isArray(state.entities))state=seed();
 }catch(e){state=seed()}
 function ensureAreas(){
- if(state.version===12)return;
+ if(state.version>=12)return;
  var names=["Ivrnet","Tec","Casa","Pessoal"],areas=state.entities.filter(function(e){return e.type==="area"});
  if(!areas.length){areas=names.map(function(name){return ent("area",name,{demo:true})});state.entities.unshift.apply(state.entities,areas)}
  function known(n){return areas.find(function(a){return a.title===n})}
@@ -135,6 +135,17 @@ function ensureAreas(){
 }
 ensureAreas();
 state.ui=state.ui||seed().ui;
+function ensureV13(){
+ if(!Array.isArray(state.ui.recent))state.ui.recent=[];
+ if(!Array.isArray(state.ui.quickAccess))state.ui.quickAccess=[];
+ state.ui.quickAccess=state.ui.quickAccess.filter(function(q){return q&&(["entity","view"].includes(q.kind))});
+ state.entities.forEach(function(e){
+  if(e.type!=="task")return;
+  if(typeof e.inbox!=="boolean")e.inbox=!e.completed&&!e.dueDate&&!e.areaId&&!(e.contextIds||[]).length;
+ });
+ state.version=13;
+}
+ensureV13();
 var $=function(id){return document.getElementById(id)};
 var rail=$("toolrail"),sidebar=$("sidebar"),workspace=$("workspace"),modalRoot=$("modal-root"),toastEl=$("toast");
 var activeComposer="auto",composerFor=null,composerText="",modalState=null,uploadContext=null,mediaUrls=[],toastTimer=null;
@@ -160,6 +171,8 @@ function inArea(e,area){var a=areaOf(e);return !!(a&&area&&a.id===area.id)}
 function isBookmark(e){return e.type==="resource"&&!!safeUrl(e.url)}
 function meaningfulContext(e){return sources(e).length>0||!!areaOf(e)}
 function count(type){return list(type).length}
+function inInbox(e){return e&&e.type==="task"&&!e.completed&&e.inbox===true}
+function inboxCount(){return list("task").filter(inInbox).length}
 function toast(s){toastEl.textContent=s;toastEl.classList.add("open");clearTimeout(toastTimer);toastTimer=setTimeout(function(){toastEl.classList.remove("open")},2800)}
 function typeIcon(e){if(!e)return "layers";if(e.type==="resource")return e.resourceKind==="image"?"image":e.resourceKind==="video"?"video":e.resourceKind==="link"?"link":"file";return {event:"calendar",task:"check-circle",note:"note",project:"clipboard",journal:"book-open",notebook:"notebook",folder:"folder",area:"layers"}[e.type]||"layers"}
 function typeName(type){return {event:"Event",task:"Task",note:"Note",resource:"Resource",project:"Project",journal:"Journal entry",notebook:"Notebook",folder:"Folder",area:"Area"}[type]||"Item"}
@@ -175,7 +188,7 @@ function buttonIcon(name){return ic(name,17)}
 function getAllSearchable(){return list().filter(function(x){return x.type!=="folder"&&x.type!=="notebook"})}
 function searchMatch(e,q){q=(q||"").toLowerCase().trim();if(!q)return true;var txt=[e.title,e.body,stripHtml(e.html),e.url,e.fileName,contextName(e),(e.tags||[]).join(" ")].join(" ").toLowerCase();return q.split(/\s+/).every(function(w){return txt.includes(w)})}
 function renderRail(){
- rail.innerHTML='<button class="rail-logo" data-act="navigate" data-tool="home" data-view="today" aria-label="Shelf Home" title="Shelf">'+ic("layers",23)+'</button>'+
+ rail.innerHTML='<button class="rail-logo" data-act="navigate" data-tool="home" data-view="today" aria-label="Shelf Desk" title="Shelf">'+ic("layers",23)+'</button>'+
  TOOLS.map(function(t){return '<button class="rail-item'+(state.ui.tool===t.id?" active":"")+'" data-act="tool" data-tool="'+t.id+'" title="'+t.name+'" aria-label="'+t.name+'">'+ic(t.icon,21)+'<span>'+t.name+'</span></button>'}).join("")+
  '<span class="rail-spacer"></span><button class="rail-footer-btn" data-act="search" title="Search everything" aria-label="Search">'+ic("search",18)+'</button>';
 }
@@ -244,7 +257,7 @@ function renderSidebar(){
   html+=sh("Filters");
   LIBRARY_TYPES.forEach(function(item){var n=rs.filter(function(r){return r.resourceKind===item.id}).length;if(n)html+=sr(item.name,"kind:"+item.id,item.icon,{count:n})});
  }
- html+='</div><div class="sb-foot"><button class="sb-row" data-act="navigate" data-tool="library" data-view="archive"><span class="sb-ico">'+ic("archive",16)+'</span><span class="label">Archive</span></button><button class="sb-row" data-act="navigate" data-tool="library" data-view="trash"><span class="sb-ico">'+ic("trash",16)+'</span><span class="label">Trash</span></button><small><span>SHELF · v0.11</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></small></div>';
+ html+='</div><div class="sb-foot"><button class="sb-row" data-act="navigate" data-tool="library" data-view="archive"><span class="sb-ico">'+ic("archive",16)+'</span><span class="label">Archive</span></button><button class="sb-row" data-act="navigate" data-tool="library" data-view="trash"><span class="sb-ico">'+ic("trash",16)+'</span><span class="label">Trash</span></button><small><span>SHELF · v0.13</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></small></div>';
  sidebar.innerHTML=html;
 }
 function topbar(){
