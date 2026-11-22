@@ -745,6 +745,48 @@ function newMenu(){
  setTimeout(function(){var t=$("global-capture");if(t)t.focus()},10);
 }
 function saveGlobalCapture(){var el=$("global-capture");if(!el||!el.value.trim())return;var x=captureObject(el.value,state.ui.focusId||null,"auto");if(!x)return;closeModal();paint();toast(typeName(x.type)+" saved"+(x.sourceId&&get(x.sourceId)?" · linked to "+objTitle(get(x.sourceId)):""))}
+function openQuickAdd(){
+ modalState={mode:"quick-add"};
+ openModal('<div class="modal-header"><h2>Add to Quick Access</h2><button class="icon-button" data-act="modal-close" aria-label="Close">'+ic("x",19)+'</button></div>'+
+ '<div class="modal-scroll"><p class="modal-help">Put any destination on your Desk. These are shortcuts, not copies or folders.</p>'+
+ '<div class="quick-search-field">'+ic("search",18)+'<input id="quick-search" placeholder="Find a project, notebook, Area or page…" autocomplete="off" aria-label="Find destination to pin"></div>'+
+ '<div id="quick-results" class="search-results quick-search-results"></div></div>');
+ updateQuickResults("");
+ var input=$("quick-search");if(input)input.focus()
+}
+function renderQuickCandidate(q,info){
+ if(!info||quickHas(q))return "";
+ return '<button class="search-result quick-candidate" data-act="quick-pin-choice" data-kind="'+esc(q.kind)+'"'+
+ (q.kind==="entity"?' data-id="'+esc(q.id)+'"':' data-tool="'+esc(q.tool)+'" data-view="'+esc(q.view)+'"')+'>'+
+ '<span class="row-icon">'+ic(info.icon,17)+'</span><span><strong>'+esc(info.label)+'</strong><small>'+esc(info.desc)+'</small></span>'+
+ '<span class="quick-result-add">'+ic("plus",16)+'</span></button>'
+}
+function updateQuickResults(q){
+ var root=$("quick-results");if(!root)return;
+ var textQuery=String(q||"").trim().toLowerCase();
+ var pages=QUICK_PAGES.filter(function(p){return (p.label+" "+p.tool).toLowerCase().includes(textQuery)}).map(function(p){return {ref:{kind:"view",tool:p.tool,view:p.view},info:{label:p.label,desc:"Page",icon:p.icon}}});
+ var entities=list().filter(function(e){return !e.trashed&&!e.archived&&[e.title,e.body,typeName(e.type),contextName(e)].join(" ").toLowerCase().includes(textQuery)})
+  .sort(byRecent).slice(0,textQuery?35:12).map(function(e){return {ref:{kind:"entity",id:e.id},info:{label:objTitle(e),desc:e.type==="area"?"Area":e.type==="folder"?"Collection":typeName(e.type),icon:e.type==="area"?areaIcon(e):typeIcon(e)}}});
+ var routes=pages.filter(function(x){return !quickHas(x.ref)}).slice(0,16),things=entities.filter(function(x){return !quickHas(x.ref)});
+ var content="";
+ if(routes.length)content+='<div class="quick-results-heading">PAGES & VIEWS</div>'+routes.map(function(x){return renderQuickCandidate(x.ref,x.info)}).join("");
+ if(things.length)content+='<div class="quick-results-heading">YOUR THINGS</div>'+things.map(function(x){return renderQuickCandidate(x.ref,x.info)}).join("");
+ if(!content)content='<div class="modal-empty">Nothing else to pin. Try another search.</div>';
+ root.innerHTML=content
+}
+function quickToggleEntity(id){
+ var e=get(id);if(!e||e.trashed||e.archived)return;
+ var ref={kind:"entity",id:e.id},on=quickHas(ref);
+ if(on)quickRemove(quickKey(ref));else quickAdd(ref);
+ closeModal();paint();toast(on?"Removed from Desk (original kept)":"Pinned "+objTitle(e)+" to Desk")
+}
+function quickToggleCurrent(){
+ if(state.ui.detailId){quickToggleEntity(state.ui.detailId);return}
+ var ref={kind:"view",tool:state.ui.tool,view:state.ui.view},on=quickHas(ref);
+ if(on)quickRemove(quickKey(ref));else quickAdd(ref);
+ paint();toast(on?"Shortcut removed from Desk":"Page pinned to Desk")
+}
+
 function searchModal(){
  modalState={mode:"search"};
  openModal('<div class="modal-header"><h2>Find anything</h2><button class="icon-button" data-act="modal-close">'+ic("x",19)+'</button></div><div class="modal-scroll"><input id="global-search" class="search-input" type="search" placeholder="Find a note, event, file, task, project…" autocomplete="off" aria-label="Search all items"><div id="search-results" class="search-results"></div></div>');
