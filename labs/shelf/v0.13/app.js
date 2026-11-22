@@ -383,9 +383,9 @@ function renderSidebar(){
  }
  if(t==="journal"){
   html+=sh("Journals","journalbook");
-  html+=sr("All entries","all","book-open");
+  html+=sr("All entries","all","book-open",{count:list("journal").length});
   html+=list("journalbook").sort(function(a,b){return (a.id===state.ui.defaultJournalId?-1:b.id===state.ui.defaultJournalId?1:0)||a.createdAt-b.createdAt}).map(function(book){
-   return sr(objTitle(book),"journalbook:"+book.id,"book-open")
+   return sr(objTitle(book),"journalbook:"+book.id,"book-open",{count:list("journal").filter(function(e){return e.journalBookId===book.id}).length})
   }).join("");
  }
  if(t==="calendar"){
@@ -452,7 +452,7 @@ function renderSidebar(){
 }
 function topbar(){
  var focus=isFocusValid();
- return '<div class="topbar"><button class="search-trigger" data-act="search" title="Search everything">'+ic("search",18)+'<span>Search anything…</span><small class="kbd">/</small></button><div class="topbar-spacer"></div>'+
+ return '<div class="topbar"><button class="search-trigger" data-act="search" title="Search or create anything">'+ic("search",18)+'<span>Search or capture anything…</span><small class="kbd">/</small></button><div class="topbar-spacer"></div>'+
  (!state.ui.detailId&&state.ui.tool!=="home"?'<button class="icon-button'+(quickHas({kind:"view",tool:state.ui.tool,view:state.ui.view})?' quick-pinned':'')+'" data-act="quick-pin-current" title="'+(quickHas({kind:"view",tool:state.ui.tool,view:state.ui.view})?'Remove page from Desk':'Pin this page to Desk')+'" aria-label="Pin or unpin current page in Quick Access">'+ic(quickHas({kind:"view",tool:state.ui.tool,view:state.ui.view})?"pinfill":"pin",17)+'</button>':"")+
  (focus?'<div class="context-pill" title="New items can be linked to this context">'+ic("layers",13)+'<span class="context-name">'+esc(objTitle(focus))+'</span><button data-act="clear-focus" title="Stop using this context">'+ic("x",13)+'</button></div>':"")+
  '<button class="top-new" data-act="new-menu">'+ic("plus",16)+' New</button><span class="top-avatar" title="Local prototype">'+ic("layers",16)+'</span></div>'
