@@ -480,20 +480,63 @@ function areaTaskAdd(area){
 }
 function renderArea(area){
  if(!area||area.type!=="area")return pageHeader("Area not found","The area might have been removed.","","PLANNER");
- var projects=list("project").filter(function(e){return inArea(e,area)}).sort(byRecent);
- var tasks=list("task").filter(function(e){return inArea(e,area)}).sort(byDue);
- var direct=tasks.filter(function(e){return !projectOf(e)}),within=tasks.filter(function(e){return !!projectOf(e)});
- var pending=tasks.filter(function(t){return !t.completed}).length;
+ var allProjects=list("project").filter(function(e){return inArea(e,area)}).sort(byRecent);
+ var allTasks=list("task").filter(function(e){return inArea(e,area)}).sort(byDue);
+ var projects=allProjects.filter(function(e){return !categoryOf(e)});
+ var tasks=allTasks.filter(function(e){return !categoryOf(e)});
+ var categories=categoriesIn(area);
+ var pending=allTasks.filter(function(t){return !t.completed}).length;
  var actions='<button class="button" data-act="quick-toggle-entity" data-id="'+esc(area.id)+'">'+ic(quickHas({kind:"entity",id:area.id})?"pinfill":"pin",15)+' '+(quickHas({kind:"entity",id:area.id})?"Unpin from Desk":"Pin to Desk")+'</button>'+
  '<button class="button" data-act="rename-area" data-id="'+esc(area.id)+'">'+ic("pen",15)+' Rename</button>'+
+ '<button class="button" data-act="create-category" data-area="'+esc(area.id)+'">'+ic("plus",15)+' Category</button>'+
  '<button class="button" data-act="create" data-type="project" data-context="'+esc(area.id)+'">'+ic("plus",15)+' Project</button>'+
  '<button class="button primary" data-act="create" data-type="task" data-context="'+esc(area.id)+'">'+ic("plus",15)+' Task</button>';
- var overview='<div class="area-summary"><span>'+ic("folder",15)+' '+projects.length+' project'+(projects.length===1?"":"s")+'</span><span>'+ic("check-circle",15)+' '+pending+' open task'+(pending===1?"":"s")+'</span></div>';
- return pageHeader(objTitle(area),"All projects and tasks in this area, without a folder tree.",actions,"PLANNER / AREA")+
- overview+
- section("Projects",projects.length?'<div class="card-grid">'+projects.map(entityCard).join("")+'</div>':empty("folder","No projects yet","Create a project here and it will belong to "+objTitle(area)+" automatically."),projects.length)+
- section("Other tasks",'<div class="panel area-task-panel">'+(direct.length?direct.map(taskRow).join(""):'<p class="area-hint">Independent tasks for this area appear here.</p>')+areaTaskAdd(area)+'</div>',direct.length)+
- (within.length?section("Tasks in projects",'<div class="panel area-task-panel">'+within.map(taskRow).join("")+'</div>',within.length):"");
+ var overview='<div class="area-summary"><span>'+ic("folder",15)+' '+allProjects.length+' project'+(allProjects.length===1?"":"s")+'</span><span>'+ic("check-circle",15)+' '+pending+' open task'+(pending===1?"":"s")+'</span></div>';
+ var out=pageHeader(objTitle(area),"Choose a category to narrow your view. Work without a category stays below.",actions,"PLANNER / AREA")+overview;
+ if(categories.length){
+  out+=section("Categories",'<div class="category-grid">'+categories.map(function(c){
+   var cp=allProjects.filter(function(e){return inCategory(e,c)}).length;
+   var ct=allTasks.filter(function(e){return inCategory(e,c)&&!e.completed}).length;
+   return '<button class="category-card" data-act="category-open" data-id="'+esc(c.id)+'">'+
+    '<span class="category-icon">'+ic("folder",19)+'</span><span class="category-card-name">'+esc(objTitle(c))+'</span>'+
+    '<span class="category-card-meta">'+cp+' project'+(cp===1?"":"s")+' · '+ct+' open task'+(ct===1?"":"s")+'</span>'+ic("chevron-right",15)+'</button>'
+  }).join("")+'</div>',categories.length)
+ }
+ if(!categories.length)out+=section("Categories",'<div class="area-hint">No categories yet. Create one whenever you need a more focused view.</div>',0);
+ out+=section(categories.length?"Projects without a category":"Projects",projects.length?'<div class="card-grid">'+projects.map(entityCard).join("")+'</div>':empty("folder","No uncategorized projects","Projects assigned to categories can be found by opening the category."),projects.length);
+ out+=section(categories.length?"Tasks without a category":"Other tasks",'<div class="panel area-task-panel">'+
+  (tasks.length?tasks.filter(function(e){return !projectOf(e)}).map(taskRow).join("")+
+  tasks.filter(function(e){return !!projectOf(e)}).map(taskRow).join(""):'<p class="area-hint">No uncategorized tasks. Create a task here, or open a category.</p>')+
+  areaTaskAdd(area)+'</div>',tasks.length);
+ return out
+}
+function categoryTaskAdd(category){
+ return '<div class="inline-add area-quick"><span>'+ic("plus",16)+'</span>'+
+ '<input id="category-quick" placeholder="Add a task in '+esc(objTitle(category))+'…" aria-label="Add a task in this category">'+
+ '<button data-act="category-quick" data-id="'+esc(category.id)+'">Add</button></div>'
+}
+function renderCategory(category){
+ if(!category||category.type!=="category"||category.trashed)return pageHeader("Category not found","The category may have been removed.","","PLANNER");
+ var area=get(category.areaId);
+ if(!area||area.type!=="area")return pageHeader("Area not found","The parent area may have been removed.","","PLANNER");
+ var projects=list("project").filter(function(e){return inCategory(e,category)}).sort(byRecent);
+ var tasks=list("task").filter(function(e){return inCategory(e,category)}).sort(byDue);
+ var direct=tasks.filter(function(e){return !projectOf(e)}),within=tasks.filter(function(e){return !!projectOf(e)});
+ var pending=tasks.filter(function(e){return !e.completed}).length;
+ var actions='<button class="button" data-act="quick-toggle-entity" data-id="'+esc(category.id)+'">'+ic(quickHas({kind:"entity",id:category.id})?"pinfill":"pin",15)+' '+(quickHas({kind:"entity",id:category.id})?"Unpin":"Pin to Desk")+'</button>'+
+ '<button class="button" data-act="rename-category" data-id="'+esc(category.id)+'">'+ic("pen",15)+' Rename</button>'+
+ '<button class="button" data-act="delete-category" data-id="'+esc(category.id)+'">'+ic("trash",15)+' Remove</button>'+
+ '<button class="button" data-act="create" data-type="project" data-context="'+esc(category.id)+'">'+ic("plus",15)+' Project</button>'+
+ '<button class="button primary" data-act="create" data-type="task" data-context="'+esc(category.id)+'">'+ic("plus",15)+' Task</button>';
+ return '<div class="backline"><button data-act="area-open" data-id="'+esc(area.id)+'">'+ic("arrow",16)+' '+esc(objTitle(area))+'</button> <span>/</span> <span>'+esc(objTitle(category))+'</span></div>'+
+ pageHeader(objTitle(category),"Only the projects and tasks in this category.",actions,"PLANNER / "+objTitle(area))+
+ '<div class="area-summary"><span>'+ic("folder",15)+' '+projects.length+' project'+(projects.length===1?"":"s")+'</span>'+
+ '<span>'+ic("check-circle",15)+' '+pending+' open task'+(pending===1?"":"s")+'</span></div>'+
+ section("Projects",projects.length?'<div class="card-grid">'+projects.map(entityCard).join("")+'</div>':empty("folder","No projects here yet","A project added here automatically belongs to "+objTitle(area)+" · "+objTitle(category)+"."),projects.length)+
+ section("Other tasks",'<div class="panel area-task-panel">'+
+ (direct.length?direct.map(taskRow).join(""):'<p class="area-hint">Create a task here and it will automatically belong to this category.</p>')+
+ categoryTaskAdd(category)+'</div>',direct.length)+
+ (within.length?section("Tasks in projects",'<div class="panel area-task-panel">'+within.map(taskRow).join("")+'</div>',within.length):"")
 }
 function renderAllProjects(){
  var projects=list("project").sort(byRecent),areas=list("area");
