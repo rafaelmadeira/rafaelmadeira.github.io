@@ -1492,7 +1492,7 @@ function openModal(inner){modalRoot.innerHTML='<div class="modal-backdrop" data-
 function closeModal(){modalRoot.classList.remove("open");modalRoot.setAttribute("aria-hidden","true");modalRoot.innerHTML="";modalState=null;workingSearch=""}
 function newMenu(){
  var t=state.ui.tool;
- var types=[{type:"task",title:"Task",help:"Something to do",icon:"check-circle"},{type:"event",title:"Calendar event",help:"Something on your schedule",icon:"calendar"},{type:"note",title:"Note",help:"Something to write or remember",icon:"note"},{type:"resource",title:"Link or file",help:"Something worth keeping",icon:"link"},{type:"project",title:"Project",help:"Something to work on",icon:"clipboard"},{type:"notebook",title:"Notebook",help:"A place for written things",icon:"notebook"}];
+ var types=[{type:"task",title:"Task",help:"Something to do",icon:"check-circle"},{type:"event",title:"Calendar event",help:"Something on your schedule",icon:"calendar"},{type:"note",title:"Note",help:"Something to write or remember",icon:"note"},{type:"resource",title:"Link or file",help:"Something worth keeping",icon:"link"},{type:"project",title:"Project",help:"Something to work on",icon:"folder-kanban"},{type:"goal",title:"Goal",help:"An outcome to work toward",icon:"target"},{type:"habit",title:"Habit",help:"Something to practice",icon:"flame"},{type:"routine",title:"Routine",help:"A repeatable checklist",icon:"list-checks"},{type:"notebook",title:"Notebook",help:"A place for written things",icon:"notebook"}];
  openModal('<div class="modal-header"><h2>Save anything</h2><button class="icon-button" data-act="modal-close">'+ic("x",19)+'</button></div><div class="modal-scroll"><p class="modal-help">Paste a link or jot down a thought. No setup needed.</p><div class="capture-box" style="margin:0 0 15px"><textarea id="global-capture" placeholder="Write, paste a URL, or type “todo: ” for a task…" aria-label="Save anything"></textarea><div class="capture-actions"><span class="capture-tip" style="margin:0 0 0 7px;flex:1">Enter to save · Shift+Enter for a new line</span><button class="button primary" data-act="global-capture-save">'+ic("plus",14)+' Save</button></div></div><div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:#a3adae;margin:15px 0 8px">OR ADD USING A TOOL</div><div class="menu-list">'+types.map(function(x){return '<button class="menu-choice" data-act="create" data-type="'+x.type+'">'+ic(x.icon,20)+'<span><b style="font-size:12.5px">'+x.title+'</b><br><small>'+x.help+'</small></span>'+ic("chevron-right",16)+'</button>'}).join("")+'</div></div>');
  setTimeout(function(){var t=$("global-capture");if(t)t.focus()},10);
 }
@@ -1541,12 +1541,15 @@ function quickToggleCurrent(){
 
 // Universal capture is deliberately independent of the currently open tool and focus.
 var UNIVERSAL_TYPES=[
- {type:"note",label:"Note",icon:"note",where:"Notebook"},
- {type:"task",label:"Task",icon:"check-circle",where:"Planner · Inbox"},
+ {type:"note",label:"Note",icon:"note",where:"Notes"},
+ {type:"task",label:"Task",icon:"check-circle",where:"To do · Inbox"},
  {type:"event",label:"Event",icon:"calendar",where:"Calendar"},
- {type:"project",label:"Project",icon:"clipboard",where:"Planner · Projects"},
- {type:"resource",label:"Link",icon:"link",where:"Library · Bookmarks"},
- {type:"journal",label:"Journal entry",icon:"book-open",where:"Journal"}
+ {type:"project",label:"Project",icon:"folder-kanban",where:"Projects"},
+ {type:"resource",label:"Link",icon:"link",where:"Bookmarks"},
+ {type:"journal",label:"Journal entry",icon:"book-open",where:"Journals"},
+ {type:"goal",label:"Goal",icon:"target",where:"Goals"},
+ {type:"habit",label:"Habit",icon:"flame",where:"Habits"},
+ {type:"routine",label:"Routine",icon:"list-checks",where:"Routines"}
 ];
 function normalizeCaptureUrl(value){
  var text=String(value||"").trim();
@@ -1555,8 +1558,8 @@ function normalizeCaptureUrl(value){
  return safeUrl(text)
 }
 function captureIntent(raw){
- var text=String(raw||"").trim(),prefix=text.match(/^(todo|task|tarefa|note|nota|event|evento|appointment|meeting|compromisso|project|projeto|link|bookmark|journal|diary|diário)\s*:\s*/i);
- var names={todo:"task",task:"task",tarefa:"task",note:"note",nota:"note",event:"event",evento:"event",appointment:"event",meeting:"event",compromisso:"event",project:"project",projeto:"project",link:"resource",bookmark:"resource",journal:"journal",diary:"journal","diário":"journal"};
+ var text=String(raw||"").trim(),prefix=text.match(/^(todo|task|tarefa|note|nota|event|evento|appointment|meeting|compromisso|project|projeto|link|bookmark|journal|diary|diário|goal|objetivo|habit|hábito|habito|routine|rotina)\s*:\s*/i);
+ var names={todo:"task",task:"task",tarefa:"task",note:"note",nota:"note",event:"event",evento:"event",appointment:"event",meeting:"event",compromisso:"event",project:"project",projeto:"project",link:"resource",bookmark:"resource",journal:"journal",diary:"journal","diário":"journal",goal:"goal",objetivo:"goal",habit:"habit","hábito":"habit",habito:"habit",routine:"routine",rotina:"routine"};
  var body=prefix?text.slice(prefix[0].length).trim():text,auto=prefix?names[prefix[1].toLowerCase()]:normalizeCaptureUrl(body)?"resource":"note";
  return {raw:text,body:body,type:auto,url:normalizeCaptureUrl(body)}
 }
@@ -1587,6 +1590,9 @@ function universalCapture(raw,chosenType){
   title=first.slice(0,85);extra.html=universalHtml(body)
  }else if(type==="project"){
   title=first;if(rest)extra.body=rest
+ }else if(type==="goal"){title=first;extra.goalStatus="active";extra.goalProgress=0;if(rest)extra.body=rest
+ }else if(type==="habit"){title=first;extra.frequency="daily";extra.habitLog=[];if(rest)extra.body=rest
+ }else if(type==="routine"){title=first;extra.frequency="daily";extra.routineLog={};extra.routineSteps=rest.split(/\r?\n/).map(function(x){return x.trim()}).filter(Boolean).map(function(x){return {id:uid(),text:x}});extra.body=""
  }else if(type==="event"){
   var event=universalDateInfo(first);
   title=event.title||first;extra.date=event.date;extra.time=event.time;if(rest)extra.body=rest
