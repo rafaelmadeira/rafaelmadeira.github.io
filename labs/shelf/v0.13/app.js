@@ -165,6 +165,11 @@ function ensureCategories(){
  state.ui.categoriesSeeded=true
 }
 ensureCategories();
+if(!state.ui.expandedAreaId){
+ var remembered=state.ui.view&&state.ui.view.startsWith("area:")?state.ui.view.slice(5):null;
+ var first=state.entities.find(function(e){return e.type==="area"&&String(e.title).toLowerCase()==="ivrnet"&&!e.trashed});
+ state.ui.expandedAreaId=remembered||(first?first.id:null)
+}
 var $=function(id){return document.getElementById(id)};
 var rail=$("toolrail"),sidebar=$("sidebar"),workspace=$("workspace"),modalRoot=$("modal-root"),toastEl=$("toast");
 var activeComposer="auto",composerFor=null,composerText="",modalState=null,uploadContext=null,mediaUrls=[],toastTimer=null;
@@ -235,6 +240,7 @@ function quickKey(q){
  if(q.kind==="entity")return "entity:"+q.id;
  if(q.kind==="view"){
   if(q.tool==="planner"&&q.view.startsWith("area:"))return "entity:"+q.view.slice(5);
+  if(q.tool==="planner"&&q.view.startsWith("category:"))return "entity:"+q.view.slice(9);
   if(q.tool==="notebooks"&&q.view.startsWith("book:"))return "entity:"+q.view.slice(5);
   if(q.tool==="library"&&q.view.startsWith("folder:"))return "entity:"+q.view.slice(7)
  }
@@ -254,6 +260,9 @@ function quickItem(q){
  if(p)return {key:quickKey(q),label:p.label,desc:TOOLS.find(function(x){return x.id===q.tool}).name,icon:p.icon};
  if(q.tool==="planner"&&q.view.startsWith("area:")){
   var area=get(q.view.slice(5));if(area)return {key:quickKey(q),label:objTitle(area),desc:"Planner · Area",icon:areaIcon(area)}
+ }
+ if(q.tool==="planner"&&q.view.startsWith("category:")){
+  var cat=get(q.view.slice(9));if(cat)return {key:quickKey(q),label:objTitle(cat),desc:"Planner · Category",icon:"folder"}
  }
  if(q.tool==="notebooks"&&q.view.startsWith("book:")){
   var book=get(q.view.slice(5));if(book)return {key:quickKey(q),label:objTitle(book),desc:"Notebook",icon:"notebook"}
@@ -344,8 +353,21 @@ function renderSidebar(){
   html+=sr("Completed","completed","check");
   html+=sh("Areas","area");
   html+=list("area").map(function(a){
+   var active=state.ui.view==="area:"+a.id,expanded=state.ui.expandedAreaId===a.id;
+   var inView=state.ui.view.startsWith("category:")&&get(state.ui.view.slice(9))&&get(state.ui.view.slice(9)).areaId===a.id;
    var n=tasks.filter(function(e){return inArea(e,a)&&!e.completed}).length;
-   return sr(objTitle(a),"area:"+a.id,areaIcon(a),{count:n,areaDrop:a.id})
+   var result='<div class="sb-area-group"><div class="sb-area-header'+(active||inView?" has-active":"")+'" data-area-drop="'+esc(a.id)+'">'+
+    '<button class="sb-area-toggle" data-act="area-toggle" data-id="'+esc(a.id)+'" aria-label="'+(expanded?"Collapse ":"Expand ")+esc(objTitle(a))+'">'+ic(expanded?"chevron-down":"chevron-right",13)+'</button>'+
+    '<button class="sb-row sb-area-link'+(active?" active":"")+'" data-act="area-open" data-id="'+esc(a.id)+'"><span class="sb-ico">'+ic(areaIcon(a),16)+'</span><span class="label">'+esc(objTitle(a))+'</span><span class="sb-num">'+n+'</span></button></div>';
+   if(expanded){
+    result+=categoriesIn(a).map(function(c){
+     var selected=state.ui.view==="category:"+c.id,count=tasks.filter(function(t){return !t.completed&&inCategory(t,c)}).length;
+     return '<button class="sb-row sb-category-row'+(selected?" active":"")+'" data-act="category-open" data-id="'+esc(c.id)+'" data-category-drop="'+esc(c.id)+'">'+
+      '<span class="sb-ico">'+ic("folder",14)+'</span><span class="label">'+esc(objTitle(c))+'</span>'+(count?'<span class="sb-num">'+count+'</span>':"")+'</button>'
+    }).join("");
+    result+='<button class="sb-row sb-category-add" data-act="create-category" data-area="'+esc(a.id)+'">'+ic("plus",13)+' <span class="label">Add category</span></button>';
+   }
+   return result+'</div>';
   }).join("")||'<div class="sidebar-empty">Create your first area</div>';
   html+=sh("Projects","project");
   html+=sr("All projects","projects","clipboard",{count:count("project")});
@@ -485,6 +507,7 @@ function renderAllProjects(){
 }
 function renderPlanner(){
  var view=state.ui.view,all=list("task"),items;
+ if(view.startsWith("category:"))return renderCategory(get(view.slice(9)));
  if(view.startsWith("area:"))return renderArea(get(view.slice(5)));
  if(view==="projects")return renderAllProjects();
  if(view==="today")items=all.filter(function(e){return !e.completed&&e.dueDate&&e.dueDate<=today()}).sort(byDue);
