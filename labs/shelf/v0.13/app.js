@@ -345,8 +345,36 @@ function miniCalendar(){
  }
  return html+'</div></div>'
 }
+function journalBookForView(view){
+ view=view||state.ui.view||"";
+ if(view.startsWith("journalbook:"))return view.slice("journalbook:".length);
+ if(view.startsWith("day:"))return state.ui.journalDayBookId||null;
+ if(view==="all"||view==="timeline")return null;
+ return state.ui.defaultJournalId
+}
+function journalEntriesInScope(bookId){
+ return list("journal").filter(function(e){return !bookId||e.journalBookId===bookId})
+}
+function journalMiniCalendar(){
+ var key=state.ui.journalMonth||monthKey(today()),year=+key.slice(0,4),month=+key.slice(5,7)-1;
+ var start=new Date(year,month,1).getDay(),days=new Date(year,month+1,0).getDate();
+ var scope=journalBookForView(),entries=journalEntriesInScope(scope);
+ var html='<div class="mini-calendar journal-mini-calendar"><div class="mini-head">'+
+ '<button data-act="journal-month-prev" title="Previous month" aria-label="Previous month">'+ic("chevron-left",14)+'</button>'+
+ '<span>'+esc(prettyMonth(key))+'</span>'+
+ '<button data-act="journal-month-next" title="Next month" aria-label="Next month">'+ic("chevron-right",14)+'</button></div><div class="mini-grid">';
+ ["S","M","T","W","T","F","S"].forEach(function(x){html+='<span class="mini-week">'+x+'</span>'});
+ for(var i=0;i<42;i++){
+  var x=i-start+1,date=ndate(new Date(year,month,x,12)),valid=x>=1&&x<=days,hasEntry=entries.some(function(e){return e.date===date});
+  html+='<button class="'+(!valid?"muted ":"")+(date===today()?"today ":"")+
+  (state.ui.view==="day:"+date?"selected ":"")+(hasEntry?"has-event":"")+
+  '" data-act="journal-date" data-date="'+date+'" title="'+esc(humanDay(date))+
+  (hasEntry?" · Has entries":"")+'" aria-label="'+esc(humanDay(date))+(hasEntry?" — Has entries":"")+'">'+new Date(date+"T12:00:00").getDate()+'</button>'
+ }
+ return html+'</div></div>'
+}
 function renderSidebar(){
- var t=state.ui.tool,html='<div class="sb-head"><h2>'+esc((TOOLS.find(function(x){return x.id===t})||TOOLS[0]).name)+'</h2><button data-act="create-primary" title="New in '+esc(t)+'">'+ic("plus",18)+'</button></div><div class="sb-scroll">';
+ var t=state.ui.tool,html='<div class="sb-head"><h2>'+esc((TOOLS.find(function(x){return x.id===t})||TOOLS[0]).name)+'</h2>'+(t==="journal"?"":'<button data-act="create-primary" title="New in '+esc(t)+'">'+ic("plus",18)+'</button>')+'</div><div class="sb-scroll">';
  if(t==="home"){
   html+=sr("Today","today","sun")+sr("Inbox","inbox","inbox",{count:inboxCount()})+sr("Recent","recent","clock")+sr("Starred","starred","star");
   html+='<div class="sb-section-heading"><span>Quick Access</span><button data-act="quick-add" title="Add a shortcut to Desk" aria-label="Add Quick Access shortcut">'+ic("plus",15)+'</button></div>';
@@ -354,10 +382,11 @@ function renderSidebar(){
   html+=quicks.length?quicks.map(function(x,i){return quickRow(x.ref,i)}).join(""):'<div class="sidebar-empty quick-empty">Keep your favorite destinations here.<br><button data-act="quick-add">+ Add shortcut</button></div>';
  }
  if(t==="journal"){
-  html+=sr("Today's entry","today","sun")+sr("Timeline","timeline","clock");
-  html+=sh("Recent months");
-  var byMonth={};list("journal").forEach(function(e){var k=monthKey(e.date);byMonth[k]=(byMonth[k]||0)+1});
-  html+=Object.keys(byMonth).sort().reverse().map(function(k){return sr(prettyMonth(k),"month:"+k,"book-open",{count:byMonth[k]})}).join("")||'<div class="sidebar-empty">No entries yet</div>';
+  html+=sh("Journals","journalbook");
+  html+=sr("All entries","all","book-open");
+  html+=list("journalbook").sort(function(a,b){return (a.id===state.ui.defaultJournalId?-1:b.id===state.ui.defaultJournalId?1:0)||a.createdAt-b.createdAt}).map(function(book){
+   return sr(objTitle(book),"journalbook:"+book.id,"book-open")
+  }).join("");
  }
  if(t==="calendar"){
   html+=miniCalendar();
@@ -412,7 +441,13 @@ function renderSidebar(){
   html+=sh("Filters");
   LIBRARY_TYPES.forEach(function(item){var n=rs.filter(function(r){return r.resourceKind===item.id}).length;if(n)html+=sr(item.name,"kind:"+item.id,item.icon,{count:n})});
  }
- html+='</div><div class="sb-foot"><small><span>SHELF · v0.13</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></small></div>';
+ html+='</div>';
+ if(t==="journal"){
+  html+='<div class="journal-calendar-shell"><button class="journal-calendar-toggle" data-act="journal-calendar-toggle" aria-expanded="'+(state.ui.journalCalendarExpanded?"true":"false")+'" title="'+(state.ui.journalCalendarExpanded?"Collapse calendar":"Expand calendar")+'">'+
+  ic("calendar",15)+'<span>Calendar</span>'+ic(state.ui.journalCalendarExpanded?"chevron-down":"chevron-right",15)+'</button>'+
+  (state.ui.journalCalendarExpanded?journalMiniCalendar():"")+'</div>';
+ }
+ html+='<div class="sb-foot"><small><span>SHELF · v0.13</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></small></div>';
  sidebar.innerHTML=html;
 }
 function topbar(){
