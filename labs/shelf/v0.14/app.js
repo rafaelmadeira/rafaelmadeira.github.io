@@ -400,8 +400,8 @@ function miniCalendarPreferences(tool){
  if(!all||typeof all!=="object")all=state.ui.miniCalendars={};
  if(!all[tool]){
   all[tool]={
-   expanded:tool==="journal"?state.ui.journalCalendarExpanded!==false:true,
-   month:tool==="journal"?(state.ui.journalMonth||monthKey(today())):
+   expanded:tool==="journals"?state.ui.journalCalendarExpanded!==false:true,
+   month:tool==="journals"?(state.ui.journalMonth||monthKey(today())):
      tool==="calendar"?(state.ui.month||monthKey(today())):monthKey(today())
   }
  }
@@ -424,9 +424,9 @@ function journalEntriesInScope(bookId){
 }
 function sidebarDateItems(tool){
  var view=state.ui.view||"";
- if(tool==="journal")return journalEntriesInScope(journalBookForView());
+ if(tool==="journals")return journalEntriesInScope(journalBookForView());
  if(tool==="calendar")return list("event");
- if(tool==="planner"){
+ if(tool==="todo"){
   var tasks=list("task"),projects=list("project");
   if(view.startsWith("category:")){
    var category=get(view.slice(9));tasks=tasks.filter(function(e){return inCategory(e,category)});
@@ -437,12 +437,21 @@ function sidebarDateItems(tool){
   }
   return view==="projects"?projects:tasks.concat(projects)
  }
- if(tool==="notebooks")return notesForView().concat(view==="all"?list("notebook"):[]);
- if(tool==="library")return resourcesForView().concat(view==="all"?list("folder"):[]);
+ if(tool==="notes")return notesForView().concat(view==="all"?list("notebook"):[]);
+ if(tool==="resources")return resourcesForView().concat(view==="all"?list("folder"):[]);
+ if(tool==="bookmarks")return bookmarksForView();
+ if(tool==="projects")return list("project").filter(function(e){
+  return view==="all"||view==="active"&&e.projectStatus==="active"||
+   view==="waiting"&&e.projectStatus==="waiting"||view==="completed"&&e.projectStatus==="completed"||
+   view==="unassigned"&&!areaOf(e)||view.startsWith("area:")&&inArea(e,get(view.slice(5)))
+ });
+ if(tool==="goals")return list("goal");
+ if(tool==="habits")return list("habit");
+ if(tool==="routines")return list("routine");
  return list().filter(function(e){return ["task","project","event","journal","note","resource","notebook","folder"].includes(e.type)})
 }
 function miniDateForTool(tool){
- if(tool==="journal")return state.ui.view.startsWith("day:")?state.ui.view.slice(4):null;
+ if(tool==="journals")return state.ui.view.startsWith("day:")?state.ui.view.slice(4):null;
  if(tool==="calendar")return state.ui.selectedDate||today();
  return state.ui.sidebarDateFilters&&state.ui.sidebarDateFilters[tool]||null
 }
@@ -453,9 +462,12 @@ function sidebarMiniCalendar(tool){
  var marks=new Set(),selection=miniDateForTool(tool);
  sidebarDateItems(tool).forEach(function(e){
   var created=createdDate(e);
-  if(created&&!(tool==="journal"&&e.type==="journal")&&!(tool==="calendar"&&e.type==="event"))marks.add(created);
+  if(created&&!(tool==="journals"&&e.type==="journal")&&!(tool==="calendar"&&e.type==="event"))marks.add(created);
   if(["event","journal"].includes(e.type)&&e.date)marks.add(e.date);
-  if(e.type==="task"&&e.dueDate)marks.add(e.dueDate)
+  if(e.type==="task"&&e.dueDate)marks.add(e.dueDate);
+  if(e.type==="goal"&&e.targetDate)marks.add(e.targetDate);
+  if(e.type==="habit") (e.habitLog||[]).forEach(function(d){marks.add(d)});
+  if(e.type==="routine")Object.keys(e.routineLog||{}).forEach(function(d){marks.add(d)})
  });
  var html='<div class="mini-calendar sidebar-mini-calendar"><div class="mini-head">'+
  '<button data-act="sidebar-mini-prev" title="Previous month" aria-label="Previous month">'+ic("chevron-left",14)+'</button>'+
@@ -485,7 +497,7 @@ function sidebarCalendarFooter(tool){
 function selectSidebarDate(date){
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date||"")||isNaN(new Date(date+"T12:00:00").getTime())||ndate(new Date(date+"T12:00:00"))!==date)return;
  var tool=state.ui.tool;miniCalendarPreferences(tool).month=monthKey(date);
- if(tool==="journal"){
+ if(tool==="journals"){
   state.ui.journalDayBookId=journalBookForView();
   state.ui.journalSelectedDate=date;
   go("journal","day:"+date);return
@@ -500,7 +512,7 @@ function selectSidebarDate(date){
 }
 function clearSidebarDate(){
  var tool=state.ui.tool;
- if(tool==="journal"&&state.ui.view.startsWith("day:")){
+ if(tool==="journals"&&state.ui.view.startsWith("day:")){
   var bookId=state.ui.journalDayBookId;
   go("journal",bookId?"journalbook:"+bookId:"all");return
  }
@@ -846,7 +858,7 @@ function renderPlannerDate(date){
 }
 
 function renderPlanner(){
- var filter=miniDateForTool("planner");if(filter)return renderPlannerDate(filter);
+ var filter=miniDateForTool("todo");if(filter)return renderPlannerDate(filter);
  var view=state.ui.view,all=list("task"),items;
  if(view.startsWith("category:"))return renderCategory(get(view.slice(9)));
  if(view.startsWith("area:"))return renderArea(get(view.slice(5)));
@@ -874,7 +886,7 @@ function notesForView(){
  return arr
 }
 function renderNotebook(){
- var filter=miniDateForTool("notebooks");
+ var filter=miniDateForTool("notes");
  if(filter){
   var notes=notesForView().filter(function(n){return createdDate(n)===filter}).sort(byRecent);
   var books=state.ui.view==="all"?list("notebook").filter(function(n){return createdDate(n)===filter}):[];
@@ -906,7 +918,7 @@ function resourcesForView(){var v=state.ui.view,arr=list("resource");
  return arr
 }
 function renderLibrary(){
- var filter=miniDateForTool("library");
+ var filter=miniDateForTool("resources");
  if(filter){
   var saved=resourcesForView().filter(function(x){return createdDate(x)===filter}).sort(byRecent);
   var collections=state.ui.view==="all"?list("folder").filter(function(x){return createdDate(x)===filter}):[];
