@@ -335,15 +335,23 @@ function renderRail(){
 }
 function sr(label,view,icon,opts){opts=opts||{};var sel=state.ui.view===view&&state.ui.tool===(opts.tool||state.ui.tool);return '<button class="sb-row'+(sel?" active":"")+(opts.sub?" sb-sub":"")+'" data-act="navigate" data-tool="'+esc(opts.tool||state.ui.tool)+'" data-view="'+esc(view)+'"'+(opts.areaDrop?' data-area-drop="'+esc(opts.areaDrop)+'"':"")+'><span class="sb-ico">'+ic(icon,16)+'</span><span class="label">'+esc(label)+'</span>'+(opts.count==null?"":'<span class="sb-num">'+opts.count+'</span>')+'</button>'}
 function sh(label,createType){return '<div class="sb-section-heading"><span>'+esc(label)+'</span>'+(createType?'<button data-act="create" data-type="'+createType+'" title="New '+createType+'">'+ic("plus",14)+'</button>':"")+'</div>'}
-function miniCalendar(){
- var key=state.ui.month||monthKey(today()),year=+key.slice(0,4),m=+key.slice(5,7)-1;
- var first=new Date(year,m,1),start=first.getDay(),days=new Date(year,m+1,0).getDate();
- var entries=list("event");var html='<div class="mini-calendar"><div class="mini-head"><button data-act="month-prev" title="Previous month">'+ic("chevron-left",14)+'</button><span>'+esc(prettyMonth(key))+'</span><button data-act="month-next" title="Next month">'+ic("chevron-right",14)+'</button></div><div class="mini-grid">';
- ["S","M","T","W","T","F","S"].forEach(function(x){html+='<span class="mini-week">'+x+'</span>'});
- for(var i=0;i<42;i++){var x=i-start+1,date=ndate(new Date(year,m,x,12)),valid=x>=1&&x<=days,events=entries.some(function(e){return e.date===date});
-  html+='<button class="'+(!valid?"muted ":"")+(date===today()?"today ":"")+(date===state.ui.selectedDate?"selected ":"")+(events?"has-event":"")+'" data-act="date" data-date="'+date+'" title="'+esc(humanDay(date))+'">'+new Date(date+"T12:00:00").getDate()+'</button>';
+// One consistent minicalendar in the footer of every tool.
+function miniCalendarPreferences(tool){
+ var all=state.ui.miniCalendars;
+ if(!all||typeof all!=="object")all=state.ui.miniCalendars={};
+ if(!all[tool]){
+  all[tool]={
+   expanded:tool==="journal"?state.ui.journalCalendarExpanded!==false:true,
+   month:tool==="journal"?(state.ui.journalMonth||monthKey(today())):
+     tool==="calendar"?(state.ui.month||monthKey(today())):monthKey(today())
+  }
  }
- return html+'</div></div>'
+ return all[tool]
+}
+function createdDate(e){
+ if(!e||!e.createdAt)return "";
+ var stamp=new Date(e.createdAt);
+ return isNaN(stamp.getTime())?"":ndate(stamp)
 }
 function journalBookForView(view){
  view=view||state.ui.view||"";
@@ -355,23 +363,95 @@ function journalBookForView(view){
 function journalEntriesInScope(bookId){
  return list("journal").filter(function(e){return !bookId||e.journalBookId===bookId})
 }
-function journalMiniCalendar(){
- var key=state.ui.journalMonth||monthKey(today()),year=+key.slice(0,4),month=+key.slice(5,7)-1;
+function sidebarDateItems(tool){
+ var view=state.ui.view||"";
+ if(tool==="journal")return journalEntriesInScope(journalBookForView());
+ if(tool==="calendar")return list("event");
+ if(tool==="planner"){
+  var tasks=list("task"),projects=list("project");
+  if(view.startsWith("category:")){
+   var category=get(view.slice(9));tasks=tasks.filter(function(e){return inCategory(e,category)});
+   projects=projects.filter(function(e){return inCategory(e,category)})
+  }else if(view.startsWith("area:")){
+   var area=get(view.slice(5));tasks=tasks.filter(function(e){return inArea(e,area)});
+   projects=projects.filter(function(e){return inArea(e,area)})
+  }
+  return view==="projects"?projects:tasks.concat(projects)
+ }
+ if(tool==="notebooks")return notesForView().concat(view==="all"?list("notebook"):[]);
+ if(tool==="library")return resourcesForView().concat(view==="all"?list("folder"):[]);
+ return list().filter(function(e){return ["task","project","event","journal","note","resource","notebook","folder"].includes(e.type)})
+}
+function miniDateForTool(tool){
+ if(tool==="journal")return state.ui.view.startsWith("day:")?state.ui.view.slice(4):null;
+ if(tool==="calendar")return state.ui.selectedDate||today();
+ return state.ui.sidebarDateFilters&&state.ui.sidebarDateFilters[tool]||null
+}
+function sidebarMiniCalendar(tool){
+ var prefs=miniCalendarPreferences(tool),key=prefs.month||monthKey(today());
+ var year=+key.slice(0,4),month=+key.slice(5,7)-1;
  var start=new Date(year,month,1).getDay(),days=new Date(year,month+1,0).getDate();
- var scope=journalBookForView(),entries=journalEntriesInScope(scope);
- var html='<div class="mini-calendar journal-mini-calendar"><div class="mini-head">'+
- '<button data-act="journal-month-prev" title="Previous month" aria-label="Previous month">'+ic("chevron-left",14)+'</button>'+
+ var marks=new Set(),selection=miniDateForTool(tool);
+ sidebarDateItems(tool).forEach(function(e){
+  var created=createdDate(e);
+  if(created)marks.add(created);
+  if(["event","journal"].includes(e.type)&&e.date)marks.add(e.date);
+  if(e.type==="task"&&e.dueDate)marks.add(e.dueDate)
+ });
+ var html='<div class="mini-calendar sidebar-mini-calendar"><div class="mini-head">'+
+ '<button data-act="sidebar-mini-prev" title="Previous month" aria-label="Previous month">'+ic("chevron-left",14)+'</button>'+
  '<span>'+esc(prettyMonth(key))+'</span>'+
- '<button data-act="journal-month-next" title="Next month" aria-label="Next month">'+ic("chevron-right",14)+'</button></div><div class="mini-grid">';
+ '<button data-act="sidebar-mini-next" title="Next month" aria-label="Next month">'+ic("chevron-right",14)+'</button></div><div class="mini-grid">';
  ["S","M","T","W","T","F","S"].forEach(function(x){html+='<span class="mini-week">'+x+'</span>'});
  for(var i=0;i<42;i++){
-  var x=i-start+1,date=ndate(new Date(year,month,x,12)),valid=x>=1&&x<=days,hasEntry=entries.some(function(e){return e.date===date});
+  var x=i-start+1,date=ndate(new Date(year,month,x,12)),valid=x>=1&&x<=days,marked=marks.has(date);
   html+='<button class="'+(!valid?"muted ":"")+(date===today()?"today ":"")+
-  (state.ui.view==="day:"+date?"selected ":"")+(hasEntry?"has-event":"")+
-  '" data-act="journal-date" data-date="'+date+'" title="'+esc(humanDay(date))+
-  (hasEntry?" · Has entries":"")+'" aria-label="'+esc(humanDay(date))+(hasEntry?" — Has entries":"")+'">'+new Date(date+"T12:00:00").getDate()+'</button>'
+  (date===selection?"selected ":"")+(marked?"has-event":"")+
+  '" data-act="sidebar-mini-date" data-date="'+date+'" title="'+esc(humanDay(date))+
+  (marked?" · Has content":"")+'" aria-label="'+esc(humanDay(date))+(marked?" — Has content":"")+'">'+
+  new Date(date+"T12:00:00").getDate()+'</button>'
  }
- return html+'</div></div>'
+ return html+'</div>'+
+ (selection&&tool!=="calendar"?'<button class="sidebar-mini-clear" data-act="sidebar-mini-clear">'+ic("x",12)+' Clear date</button>':"")+
+ '</div>'
+}
+function sidebarCalendarFooter(tool){
+ var prefs=miniCalendarPreferences(tool);
+ return '<div class="sidebar-calendar-shell">'+
+ '<button class="sidebar-calendar-toggle" data-act="sidebar-mini-toggle" aria-expanded="'+(prefs.expanded?"true":"false")+
+ '" title="'+(prefs.expanded?"Collapse calendar":"Expand calendar")+'">'+
+ ic("calendar",15)+'<span>Calendar</span>'+ic(prefs.expanded?"chevron-down":"chevron-right",15)+'</button>'+
+ (prefs.expanded?sidebarMiniCalendar(tool):"")+'</div>'
+}
+function selectSidebarDate(date){
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date||"")||isNaN(new Date(date+"T12:00:00").getTime())||ndate(new Date(date+"T12:00:00"))!==date)return;
+ var tool=state.ui.tool;miniCalendarPreferences(tool).month=monthKey(date);
+ if(tool==="journal"){
+  state.ui.journalDayBookId=journalBookForView();
+  state.ui.journalSelectedDate=date;
+  go("journal","day:"+date);return
+ }
+ if(tool==="calendar"){
+  state.ui.selectedDate=date;state.ui.month=monthKey(date);
+  go("calendar","month");return
+ }
+ if(!state.ui.sidebarDateFilters)state.ui.sidebarDateFilters={};
+ state.ui.sidebarDateFilters[tool]=date;
+ state.ui.detailId=null;state.ui.detailTrail=[];save();paint();workspace.scrollTop=0
+}
+function clearSidebarDate(){
+ var tool=state.ui.tool;
+ if(tool==="journal"&&state.ui.view.startsWith("day:")){
+  var bookId=state.ui.journalDayBookId;
+  go("journal",bookId?"journalbook:"+bookId:"all");return
+ }
+ if(state.ui.sidebarDateFilters)delete state.ui.sidebarDateFilters[tool];
+ save();paint()
+}
+function calendarDateHeader(tool,date,subtitle,actions){
+ return pageHeader(humanDay(date,{weekday:"long",month:"long",day:"numeric",year:"numeric"}),
+  subtitle,actions+'<button class="button subtle" data-act="sidebar-mini-clear">'+ic("x",14)+' Clear date</button>',
+  tool.toUpperCase()+" / DATE")
 }
 function renderSidebar(){
  var t=state.ui.tool,html='<div class="sb-head"><h2>'+esc((TOOLS.find(function(x){return x.id===t})||TOOLS[0]).name)+'</h2>'+(t==="journal"?"":'<button data-act="create-primary" title="New in '+esc(t)+'">'+ic("plus",18)+'</button>')+'</div><div class="sb-scroll">';
@@ -389,7 +469,6 @@ function renderSidebar(){
   }).join("");
  }
  if(t==="calendar"){
-  html+=miniCalendar();
   html+=sr("Month view","month","calendar")+sr("Upcoming","upcoming","clock");
   html+=sh("Calendars");
   html+=sr("My calendar","all","calendar-days",{count:list("event").length});
@@ -442,11 +521,7 @@ function renderSidebar(){
   LIBRARY_TYPES.forEach(function(item){var n=rs.filter(function(r){return r.resourceKind===item.id}).length;if(n)html+=sr(item.name,"kind:"+item.id,item.icon,{count:n})});
  }
  html+='</div>';
- if(t==="journal"){
-  html+='<div class="journal-calendar-shell"><button class="journal-calendar-toggle" data-act="journal-calendar-toggle" aria-expanded="'+(state.ui.journalCalendarExpanded?"true":"false")+'" title="'+(state.ui.journalCalendarExpanded?"Collapse calendar":"Expand calendar")+'">'+
-  ic("calendar",15)+'<span>Calendar</span>'+ic(state.ui.journalCalendarExpanded?"chevron-down":"chevron-right",15)+'</button>'+
-  (state.ui.journalCalendarExpanded?journalMiniCalendar():"")+'</div>';
- }
+ html+=sidebarCalendarFooter(t);
  html+='<div class="sb-foot"><small><span>SHELF · v0.13</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></small></div>';
  sidebar.innerHTML=html;
 }
@@ -859,7 +934,7 @@ function renderWorkspace(){
  fillPreviews()
 }
 function paint(){renderRail();renderSidebar();renderWorkspace()}
-function go(tool,view,stay){if(!stay&&state.ui.detailId){state.ui.detailId=null}state.ui.detailTrail=[];state.ui.tool=tool;state.ui.view=view||(tool==="journal"?"journalbook:"+state.ui.defaultJournalId:({home:"today",calendar:"month",planner:"today",notebooks:"all",library:"all"}[tool]||"today"));
+function go(tool,view,stay){if(state.ui.sidebarDateFilters)delete state.ui.sidebarDateFilters[tool];if(!stay&&state.ui.detailId){state.ui.detailId=null}state.ui.detailTrail=[];state.ui.tool=tool;state.ui.view=view||(tool==="journal"?"journalbook:"+state.ui.defaultJournalId:({home:"today",calendar:"month",planner:"today",notebooks:"all",library:"all"}[tool]||"today"));
  if(tool==="planner"&&state.ui.view.startsWith("area:"))state.ui.expandedAreaId=state.ui.view.slice(5);
  if(tool==="planner"&&state.ui.view.startsWith("category:")){var c=get(state.ui.view.slice(9));if(c)state.ui.expandedAreaId=c.areaId}
  save();paint();workspace.scrollTop=0}
@@ -1409,9 +1484,10 @@ function onClick(ev){
  if(act==="rename-category"){openRenameCategory(id);return}
  if(act==="delete-category"){deleteCategory(id);return}
  if(act==="rename-area"){openRenameArea(id);return}
- if(act==="journal-calendar-toggle"){state.ui.journalCalendarExpanded=!state.ui.journalCalendarExpanded;save();renderSidebar();return}
- if(act==="journal-month-prev"||act==="journal-month-next"){state.ui.journalMonth=monthStep(state.ui.journalMonth||monthKey(today()),act==="journal-month-next"?1:-1);save();renderSidebar();return}
- if(act==="journal-date"){var jd=b.getAttribute("data-date");if(!jd)return;state.ui.journalDayBookId=journalBookForView();state.ui.journalSelectedDate=jd;state.ui.journalMonth=monthKey(jd);go("journal","day:"+jd);return}
+ if(act==="sidebar-mini-toggle"){var mp=miniCalendarPreferences(state.ui.tool);mp.expanded=!mp.expanded;save();renderSidebar();return}
+ if(act==="sidebar-mini-prev"||act==="sidebar-mini-next"){var mp=miniCalendarPreferences(state.ui.tool);mp.month=monthStep(mp.month,act==="sidebar-mini-next"?1:-1);save();renderSidebar();return}
+ if(act==="sidebar-mini-date"){selectSidebarDate(b.getAttribute("data-date"));return}
+ if(act==="sidebar-mini-clear"){clearSidebarDate();return}
  if(act==="journal-create-date"){journalToday(b.getAttribute("data-date"),b.getAttribute("data-book"));return}
  if(act==="journal-today"){journalToday();return}
  if(act==="search"){searchModal();return}
