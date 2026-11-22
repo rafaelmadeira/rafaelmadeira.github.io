@@ -165,7 +165,7 @@ function ensureCategories(){
  state.ui.categoriesSeeded=true
 }
 ensureCategories();
-if(!state.ui.expandedAreaId){
+if(state.ui.expandedAreaId===undefined){
  var remembered=state.ui.view&&state.ui.view.startsWith("area:")?state.ui.view.slice(5):null;
  var first=state.entities.find(function(e){return e.type==="area"&&String(e.title).toLowerCase()==="ivrnet"&&!e.trashed});
  state.ui.expandedAreaId=remembered||(first?first.id:null)
@@ -759,7 +759,10 @@ function renderWorkspace(){
  fillPreviews()
 }
 function paint(){renderRail();renderSidebar();renderWorkspace()}
-function go(tool,view,stay){if(!stay&&state.ui.detailId){state.ui.detailId=null}state.ui.detailTrail=[];state.ui.tool=tool;state.ui.view=view||({home:"today",journal:"today",calendar:"month",planner:"today",notebooks:"all",library:"all"}[tool]||"today");save();paint();workspace.scrollTop=0}
+function go(tool,view,stay){if(!stay&&state.ui.detailId){state.ui.detailId=null}state.ui.detailTrail=[];state.ui.tool=tool;state.ui.view=view||({home:"today",journal:"today",calendar:"month",planner:"today",notebooks:"all",library:"all"}[tool]||"today");
+ if(tool==="planner"&&state.ui.view.startsWith("area:"))state.ui.expandedAreaId=state.ui.view.slice(5);
+ if(tool==="planner"&&state.ui.view.startsWith("category:")){var c=get(state.ui.view.slice(9));if(c)state.ui.expandedAreaId=c.areaId}
+ save();paint();workspace.scrollTop=0}
 function openEntity(id){var e=get(id);if(!e)return;if(e.type==="area"){go("planner","area:"+e.id);return}if(e.type==="category"){go("planner","category:"+e.id);return}if(state.ui.detailId&&state.ui.detailId!==id){state.ui.detailTrail=(state.ui.detailTrail||[]).concat(state.ui.detailId).slice(-15)}else if(!state.ui.detailId){state.ui.detailTrail=[];state.ui.lastTool=state.ui.tool;state.ui.lastView=state.ui.view}state.ui.detailId=id;addRecent(id);save();paint();workspace.scrollTop=0}
 function back(){if(state.ui.detailTrail&&state.ui.detailTrail.length){state.ui.detailId=state.ui.detailTrail.pop();save();paint();workspace.scrollTop=0;return}state.ui.detailId=null;state.ui.tool=state.ui.lastTool||state.ui.tool;state.ui.view=state.ui.lastView||state.ui.view;save();paint();workspace.scrollTop=0}
 function journalToday(){var j=list("journal").find(function(e){return e.date===today()});if(!j){j=ent("journal","",{date:today()});state.entities.unshift(j);save()}openEntity(j.id)}
@@ -838,6 +841,48 @@ function submitCreate(){
  else if(context&&context.type==="category"&&["task","project"].includes(type)){extra.areaId=context.areaId;extra.categoryId=context.id}
  else if(context)extra.contextIds=[context.id];
  var e=ent(type,title,extra);state.entities.unshift(e);save();closeModal();openEntity(e.id);toast(typeName(type)+" created"+(context?" · linked to "+objTitle(context):""))
+}
+function openCreateCategory(areaId){
+ var area=get(areaId);if(!area||area.type!=="area"||area.trashed)return;
+ modalState={mode:"create-category",areaId:area.id};
+ openModal('<div class="modal-header"><h2>New category</h2><button class="icon-button" data-act="modal-close">'+ic("x",19)+'</button></div>'+
+ '<div class="modal-scroll"><p class="modal-help">A simple divider inside '+esc(objTitle(area))+'. Categories cannot contain subcategories.</p>'+
+ '<form id="create-category-form"><div class="field"><label for="category-name">Category name</label>'+
+ '<input id="category-name" maxlength="100" placeholder="e.g. Support tickets" required></div>'+
+ '<div class="modal-buttons"><button type="button" class="button" data-act="modal-close">Cancel</button>'+
+ '<button type="submit" class="button primary">'+ic("plus",14)+' Create category</button></div></form></div>');
+ $("category-name").focus()
+}
+function submitCreateCategory(){
+ if(!modalState||modalState.mode!=="create-category")return;
+ var area=get(modalState.areaId),name=$("category-name")?$("category-name").value.trim():"";if(!area||!name)return;
+ if(categoriesIn(area).some(function(c){return c.title.toLowerCase()===name.toLowerCase()})){toast("This category already exists in "+objTitle(area));return}
+ var c=ent("category",name,{areaId:area.id});
+ state.entities.push(c);state.ui.expandedAreaId=area.id;save();closeModal();go("planner","category:"+c.id);toast("Category created in "+objTitle(area))
+}
+function openRenameCategory(id){
+ var c=get(id);if(!c||c.type!=="category"||c.trashed)return;
+ modalState={mode:"rename-category",id:c.id};
+ openModal('<div class="modal-header"><h2>Rename category</h2><button class="icon-button" data-act="modal-close">'+ic("x",19)+'</button></div>'+
+ '<div class="modal-scroll"><p class="modal-help">Existing tasks and projects stay connected.</p>'+
+ '<form id="rename-category-form"><div class="field"><label for="category-name">Category name</label>'+
+ '<input id="category-name" maxlength="100" required value="'+esc(c.title)+'"></div>'+
+ '<div class="modal-buttons"><button type="button" class="button" data-act="modal-close">Cancel</button>'+
+ '<button type="submit" class="button primary">Save</button></div></form></div>');
+ $("category-name").focus();$("category-name").select()
+}
+function submitRenameCategory(){
+ if(!modalState||modalState.mode!=="rename-category")return;
+ var c=get(modalState.id),name=$("category-name")?$("category-name").value.trim():"";if(!c||!name)return;
+ if(categoriesIn(get(c.areaId)).some(function(x){return x.id!==c.id&&x.title.toLowerCase()===name.toLowerCase()})){toast("This category already exists");return}
+ c.title=name;touched(c);closeModal();paint();toast("Category renamed")
+}
+function deleteCategory(id){
+ var c=get(id);if(!c||c.type!=="category")return;
+ if(!confirm("Remove category '"+objTitle(c)+"'? Tasks and projects will remain in their Area, without this category."))return;
+ state.entities.forEach(function(e){if(e.categoryId===c.id)e.categoryId=null});
+ c.trashed=true;state.ui.quickAccess=(state.ui.quickAccess||[]).filter(function(q){return !(q.kind==="entity"&&q.id===c.id)});
+ save();closeModal();go("planner","area:"+c.areaId);toast("Category removed · tasks and projects kept")
 }
 function openRenameArea(id){
  var area=get(id);if(!area||area.type!=="area")return;
@@ -1037,6 +1082,12 @@ function onClick(ev){
  if(act==="global-capture-save"){saveGlobalCapture();return}
  if(act==="create-primary"){var t=primaryType(state.ui.tool);if(!t)newMenu();else openCreate(t,null,{inbox:t==="task"&&state.ui.view==="inbox"});return}
  if(act==="create"){var fromInbox=type==="task"&&state.ui.view==="inbox"&&["planner","home"].includes(state.ui.tool);openCreate(type,ctx||null,{date:b.getAttribute("data-date")||null,inbox:fromInbox});return}
+ if(act==="area-toggle"){state.ui.expandedAreaId=state.ui.expandedAreaId===id?null:id;save();renderSidebar();return}
+ if(act==="area-open"){state.ui.expandedAreaId=id;go("planner","area:"+id);return}
+ if(act==="category-open"){var c=get(id);if(c){state.ui.expandedAreaId=c.areaId;go("planner","category:"+id)}return}
+ if(act==="create-category"){openCreateCategory(b.getAttribute("data-area"));return}
+ if(act==="rename-category"){openRenameCategory(id);return}
+ if(act==="delete-category"){deleteCategory(id);return}
  if(act==="rename-area"){openRenameArea(id);return}
  if(act==="journal-today"){journalToday();return}
  if(act==="search"){searchModal();return}
@@ -1067,6 +1118,14 @@ function onClick(ev){
  if(act==="capture-mode"){activeComposer=activeComposer===b.getAttribute("data-mode")?"auto":b.getAttribute("data-mode");Array.from(document.querySelectorAll(".capture-chip[data-mode]")).forEach(function(el){el.classList.toggle("active",el.getAttribute("data-mode")===activeComposer)});return}
  if(act==="capture-save"){captureSave(ctx);return}
  if(act==="home-capture"){captureSave(null);return}
+ if(act==="category-quick"){
+  var category=get(id),inp=$("category-quick");
+  if(category&&category.type==="category"&&inp&&inp.value.trim()){
+   var task=ent("task",inp.value.trim(),{areaId:category.areaId,categoryId:category.id,sourceId:category.id});
+   state.entities.unshift(task);save();paint();toast("Task added to "+objTitle(category));
+  }
+  return
+ }
  if(act==="area-quick"){
   var area=get(id),inp=$("area-quick");
   if(area&&area.type==="area"&&inp&&inp.value.trim()){
@@ -1088,7 +1147,7 @@ function onClick(ev){
  if(act==="import"){$("backup-input").click();return}
 }
 document.addEventListener("click",onClick);
-document.addEventListener("submit",function(ev){if(ev.target.id==="create-form"){ev.preventDefault();submitCreate()}else if(ev.target.id==="rename-area-form"){ev.preventDefault();submitRenameArea()}});
+document.addEventListener("submit",function(ev){if(ev.target.id==="create-form"){ev.preventDefault();submitCreate()}else if(ev.target.id==="rename-area-form"){ev.preventDefault();submitRenameArea()}else if(ev.target.id==="create-category-form"){ev.preventDefault();submitCreateCategory()}else if(ev.target.id==="rename-category-form"){ev.preventDefault();submitRenameCategory()}});
 document.addEventListener("input",function(ev){
  var el=ev.target;
  if(el.id==="quick-search"){updateQuickResults(el.value);return}
@@ -1104,6 +1163,7 @@ document.addEventListener("keydown",function(ev){
  if(ev.key==="/"&&!["INPUT","TEXTAREA"].includes(tag)&&!target.isContentEditable&&!ev.ctrlKey&&!ev.metaKey){ev.preventDefault();searchModal();return}
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="home-capture"){ev.preventDefault();captureSave(null);return}
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="global-capture"){ev.preventDefault();saveGlobalCapture();return}
+ if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="category-quick"){ev.preventDefault();var b=document.querySelector('[data-act="category-quick"]');if(b)b.click();return}
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="area-quick"){ev.preventDefault();var b=document.querySelector('[data-act="area-quick"]');if(b)b.click();return}
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="planner-quick"){ev.preventDefault();var b=document.querySelector('[data-act="planner-quick"]');if(b)b.click();return}
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="context-capture"){ev.preventDefault();captureSave(state.ui.detailId);return}
