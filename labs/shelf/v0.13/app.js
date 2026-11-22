@@ -306,7 +306,7 @@ function quickRow(q,idx){
 
 function buttonIcon(name){return ic(name,17)}
 function getAllSearchable(){return list().filter(function(x){return x.type!=="folder"&&x.type!=="notebook"})}
-function searchMatch(e,q){q=(q||"").toLowerCase().trim();if(!q)return true;var txt=[e.title,e.body,stripHtml(e.html),e.url,e.fileName,contextName(e),(e.tags||[]).join(" ")].join(" ").toLowerCase();return q.split(/\s+/).every(function(w){return txt.includes(w)})}
+function searchMatch(e,q){q=(q||"").toLowerCase().trim();if(!q)return true;var a=areaOf(e),c=categoryOf(e);var txt=[e.title,e.body,stripHtml(e.html),e.url,e.fileName,contextName(e),a&&a.title,c&&c.title,(e.tags||[]).join(" ")].join(" ").toLowerCase();return q.split(/\s+/).every(function(w){return txt.includes(w)})}
 function renderRail(){
  rail.innerHTML='<button class="rail-logo" data-act="navigate" data-tool="home" data-view="today" aria-label="Shelf Desk" title="Shelf">'+ic("layers",23)+'</button>'+
  TOOLS.map(function(t){return '<button class="rail-item'+(state.ui.tool===t.id?" active":"")+'" data-act="tool" data-tool="'+t.id+'" title="'+t.name+'" aria-label="'+t.name+'">'+ic(t.icon,21)+'<span>'+t.name+'</span></button>'}).join("")+
@@ -404,7 +404,12 @@ function topbar(){
 function pageHeader(title,subtitle,actions,eyebrow){return '<div class="page-header"><div><div class="page-eyebrow">'+esc(eyebrow||"SHELF")+'</div><h1>'+esc(title)+'</h1>'+(subtitle?'<p>'+esc(subtitle)+'</p>':"")+'</div><div class="page-head-actions">'+(actions||"")+'</div></div>'}
 function btn(label,action,iconName,type){return '<button class="button'+(type==="primary"?" primary":type==="subtle"?" subtle":"")+'" data-act="'+esc(action)+'">'+(iconName?ic(iconName,15):"")+esc(label)+'</button>'}
 function empty(iconName,title,subtitle,action,type){return '<div class="empty"><div class="empty-icon">'+ic(iconName,27)+'</div><h3>'+esc(title)+'</h3><p>'+esc(subtitle)+'</p>'+(action?'<button class="button" data-act="create" data-type="'+esc(type)+'">'+ic("plus",14)+' '+esc(action)+'</button>':"")+'</div>'}
-function shortContext(e){var names=sources(e).map(function(x){return objTitle(x)});return names.length?names.slice(0,2).join(" · "):""}
+function shortContext(e){
+ var names=sources(e).map(function(x){return objTitle(x)});
+ if(names.length)return names.slice(0,2).join(" · ");
+ if(["task","project"].includes(e.type)){var c=categoryOf(e);if(c)return objTitle(c)}
+ return ""
+}
 function taskRow(e){return '<div class="task-row'+(e.completed?" done":"")+'" draggable="true" data-area-drag="'+esc(e.id)+'"><button class="task-check'+(e.completed?" checked":"")+'" data-act="toggle-task" data-id="'+e.id+'" title="'+(e.completed?"Mark incomplete":"Complete task")+'" aria-label="'+(e.completed?"Mark incomplete":"Complete task")+'">'+(e.completed?ic("check",13):"")+'</button><button class="item-open" data-act="open" data-id="'+e.id+'"><div class="row-title">'+esc(objTitle(e))+'</div><div class="row-sub">'+esc(shortContext(e)||(areaOf(e)?objTitle(areaOf(e)):e.dueDate?humanDay(e.dueDate):"No due date"))+'</div></button>'+(inInbox(e)?'<button class="button task-inbox-clear" data-act="clear-inbox" data-id="'+e.id+'" title="Keep this as a standalone task and remove it from Inbox">Keep</button>':"")+(outOfDate(e)?'<span class="row-right" style="color:#bb7266">Overdue</span>':"")+'</div>'}
 function eventRow(e){return '<div class="event-row"><span class="row-time">'+esc(e.time||"All day")+'</span><div class="row-icon">'+ic("calendar",16)+'</div><button class="item-open" data-act="open" data-id="'+e.id+'"><div class="row-title">'+esc(objTitle(e))+'</div><div class="row-sub">'+esc(e.location||humanDay(e.date))+'</div></button><span class="row-right">'+rels(e).length?rels(e).length+" related":""+'</span></div>'}
 function noteRow(e){return '<div class="note-row"><span class="row-icon">'+ic("note",16)+'</span><button class="item-open" data-act="open" data-id="'+e.id+'"><div class="row-title">'+esc(objTitle(e))+'</div><div class="row-sub">'+esc(shortContext(e)||trim(stripHtml(e.html)||e.body,100))+'</div></button></div>'}
@@ -929,7 +934,7 @@ function updateQuickResults(q){
  var root=$("quick-results");if(!root)return;
  var textQuery=String(q||"").trim().toLowerCase();
  var pages=QUICK_PAGES.filter(function(p){return (p.label+" "+p.tool).toLowerCase().includes(textQuery)}).map(function(p){return {ref:{kind:"view",tool:p.tool,view:p.view},info:{label:p.label,desc:"Page",icon:p.icon}}});
- var entities=list().filter(function(e){return !e.trashed&&!e.archived&&[e.title,e.body,typeName(e.type),contextName(e)].join(" ").toLowerCase().includes(textQuery)})
+ var entities=list().filter(function(e){return !e.trashed&&!e.archived&&[e.title,e.body,typeName(e.type),contextName(e),areaOf(e)?objTitle(areaOf(e)):"",categoryOf(e)?objTitle(categoryOf(e)):""].join(" ").toLowerCase().includes(textQuery)})
   .sort(byRecent).slice(0,textQuery?35:12).map(function(e){return {ref:{kind:"entity",id:e.id},info:{label:objTitle(e),desc:e.type==="area"?"Area":e.type==="folder"?"Collection":typeName(e.type),icon:e.type==="area"?areaIcon(e):typeIcon(e)}}});
  var routes=pages.filter(function(x){return !quickHas(x.ref)}).slice(0,16),things=entities.filter(function(x){return !quickHas(x.ref)});
  var content="";
