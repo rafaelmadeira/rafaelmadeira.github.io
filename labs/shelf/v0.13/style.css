@@ -407,9 +407,16 @@ svg{flex-shrink:0;vertical-align:middle}
 .omni-bottom-bar button{flex:0 0 auto;font-size:11px;padding:7px 9px}
 @media(max-width:570px){.universal-key-tip{display:none}.universal-prediction{flex-wrap:wrap}.universal-prediction span{margin-left:0}.omni-bottom-bar span{font-size:9px}.universal-types{gap:4px}.universal-type{padding:6px}}
 
-/* Journal page: contextual actions belong in the page header, not sidebar. */
+/* Journal actions are a compact anchored menu, not a modal. */
+.journal-page-menu{position:relative;display:inline-flex;align-items:center;z-index:11}
 .journal-page-options{display:inline-flex;align-items:center;justify-content:center;min-width:34px;padding:7px 9px}
-.journal-page-options:hover{background:#eef3f4}
+.journal-page-options:hover,.journal-page-options[aria-expanded="true"]{background:#eef3f4}
+.journal-menu-popover{position:absolute;z-index:12;top:calc(100% + 6px);right:0;width:202px;padding:5px;background:#fff;border:1px solid #e3e8e9;border-radius:10px;box-shadow:0 10px 30px #1e344523,0 2px 7px #1e344510;display:flex;flex-direction:column;gap:2px}
+.journal-menu-popover[hidden]{display:none}
+.journal-menu-choice{display:flex;align-items:center;gap:9px;width:100%;padding:10px 11px;border:0;border-radius:6px;background:transparent;color:#475d68;text-align:left;font-size:12px;white-space:nowrap}
+.journal-menu-choice:hover,.journal-menu-choice:focus-visible{background:#eef4f6;outline:0;color:#356b86}
+.journal-menu-choice.danger{color:#ae685f}
+.journal-menu-choice.danger:hover,.journal-menu-choice.danger:focus-visible{background:#fcf0ee;color:#a64e44}
 .journal-trash-card{padding:15px 17px;min-height:160px}
 .journal-trash-card .card-top{display:flex;align-items:center;gap:7px;color:#82959e;font-size:11px}
 .journal-trash-card .card-title{margin-top:10px}
