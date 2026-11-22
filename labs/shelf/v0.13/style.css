@@ -330,3 +330,26 @@ svg{flex-shrink:0;vertical-align:middle}
 .task-inbox-clear:hover{color:#376e8a}
 @media (hover:none){.quick-controls{opacity:1;pointer-events:auto}.quick-row .quick-link{padding-right:64px}}
 @media (max-width:680px){.quick-controls{right:1px}.quick-control{width:17px}.quick-empty{padding-left:5px}.quick-row .quick-link{padding-right:60px}}
+
+/* Planner Areas > Categories: a single, shallow layer of navigation */
+.sb-area-group{margin:1px 0}
+.sb-area-header{display:flex;align-items:center;min-width:0;gap:0;border-radius:7px}
+.sb-area-toggle{width:23px;height:32px;flex:0 0 23px;display:grid;place-items:center;background:transparent;color:#9ba6aa;border:0;border-radius:6px;padding:0}
+.sb-area-toggle:hover{background:#e6ecee;color:#47748c}
+.sb-area-link{flex:1;min-width:0;padding-left:3px!important}
+.sb-area-header.has-active .sb-area-toggle{color:#537b91}
+.sb-area-header.area-drop-hover{background:#dcecf4;outline:2px dashed #7cafc5;outline-offset:-2px}
+.sb-category-row{padding-left:38px;min-height:30px;font-size:11.5px;gap:8px}
+.sb-category-row .sb-ico{width:14px}
+.sb-category-row .sb-num{font-size:10px}
+.sb-category-add{padding-left:40px;gap:7px;min-height:29px;font-size:11px;color:#a0afb3}
+.sb-category-add:hover{color:#497e98}
+.sb-category-row.category-drop-hover{background:#dcecf4;color:#326a87;outline:1px dashed #6e9eb6;outline-offset:-1px}
+.category-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:11px}
+.category-card{border:1px solid #e6eae8;border-radius:11px;background:#fff;padding:14px 15px;display:grid;grid-template-columns:27px minmax(0,1fr) 14px;column-gap:10px;row-gap:4px;align-items:center;color:#738c98;text-align:left;min-height:76px}
+.category-card:hover{background:#f8fbfc;border-color:#bed4df;box-shadow:0 2px 10px #2f647a0b}
+.category-icon{display:grid;place-items:center;grid-row:1 / 3;color:#71909e}
+.category-card-name{font-size:12px;font-weight:700;color:#3f5058;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.category-card-meta{grid-column:2;font-size:10px;color:#a0a9ad}
+.category-card>svg:last-child{grid-column:3;grid-row:1 / 3}
+@media(max-width:680px){.sb-area-toggle{width:20px;flex-basis:20px}.sb-area-link{font-size:11px}.sb-category-row{padding-left:29px;font-size:10.5px;gap:5px}.sb-category-add{padding-left:30px}.category-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}}
