@@ -16,6 +16,7 @@ var TOOLS=[
   {id:"notebooks",name:"Notebook",icon:"notebook"},
   {id:"library",name:"Library",icon:"library"}
 ];
+// Icon paths: official Lucide SVGs (ISC License). See LUCIDE-LICENSE.txt.
 var ICONS={
  "desk":"<path d=\"M10.293 2.293a1 1 0 0 1 1.414 0l2.5 2.5 5.994 1.227a1 1 0 0 1 .506 1.687l-7 7a1 1 0 0 1-1.687-.506l-1.227-5.994-2.5-2.5a1 1 0 0 1 0-1.414z\" /><path d=\"m14.207 4.793-3.414 3.414\" /><path d=\"M3 20a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z\" /><path d=\"m9.086 6.5-4.793 4.793a1 1 0 0 0-.18 1.17L7 18\" />",
  "briefcase":"<path d=\"M12 12h.01\" /><path d=\"M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2\" /><path d=\"M22 13a18.15 18.15 0 0 1-20 0\" /><rect width=\"20\" height=\"14\" x=\"2\" y=\"6\" rx=\"2\" />",
@@ -74,7 +75,7 @@ var ICONS={
  "bookmark":"<path d=\"M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z\" />",
  "dots-vertical":"<circle cx=\"12\" cy=\"12\" r=\"1\" /><circle cx=\"12\" cy=\"5\" r=\"1\" /><circle cx=\"12\" cy=\"19\" r=\"1\" />",
 };
-function ic(n,size){return '<svg xmlns="http://www.w3.org/2000/svg" width="'+(size||17)+'" height="'+(size||17)+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICONS[n]||ICONS.note)+'</svg>'}
+function ic(n,size){return '<svg xmlns="http://www.w3.org/2000/svg" width="'+(size||17)+'" height="'+(size||17)+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICONS[n]||ICONS.note)+'</svg>'}
 function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 function safeUrl(v){try{var u=new URL(String(v));return ["http:","https:"].includes(u.protocol)?u.href:""}catch(e){return ""}}
 function hostname(v){try{return new URL(v).hostname.replace(/^www\./,"")}catch(e){return ""}}
@@ -108,13 +109,13 @@ function seed(){
  var notebook1=ent("notebook","Ideas",{demo:true});
  var notebook2=ent("notebook","Recipes",{demo:true});
  var n1=ent("note","Perguntas para o médico",{html:"<p>Quero conversar sobre mudanças no grau e perguntar quando seria indicado repetir os exames.</p>",contextIds:[visit.id],demo:true});
- var n2=ent("note","Notas do projeto",{html:"<p>Este é um exemplo de anotação ligada ao projeto. Ela também aparece em <b>Notebooks → All notes</b>.</p>",contextIds:[project.id],demo:true});
+ var n2=ent("note","Notas do projeto",{html:"<p>Este é um exemplo de anotação ligada ao projeto. Ela também aparece em <b>Notebook → All notes</b>.</p>",contextIds:[project.id],demo:true});
  var n3=ent("note","Organização como consequência do uso",{html:"<p>O sistema deve ficar organizado porque foi utilizado, não porque alguém teve tempo de configurá-lo.</p>",notebookId:notebook1.id,starred:true,demo:true});
  var n4=ent("note","Receita de panquecas",{html:"<p><b>Ingredientes:</b> farinha, leite, ovos.</p><p><b>Preparo:</b> misturar e dourar em frigideira.</p>",notebookId:notebook2.id,demo:true});
  var r1=ent("resource","Documentação WordPress",{url:"https://wordpress.org/documentation/",resourceKind:"link",contextIds:[project.id],body:"Referência pública de demonstração",demo:true});
  var r2=ent("resource","Exame anterior.pdf",{resourceKind:"document",fileName:"Exame anterior.pdf",contextIds:[visit.id],body:"Arquivo ilustrativo. Anexe seu próprio PDF para testar um arquivo real.",demo:true});
  var r3=ent("resource","MDN Web Docs",{url:"https://developer.mozilla.org/en-US/",resourceKind:"link",starred:true,demo:true});
- var journal=ent("journal","",{date:yesterday,html:"<p>Um registro de exemplo para demonstrar como o diário funciona.</p><p>As notas adicionadas a esta entrada também podem ser encontradas em Notebooks.</p>",demo:true});
+ var journal=ent("journal","",{date:yesterday,html:"<p>Um registro de exemplo para demonstrar como o diário funciona.</p><p>As notas adicionadas a esta entrada também podem ser encontradas em Notebook.</p>",demo:true});
  return {version:13,entities:[aI,aT,aC,aP,project,visit,t1,t2,t3,t4,notebook1,notebook2,n1,n2,n3,n4,r1,r2,r3,journal],
  ui:{tool:"home",view:"today",selectedDate:d,month:monthKey(d),focusId:null,detailId:null,lastTool:"home",lastView:"today",recent:[project.id,visit.id],quickAccess:[],search:""},demo:true}
 }
@@ -583,7 +584,7 @@ function notesForView(){
  if(view.startsWith("book:"))return arr.filter(function(x){return x.notebookId===view.slice(5)});
  return arr
 }
-function renderNotebooks(){
+function renderNotebook(){
  var v=state.ui.view,notebooks=list("notebook"),notes=notesForView().sort(byRecent),heading="All notes",sub="Every note is findable, wherever it was written.";
  if(v==="starred")heading="Starred notes";
  if(v==="from-events"){heading="Notes from Calendar";sub="Notes created while looking at an event."}
@@ -591,7 +592,7 @@ function renderNotebooks(){
  if(v==="from-journal"){heading="Notes from Journal";sub="Notes linked to journal entries."}
  if(v.startsWith("book:")){var book=get(v.slice(5));heading=book?book.title:"Notebook";sub="A familiar place for your notes."}
  var actions='<button class="button" data-act="create" data-type="notebook">'+ic("notebook",15)+' Notebook</button><button class="button primary" data-act="create" data-type="note">'+ic("plus",15)+' Note</button>';
- var intro=(v==="all"&&notebooks.length?section("Notebooks",'<div class="card-grid">'+notebooks.map(entityCard).join("")+'</div>',notebooks.length):"");
+ var intro=(v==="all"&&notebooks.length?section("Notebook",'<div class="card-grid">'+notebooks.map(entityCard).join("")+'</div>',notebooks.length):"");
  return pageHeader(heading,sub,actions,"NOTEBOOKS")+intro+section(v==="all"?"Notes":"Contents",notes.length?'<div class="card-grid">'+notes.map(entityCard).join("")+'</div>':empty("note","Nothing written here yet","Write something, even if you don't know where it belongs.","Add note","note"),notes.length)
 }
 function resourcesForView(){var v=state.ui.view,arr=list("resource");
@@ -759,7 +760,7 @@ function renderWorkspace(){
  else if(state.ui.tool==="journal")inner=renderJournal();
  else if(state.ui.tool==="calendar")inner=renderCalendar();
  else if(state.ui.tool==="planner")inner=renderPlanner();
- else if(state.ui.tool==="notebooks")inner=renderNotebooks();
+ else if(state.ui.tool==="notebooks")inner=renderNotebook();
  else if(state.ui.tool==="library")inner=renderLibrary();
  else inner=renderHome();
  mediaUrls.forEach(function(u){URL.revokeObjectURL(u)});mediaUrls=[];
@@ -811,7 +812,7 @@ function captureSave(contextId){
  var input=contextId?$("context-capture"):$("home-capture");
  if(!input||!input.value.trim())return;
  var actual=contextId||state.ui.focusId||null,created=captureObject(input.value,actual,activeComposer);
- if(created){activeComposer="auto";paint();toast(typeName(created.type)+" saved"+(actual&&get(actual)?" · linked to "+objTitle(get(actual)):"")+". Also in "+(created.type==="task"?"Planner":created.type==="note"?"Notebooks":"Library"))}
+ if(created){activeComposer="auto";paint();toast(typeName(created.type)+" saved"+(actual&&get(actual)?" · linked to "+objTitle(get(actual)):"")+". Also in "+(created.type==="task"?"Planner":created.type==="note"?"Notebook":"Library"))}
 }
 function primaryType(t){return {home:null,journal:"journal",calendar:"event",planner:"task",notebooks:"note",library:"resource"}[t]}
 function openCreate(type,contextId,opts){
