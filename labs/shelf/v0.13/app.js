@@ -509,7 +509,12 @@ function renderHome(){
 }
 function journalPageMenu(book){
  if(!book||book.trashed)return "";
- return '<button class="button journal-page-options" data-act="journal-options" data-id="'+esc(book.id)+'" title="Journal options" aria-label="Options for '+esc(objTitle(book))+'">'+ic("more",18)+'</button>'
+ return '<div class="journal-page-menu">'+
+ '<button class="button journal-page-options" data-act="journal-options" data-id="'+esc(book.id)+'" type="button" aria-haspopup="menu" aria-expanded="false" title="Journal options" aria-label="Options for '+esc(objTitle(book))+'">'+ic("more",18)+'</button>'+
+ '<div class="journal-menu-popover" role="menu" aria-label="Journal options" hidden>'+
+ '<button type="button" role="menuitem" class="journal-menu-choice" data-act="journal-rename" data-id="'+esc(book.id)+'">'+ic("pen",16)+' Rename journal</button>'+
+ '<button type="button" role="menuitem" class="journal-menu-choice danger" data-act="journal-delete" data-id="'+esc(book.id)+'">'+ic("trash",16)+' Delete journal</button>'+
+ '</div></div>'
 }
 function renderJournal(){
  var view=state.ui.view||"",bookId=journalBookForView(view),book=bookId?get(bookId):null;
@@ -962,15 +967,28 @@ function submitCreateCategory(){
  var c=ent("category",name,{areaId:area.id});
  state.entities.push(c);state.ui.expandedAreaId=area.id;save();closeModal();go("planner","category:"+c.id);toast("Category created in "+objTitle(area))
 }
-function journalOptions(id){
- var book=get(id);if(!book||book.type!=="journalbook"||book.trashed)return;
- var count=state.entities.filter(function(e){return e.type==="journal"&&e.journalBookId===book.id&&!e.trashed}).length;
- modalState={mode:"journal-options",id:book.id};
- openModal('<div class="modal-header"><h2>'+esc(objTitle(book))+'</h2><button class="icon-button" data-act="modal-close" aria-label="Close">'+ic("x",19)+'</button></div>'+
- '<div class="modal-scroll"><div class="menu-list">'+
- '<button class="menu-choice" data-act="journal-rename" data-id="'+esc(book.id)+'">'+ic("pen",19)+'<span>Rename journal</span></button>'+
- '<button class="menu-choice" data-act="journal-delete" data-id="'+esc(book.id)+'" style="color:#b1786f">'+ic("trash",19)+'<span>Delete journal <small style="display:block;color:#9ba5a8;font-size:10px;margin-top:4px">Moves the journal and its '+count+' entr'+(count===1?"y":"ies")+' to Trash</small></span></button>'+
- '</div></div>')
+function closeJournalMenu(restoreFocus){
+ var menu=document.querySelector(".journal-menu-popover:not([hidden])");
+ if(!menu)return false;
+ menu.hidden=true;
+ var wrap=menu.closest(".journal-page-menu");
+ var trigger=wrap&&wrap.querySelector('[data-act="journal-options"]');
+ if(trigger){trigger.setAttribute("aria-expanded","false");if(restoreFocus)trigger.focus()}
+ return true
+}
+function journalOptions(id,trigger){
+ var book=get(id);
+ if(!book||book.type!=="journalbook"||book.trashed||!trigger)return;
+ var wrap=trigger.closest(".journal-page-menu");
+ var menu=wrap&&wrap.querySelector(".journal-menu-popover");
+ if(!menu)return;
+ var opening=menu.hidden;
+ closeJournalMenu(false);
+ if(!opening)return;
+ menu.hidden=false;
+ trigger.setAttribute("aria-expanded","true");
+ var first=menu.querySelector('[role="menuitem"]');
+ if(first)first.focus()
 }
 function openRenameJournal(id){
  var book=get(id);if(!book||book.type!=="journalbook"||book.trashed)return;
@@ -1385,9 +1403,9 @@ function onClick(ev){
  if(act==="area-open"){state.ui.expandedAreaId=id;go("planner","area:"+id);return}
  if(act==="category-open"){var c=get(id);if(c){state.ui.expandedAreaId=c.areaId;go("planner","category:"+id)}return}
  if(act==="create-category"){openCreateCategory(b.getAttribute("data-area"));return}
- if(act==="journal-options"){journalOptions(id);return}
- if(act==="journal-rename"){openRenameJournal(id);return}
- if(act==="journal-delete"){deleteJournal(id);return}
+ if(act==="journal-options"){journalOptions(id,b);return}
+ if(act==="journal-rename"){closeJournalMenu(false);openRenameJournal(id);return}
+ if(act==="journal-delete"){closeJournalMenu(false);deleteJournal(id);return}
  if(act==="rename-category"){openRenameCategory(id);return}
  if(act==="delete-category"){deleteCategory(id);return}
  if(act==="rename-area"){openRenameArea(id);return}
@@ -1461,6 +1479,10 @@ function onClick(ev){
  if(act==="import"){$("backup-input").click();return}
 }
 document.addEventListener("click",onClick);
+document.addEventListener("click",function(ev){
+ if(ev.target&&typeof ev.target.closest==="function"&&ev.target.closest(".journal-page-menu"))return;
+ closeJournalMenu(false)
+});
 document.addEventListener("submit",function(ev){if(ev.target.id==="create-form"){ev.preventDefault();submitCreate()}else if(ev.target.id==="rename-area-form"){ev.preventDefault();submitRenameArea()}else if(ev.target.id==="create-category-form"){ev.preventDefault();submitCreateCategory()}else if(ev.target.id==="rename-category-form"){ev.preventDefault();submitRenameCategory()}else if(ev.target.id==="rename-journal-form"){ev.preventDefault();submitRenameJournal()}});
 document.addEventListener("input",function(ev){
  var el=ev.target;
@@ -1477,7 +1499,7 @@ document.addEventListener("keydown",function(ev){
  var isTyping=["INPUT","TEXTAREA","SELECT"].includes(tag)||target.isContentEditable||
   (typeof target.closest==="function"&&!!target.closest('[contenteditable="true"],[contenteditable=""],[role="textbox"]'));
  var modalOpen=modalRoot.classList.contains("open");
- if(ev.key==="Escape"){if(modalOpen){ev.preventDefault();closeModal();return}if(state.ui.detailId){back();return}}
+ if(ev.key==="Escape"){if(modalOpen){ev.preventDefault();closeModal();return}if(closeJournalMenu(true)){ev.preventDefault();return}if(state.ui.detailId){back();return}}
  if((ev.key==="q"||ev.key==="Q")&&!isTyping&&!modalOpen&&!ev.repeat&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey&&!ev.isComposing){
   ev.preventDefault();openUniversalCapture();return
  }
