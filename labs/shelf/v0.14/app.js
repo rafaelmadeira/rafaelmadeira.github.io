@@ -513,14 +513,14 @@ function calendarDateHeader(tool,date,subtitle,actions){
   tool.toUpperCase()+" / DATE")
 }
 function renderSidebar(){
- var t=state.ui.tool,html='<div class="sb-head"><h2>'+esc((TOOLS.find(function(x){return x.id===t})||TOOLS[0]).name)+'</h2>'+(t==="journal"?"":'<button data-act="create-primary" title="New in '+esc(t)+'">'+ic("plus",18)+'</button>')+'</div><div class="sb-scroll">';
+ var t=state.ui.tool,html='<div class="sb-head"><h2>'+esc((TOOLS.find(function(x){return x.id===t})||TOOLS[0]).name)+'</h2>'+(t==="journals"?"":'<button data-act="create-primary" title="New in '+esc(t)+'">'+ic("plus",18)+'</button>')+'</div><div class="sb-scroll">';
  if(t==="home"){
   html+=sr("Today","today","sun")+sr("Inbox","inbox","inbox",{count:inboxCount()})+sr("Recent","recent","clock")+sr("Starred","starred","star");
   html+='<div class="sb-section-heading"><span>Quick Access</span><button data-act="quick-add" title="Add a shortcut to Desk" aria-label="Add Quick Access shortcut">'+ic("plus",15)+'</button></div>';
   var quicks=quickList();
   html+=quicks.length?quicks.map(function(x,i){return quickRow(x.ref,i)}).join(""):'<div class="sidebar-empty quick-empty">Keep your favorite destinations here.<br><button data-act="quick-add">+ Add shortcut</button></div>';
  }
- if(t==="journal"){
+ if(t==="journals"){
   html+=sh("Journals","journalbook");
   html+=sr("All entries","all","book-open",{count:list("journal").length});
   html+=list("journalbook").sort(function(a,b){return (a.id===state.ui.defaultJournalId?-1:b.id===state.ui.defaultJournalId?1:0)||a.createdAt-b.createdAt}).map(function(book){
@@ -532,7 +532,7 @@ function renderSidebar(){
   html+=sh("Calendars");
   html+=sr("My calendar","all","calendar-days",{count:list("event").length});
  }
- if(t==="planner"){
+ if(t==="todo"){
   var tasks=list("task");
   html+=sr("Today","today","sun",{count:tasks.filter(function(x){return !x.completed&&x.dueDate&&x.dueDate<=today()}).length});
   html+=sr("Inbox","inbox","inbox",{count:inboxCount()});
@@ -557,10 +557,8 @@ function renderSidebar(){
    }
    return result+'</div>';
   }).join("")||'<div class="sidebar-empty">Create your first area</div>';
-  html+=sh("Projects","project");
-  html+=sr("All projects","projects","clipboard",{count:count("project")});
  }
- if(t==="notebooks"){
+ if(t==="notes"){
   html+=sr("All notes","all","note",{count:list("note").length})+sr("Starred","starred","star");
   html+=sh("From other tools");
   html+=sr("From Calendar","from-events","calendar-days",{count:list("note").filter(function(e){return sources(e).some(function(x){return x.type==="event"})}).length});
@@ -569,15 +567,51 @@ function renderSidebar(){
   html+=sh("My notebooks","notebook");
   html+=list("notebook").sort(byRecent).map(function(n){return sr(objTitle(n),"book:"+n.id,"notebook",{count:list("note").filter(function(x){return x.notebookId===n.id}).length})}).join("")||'<div class="sidebar-empty">No notebooks yet</div>';
  }
- if(t==="library"){
+ if(t==="resources"){
   var rs=list("resource"),folders=list("folder");
-  html+=sr("All items","all","library",{count:rs.length})+sr("Unsorted","unsorted","inbox",{count:rs.filter(function(x){return !x.folderId&&!meaningfulContext(x)&&!isBookmark(x)}).length})+sr("Bookmarks","bookmarks","bookmark",{count:rs.filter(isBookmark).length})+sr("Starred","starred","star");
+  html+=sr("All items","all","library",{count:rs.length})+sr("Unsorted","unsorted","inbox",{count:rs.filter(function(x){return !x.folderId&&!meaningfulContext(x)&&!isBookmark(x)}).length})+sr("Starred","starred","star");
   html+=sh("Collections","folder");
   html+=folders.map(function(f){return sr(objTitle(f),"folder:"+f.id,"folder",{count:rs.filter(function(r){return r.folderId===f.id}).length})}).join("")||'<div class="sidebar-empty">No collections yet</div>';
   html+=sh("From other tools");
   html+=sr("From Calendar","from-events","calendar-days")+sr("From Planner","from-projects","clipboard");
   html+=sh("Filters");
   LIBRARY_TYPES.forEach(function(item){var n=rs.filter(function(r){return r.resourceKind===item.id}).length;if(n)html+=sr(item.name,"kind:"+item.id,item.icon,{count:n})});
+ }
+ if(t==="projects"){
+  var projects=list("project");
+  html+=sr("All projects","all","folder-kanban",{count:projects.length})+
+   sr("Active","active","sun",{count:projects.filter(function(p){return p.projectStatus==="active"}).length})+
+   sr("Waiting","waiting","clock",{count:projects.filter(function(p){return p.projectStatus==="waiting"}).length})+
+   sr("Completed","completed","check",{count:projects.filter(function(p){return p.projectStatus==="completed"}).length});
+  html+=sh("Areas");
+  html+=list("area").map(function(a){
+   return sr(objTitle(a),"area:"+a.id,areaIcon(a),{count:projects.filter(function(p){return inArea(p,a)}).length})
+  }).join("")||'<div class="sidebar-empty">No areas yet</div>';
+  html+=sr("Without area","unassigned","folder",{count:projects.filter(function(p){return !areaOf(p)}).length});
+ }
+ if(t==="bookmarks"){
+  var links=list("resource").filter(isBookmark);
+  html+=sr("All bookmarks","all","bookmark",{count:links.length})+
+   sr("Starred","starred","star",{count:links.filter(function(x){return x.starred}).length});
+  html+=sh("Collections","folder");
+  html+=list("folder").map(function(f){
+   var n=links.filter(function(x){return x.folderId===f.id}).length;
+   return sr(objTitle(f),"folder:"+f.id,"folder",{count:n})
+  }).join("")||'<div class="sidebar-empty">No collections yet</div>';
+  html+=sr("Unsorted","unsorted","inbox",{count:links.filter(function(x){return !x.folderId}).length});
+ }
+ if(t==="goals"){
+  var goals=list("goal");
+  html+=sr("Active goals","active","target",{count:goals.filter(function(g){return g.goalStatus==="active"}).length})+
+   sr("All goals","all","layers",{count:goals.length})+
+   sr("Achieved","achieved","check",{count:goals.filter(function(g){return g.goalStatus==="achieved"}).length})+
+   sr("On hold","paused","clock",{count:goals.filter(function(g){return g.goalStatus==="paused"}).length});
+ }
+ if(t==="habits"){
+  html+=sr("Today","today","sun")+sr("All habits","all","flame",{count:list("habit").length});
+ }
+ if(t==="routines"){
+  html+=sr("Today","today","sun")+sr("All routines","all","list-checks",{count:list("routine").length});
  }
  html+='</div>';
  html+=sidebarCalendarFooter(t);
