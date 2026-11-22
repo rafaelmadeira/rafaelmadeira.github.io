@@ -320,18 +320,50 @@ function renderCalendar(){
  '<div class="agenda-strip"><h3>'+esc(humanDay(day,{weekday:"long",month:"long",day:"numeric"}))+'</h3><button class="button" data-act="create" data-type="event" data-date="'+day+'">'+ic("plus",14)+' Event</button></div>'+
  (ev.length?'<div class="agenda-list">'+ev.map(eventRow).join("")+'</div>':empty("calendar","No events on this day","Click + Event to schedule something.")) ;
 }
+function areaTaskAdd(area){
+ return '<div class="inline-add area-quick"><span>'+ic("plus",16)+'</span><input id="area-quick" placeholder="Add a task in '+esc(objTitle(area))+'…" aria-label="Add a task in this area"><button data-act="area-quick" data-id="'+esc(area.id)+'">Add</button></div>'
+}
+function renderArea(area){
+ if(!area||area.type!=="area")return pageHeader("Area not found","The area might have been removed.","","PLANNER");
+ var projects=list("project").filter(function(e){return inArea(e,area)}).sort(byRecent);
+ var tasks=list("task").filter(function(e){return inArea(e,area)}).sort(byDue);
+ var direct=tasks.filter(function(e){return !projectOf(e)}),within=tasks.filter(function(e){return !!projectOf(e)});
+ var pending=tasks.filter(function(t){return !t.completed}).length;
+ var actions='<button class="button" data-act="rename-area" data-id="'+esc(area.id)+'">'+ic("pen",15)+' Rename</button>'+
+ '<button class="button" data-act="create" data-type="project" data-context="'+esc(area.id)+'">'+ic("plus",15)+' Project</button>'+
+ '<button class="button primary" data-act="create" data-type="task" data-context="'+esc(area.id)+'">'+ic("plus",15)+' Task</button>';
+ var overview='<div class="area-summary"><span>'+ic("folder",15)+' '+projects.length+' project'+(projects.length===1?"":"s")+'</span><span>'+ic("check-circle",15)+' '+pending+' open task'+(pending===1?"":"s")+'</span></div>';
+ return pageHeader(objTitle(area),"All projects and tasks in this area, without a folder tree.",actions,"PLANNER / AREA")+
+ overview+
+ section("Projects",projects.length?'<div class="card-grid">'+projects.map(entityCard).join("")+'</div>':empty("folder","No projects yet","Create a project here and it will belong to "+objTitle(area)+" automatically."),projects.length)+
+ section("Other tasks",'<div class="panel area-task-panel">'+(direct.length?direct.map(taskRow).join(""):'<p class="area-hint">Independent tasks for this area appear here.</p>')+areaTaskAdd(area)+'</div>',direct.length)+
+ (within.length?section("Tasks in projects",'<div class="panel area-task-panel">'+within.map(taskRow).join("")+'</div>',within.length):"");
+}
+function renderAllProjects(){
+ var projects=list("project").sort(byRecent),areas=list("area");
+ var out=pageHeader("All projects","Projects remain findable regardless of their area.",
+ '<button class="button primary" data-act="create" data-type="project">'+ic("plus",15)+' New project</button>',"PLANNER");
+ for(var a of areas){var group=projects.filter(function(p){return inArea(p,a)});if(group.length)out+=section(objTitle(a),'<div class="card-grid">'+group.map(entityCard).join("")+'</div>',group.length)}
+ var unassigned=projects.filter(function(p){return !areaOf(p)});
+ if(unassigned.length)out+=section("Without an area",'<div class="card-grid">'+unassigned.map(entityCard).join("")+'</div>',unassigned.length);
+ if(!projects.length)out+=empty("folder","No projects yet","A project can begin as just a title.","New project","project");
+ return out;
+}
 function renderPlanner(){
  var view=state.ui.view,all=list("task"),items;
+ if(view.startsWith("area:"))return renderArea(get(view.slice(5)));
+ if(view==="projects")return renderAllProjects();
  if(view==="today")items=all.filter(function(e){return !e.completed&&e.dueDate&&e.dueDate<=today()}).sort(byDue);
  else if(view==="inbox")items=all.filter(function(e){return !e.completed&&!e.dueDate});
  else if(view==="upcoming")items=all.filter(function(e){return !e.completed&&e.dueDate>today()}).sort(byDue);
  else if(view==="completed")items=all.filter(function(e){return e.completed}).sort(byRecent);
- else items=all;
- var names={today:"Today",inbox:"Inbox",upcoming:"Upcoming",completed:"Completed"},title=names[view]||"Planner";
- return pageHeader(title,view==="today"?"Focus on what needs action.":"Tasks belong here, even when created elsewhere.",'<button class="button" data-act="create" data-type="project">'+ic("folder",15)+' Project</button><button class="button primary" data-act="create" data-type="task">'+ic("plus",15)+' Task</button>',"PLANNER")+
+ else items=all.sort(byRecent);
+ var names={today:"Today",inbox:"Inbox",upcoming:"Upcoming",completed:"Completed",all:"All tasks"},title=names[view]||"Planner";
+ return pageHeader(title,view==="today"?"Focus on what needs action.":"Tasks belong here, even when created elsewhere.",
+ '<button class="button" data-act="create" data-type="project">'+ic("folder",15)+' Project</button><button class="button primary" data-act="create" data-type="task">'+ic("plus",15)+' Task</button>',"PLANNER")+
  (items.length?'<div class="panel" style="max-width:840px;padding:8px 20px">'+items.map(taskRow).join("")+
  (view!=="completed"?'<div class="inline-add"><span>'+ic("plus",16)+'</span><input id="planner-quick" placeholder="Add a task…" aria-label="Add a task"><button data-act="planner-quick">Add</button></div>':"")+'</div>':
- '<div style="max-width:840px">'+empty("check-circle","Nothing here","Your tasks appear here automatically, even when created inside an event or project.","Add task","task")+'</div>')+
+ '<div style="max-width:840px">'+empty("check-circle","Nothing here","Tasks created in a project or area also appear here.","Add task","task")+'</div>')+
  (view==="today"?section("Projects",'<div class="card-grid">'+list("project").sort(byRecent).map(entityCard).join("")+'</div>',count("project")):"");
 }
 function notesForView(){
