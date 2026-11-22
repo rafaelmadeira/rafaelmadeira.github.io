@@ -620,6 +620,22 @@ function submitCreate(){
  else if(context)extra.contextIds=[context.id];
  var e=ent(type,title,extra);state.entities.unshift(e);save();closeModal();openEntity(e.id);toast(typeName(type)+" created"+(context?" · linked to "+objTitle(context):""))
 }
+function openRenameArea(id){
+ var area=get(id);if(!area||area.type!=="area")return;
+ modalState={mode:"rename-area",id:area.id};
+ openModal('<div class="modal-header"><h2>Rename area</h2><button class="icon-button" data-act="modal-close">'+ic("x",19)+'</button></div>'+
+ '<div class="modal-scroll"><p class="modal-help">The name changes everywhere; projects and tasks remain connected.</p>'+
+ '<form id="rename-area-form"><div class="field"><label for="area-name">Name</label>'+
+ '<input id="area-name" maxlength="100" required value="'+esc(area.title)+'"></div>'+
+ '<div class="modal-buttons"><button type="button" class="button" data-act="modal-close">Cancel</button>'+
+ '<button type="submit" class="button primary">Save</button></div></form></div>');
+ $("area-name").focus();$("area-name").select()
+}
+function submitRenameArea(){
+ if(!modalState||modalState.mode!=="rename-area")return;
+ var area=get(modalState.id),name=$("area-name")?$("area-name").value.trim():"";if(!area||!name)return;
+ area.title=name;touched(area);closeModal();paint();toast("Area renamed")
+}
 function openModal(inner){modalRoot.innerHTML='<div class="modal-backdrop" data-act="modal-close"></div><div class="modal-box" role="dialog" aria-modal="true">'+inner+'</div>';modalRoot.classList.add("open");modalRoot.setAttribute("aria-hidden","false")}
 function closeModal(){modalRoot.classList.remove("open");modalRoot.setAttribute("aria-hidden","true");modalRoot.innerHTML="";modalState=null;workingSearch=""}
 function newMenu(){
@@ -698,7 +714,21 @@ async function exportAll(){try{var out={format:"shelf-v011",savedAt:new Date().t
  var url=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download="shelf-v011-backup-"+today()+".json";a.click();setTimeout(function(){URL.revokeObjectURL(url)},10000);toast("Backup exported")
  }catch(err){toast("Export failed: "+err.message)}}
 async function importAll(file){try{var d=JSON.parse(await file.text());if(!d||d.format!=="shelf-v011"||!d.data||!Array.isArray(d.data.entities))throw Error("Invalid v0.11 backup");if(!confirm("Replace the current v0.11 library with the backup?"))return;for(var f of d.files||[]){await storeBlob(f.id,fromB64(f.data,f.mime))}state=d.data;state.ui.detailId=null;save();paint();toast("Backup restored")}catch(err){toast("Import failed: "+err.message)}}
-function editField(target){var e=get(state.ui.detailId);if(!e)return;var f=target.getAttribute("data-edit");if(!f)return;if(f==="title"||f==="body"||f==="date"||f==="time"||f==="dueDate"||f==="location"||f==="projectStatus"){e[f]=target.value;touched(e)}}
+function assignArea(e,id){
+ if(!e||!["task","project"].includes(e.type))return false;
+ var next=id?get(id):null;if(id&&(!next||next.type!=="area"||next.trashed))return false;
+ var parent=e.type==="task"?projectOf(e):null,via=parent?areaOf(parent):null;
+ if(parent&&next&&(!via||via.id!==next.id)){
+  if(!confirm("This task belongs to "+objTitle(parent)+". Move it out of that project and into "+objTitle(next)+"?"))return false;
+  e.contextIds=(e.contextIds||[]).filter(function(p){return p!==parent.id});
+ }
+ e.areaId=next?next.id:null;touched(e);return true
+}
+function editField(target){
+ var e=get(state.ui.detailId);if(!e)return;var f=target.getAttribute("data-edit");if(!f)return;
+ if(f==="areaId"){if(!assignArea(e,target.value))paint();return}
+ if(["title","body","date","time","dueDate","location","projectStatus"].includes(f)){e[f]=target.value;touched(e)}
+}
 function applyRichEdit(){var e=get(state.ui.detailId),el=$("rich-content");if(!e||!el)return;e.html=safeRich(el.innerHTML);e.body=stripHtml(e.html);touched(e)}
 function formatRich(command){var el=$("rich-content");if(!el)return;el.focus();document.execCommand(command,false,null);applyRichEdit()}
 function monthMove(dir){state.ui.month=monthStep(state.ui.month||monthKey(today()),dir);state.ui.selectedDate=state.ui.month+"-01";state.ui.detailId=null;save();paint()}
@@ -713,6 +743,7 @@ function onClick(ev){
  if(act==="global-capture-save"){saveGlobalCapture();return}
  if(act==="create-primary"){var t=primaryType(state.ui.tool);if(!t)newMenu();else openCreate(t,null);return}
  if(act==="create"){openCreate(type,ctx||null,{date:b.getAttribute("data-date")||null});return}
+ if(act==="rename-area"){openRenameArea(id);return}
  if(act==="journal-today"){journalToday();return}
  if(act==="search"){searchModal();return}
  if(act==="date"){state.ui.selectedDate=b.getAttribute("data-date");state.ui.month=monthKey(state.ui.selectedDate);go("calendar","month");return}
@@ -738,6 +769,14 @@ function onClick(ev){
  if(act==="capture-mode"){activeComposer=activeComposer===b.getAttribute("data-mode")?"auto":b.getAttribute("data-mode");Array.from(document.querySelectorAll(".capture-chip[data-mode]")).forEach(function(el){el.classList.toggle("active",el.getAttribute("data-mode")===activeComposer)});return}
  if(act==="capture-save"){captureSave(ctx);return}
  if(act==="home-capture"){captureSave(null);return}
+ if(act==="area-quick"){
+  var area=get(id),inp=$("area-quick");
+  if(area&&area.type==="area"&&inp&&inp.value.trim()){
+   var task=ent("task",inp.value.trim(),{areaId:area.id,sourceId:area.id});
+   state.entities.unshift(task);save();paint();toast("Task added to "+objTitle(area));
+  }
+  return
+ }
  if(act==="planner-quick"){
   var inp=$("planner-quick");if(inp&&inp.value.trim()){var task=ent("task",inp.value.trim(),{dueDate:state.ui.view==="today"?today():""});var focus=isFocusValid();if(focus)task.contextIds=[focus.id];state.entities.unshift(task);save();paint();toast("Task saved in Planner")}return
  }
@@ -751,7 +790,7 @@ function onClick(ev){
  if(act==="import"){$("backup-input").click();return}
 }
 document.addEventListener("click",onClick);
-document.addEventListener("submit",function(ev){if(ev.target.id==="create-form"){ev.preventDefault();submitCreate()}});
+document.addEventListener("submit",function(ev){if(ev.target.id==="create-form"){ev.preventDefault();submitCreate()}else if(ev.target.id==="rename-area-form"){ev.preventDefault();submitRenameArea()}});
 document.addEventListener("input",function(ev){
  var el=ev.target;
  if(el.id==="global-search"){updateSearchResults(el.value);return}
@@ -766,6 +805,7 @@ document.addEventListener("keydown",function(ev){
  if(ev.key==="/"&&!["INPUT","TEXTAREA"].includes(tag)&&!target.isContentEditable&&!ev.ctrlKey&&!ev.metaKey){ev.preventDefault();searchModal();return}
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="home-capture"){ev.preventDefault();captureSave(null);return}
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="global-capture"){ev.preventDefault();saveGlobalCapture();return}
+ if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="area-quick"){ev.preventDefault();var b=document.querySelector('[data-act="area-quick"]');if(b)b.click();return}
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="planner-quick"){ev.preventDefault();var b=document.querySelector('[data-act="planner-quick"]');if(b)b.click();return}
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="context-capture"){ev.preventDefault();captureSave(state.ui.detailId);return}
 });
