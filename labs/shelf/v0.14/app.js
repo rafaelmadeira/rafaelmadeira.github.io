@@ -959,6 +959,23 @@ function safeRich(raw){
  }
  sanitizeElement(src.content);return src.innerHTML
 }
+function routineDetail(e){
+ var steps=Array.isArray(e.routineSteps)?e.routineSteps:[],day=miniDateForTool("routines")||today();
+ var logged=routineStepsForDate(e,day),done=steps.filter(function(step){return logged.includes(step.id)}).length;
+ return '<div class="detail-section routine-detail"><h3>Checklist · '+esc(humanDay(day))+
+  '<span class="routine-completed">'+done+'/'+steps.length+'</span></h3>'+
+  (steps.length?'<div class="routine-steps">'+steps.map(function(st){
+   var yes=logged.includes(st.id);
+   return '<div class="routine-step"><button class="habit-check'+(yes?" done":"")+'" data-act="routine-step-toggle" data-id="'+esc(e.id)+'" data-step="'+esc(st.id)+'" data-date="'+day+'" title="'+(yes?"Uncheck":"Complete step")+'">'+(yes?ic("check",16):"")+'</button>'+
+    '<span'+(yes?' class="routine-step-done"':"")+'>'+esc(st.text)+'</span>'+
+    '<button class="routine-remove-step" data-act="routine-step-remove" data-id="'+esc(e.id)+'" data-step="'+esc(st.id)+'" title="Remove step" aria-label="Remove step">'+ic("x",14)+'</button></div>'
+  }).join("")+'</div>':'<p class="area-hint">Add your first step to make this a reusable checklist.</p>')+
+  '<div class="inline-add"><span>'+ic("plus",16)+'</span><input id="routine-new-step" placeholder="Add a step…" aria-label="New step"><button data-act="routine-step-add" data-id="'+esc(e.id)+'">Add</button></div>'+
+  (done?'<button class="button routine-reset" data-act="routine-reset" data-id="'+esc(e.id)+'" data-date="'+day+'">Reset this run</button>':"")+
+ '</div>'+
+ '<div class="detail-section"><h3>Notes</h3><textarea class="plain-editor" data-edit="body" placeholder="Anything you want to remember about this routine…">'+esc(e.body)+'</textarea></div>'
+}
+
 function detailMain(e){
  var isText=["note","journal"].includes(e.type),parts="";
  if(isText){
@@ -980,7 +997,19 @@ function detailMain(e){
   var files=list("resource").filter(function(r){return r.folderId===e.id});
   parts+=files.length?rows(files,resourceRow):empty("folder","Empty collection","Save or add resources here.");
   parts+='<div class="context-actions"><button class="button" data-act="create" data-type="resource" data-context="'+e.id+'">'+ic("plus",14)+' Save resource</button></div>';
- }else{
+  }else{
+  if(e.type==="goal"){
+   var value=Math.max(0,Math.min(100,Number(e.goalProgress)||0));
+   parts+='<div class="detail-section"><h3>Progress</h3><div class="goal-progress-large"><div class="goal-meter"><span style="width:'+value+'%"></span></div><strong>'+value+'%</strong></div></div>'+
+    '<div class="detail-section"><h3>About this goal</h3><textarea class="plain-editor" data-edit="body" placeholder="What will success look like?">'+esc(e.body)+'</textarea></div>';
+  }
+  if(e.type==="habit"){
+   var done=habitDone(e,today());
+   parts+='<div class="habit-detail-check"><button class="habit-check'+(done?" done":"")+'" data-act="habit-toggle" data-id="'+esc(e.id)+'" data-date="'+today()+'">'+(done?ic("check",18):"")+'</button>'+
+   '<div><strong>'+(done?"Completed today":"Check in today")+'</strong><small>'+habitStreak(e)+'-day streak · '+(Array.isArray(e.habitLog)?e.habitLog.length:0)+' total check-ins</small></div></div>'+
+   '<div class="detail-section"><h3>Notes</h3><textarea class="plain-editor" data-edit="body" placeholder="Make this habit easier to keep…">'+esc(e.body)+'</textarea></div>';
+  }
+  if(e.type==="routine")parts+=routineDetail(e);
   if(e.type==="project")parts+='<div class="detail-section"><h3>About this project</h3><textarea class="plain-editor" data-edit="body" placeholder="Context, current state, or anything useful…">'+esc(e.body)+'</textarea></div>';
   else if(e.type==="event")parts+='<div class="detail-section"><h3>About this event</h3><textarea class="plain-editor" data-edit="body" placeholder="What should you remember about this event?">'+esc(e.body)+'</textarea></div>';
   else if(e.type==="task")parts+='<div class="detail-section"><h3>Details</h3><textarea class="plain-editor" data-edit="body" placeholder="Add details if you need them…">'+esc(e.body)+'</textarea></div>';
@@ -1014,6 +1043,16 @@ function detailMeta(e){
     '</select></div>'
   }
  }
+ if(e.type==="goal"){
+  out+='<div class="meta-pill">'+ic("target",15)+'<select data-edit="goalStatus" aria-label="Goal status">'+
+   ['active','paused','achieved'].map(function(v){return '<option value="'+v+'"'+(e.goalStatus===v?" selected":"")+'>'+
+    (v==="active"?"Active":v==="paused"?"On hold":"Achieved")+'</option>'}).join("")+'</select></div>'+
+   '<div class="meta-pill">'+ic("calendar",15)+'<input type="date" data-edit="targetDate" value="'+esc(e.targetDate||"")+'" aria-label="Target date"></div>'+
+   '<div class="meta-pill">'+ic("target",15)+'<input type="number" min="0" max="100" step="5" data-edit="goalProgress" value="'+Math.max(0,Math.min(100,Number(e.goalProgress)||0))+'" aria-label="Progress percentage"> %</div>'
+ }
+ if(e.type==="habit"||e.type==="routine")out+='<div class="meta-pill">'+ic("repeat",15)+'<select data-edit="frequency" aria-label="Frequency">'+
+  '<option value="daily"'+(e.frequency==="daily"?" selected":"")+'>Daily</option>'+
+  '<option value="weekly"'+(e.frequency==="weekly"?" selected":"")+'>Weekly</option></select></div>';
  if(e.type==="resource")out+='<div class="meta-pill">'+ic(typeIcon(e),15)+' '+esc(e.resourceKind)+'</div>';
  if(e.notebookId&&get(e.notebookId))out+='<div class="meta-pill meta-readonly">'+ic("notebook",15)+' '+esc(objTitle(get(e.notebookId)))+'</div>';
  return out?'<div class="meta-rows">'+out+'</div>':""
@@ -1063,7 +1102,7 @@ function renderDetail(e){
  '<button class="icon-button'+(quickHas({kind:"entity",id:e.id})?' quick-pinned':'')+'" data-act="quick-toggle-entity" data-id="'+e.id+'" title="'+(quickHas({kind:"entity",id:e.id})?'Remove from Desk Quick Access':'Pin to Desk Quick Access')+'" aria-label="Pin or unpin in Desk">'+ic(quickHas({kind:"entity",id:e.id})?"pinfill":"pin",17)+'</button>'+
  '<button class="icon-button'+(state.ui.focusId===e.id?" active":"")+'" data-act="focus-context" data-id="'+e.id+'" title="Work in this context">'+ic("layers",17)+'</button>'+
  '<button class="icon-button" data-act="detail-menu" data-id="'+e.id+'" title="More options">'+ic("more",19)+'</button></div></div>';
- var related=relatedSection(e),showCapture=["event","project","task","note","resource","journal"].includes(e.type);
+ var related=relatedSection(e),showCapture=["event","project","task","note","resource","journal","goal","habit","routine"].includes(e.type);
  var detail='<div class="detail-root">'+back+head+detailMeta(e)+'<div class="detail-columns"><div class="detail-core">'+detailMain(e)+
  (related?related:"")+(showCapture?'<div class="detail-section"><h3>'+ic("plus",15)+' Add to '+esc(objTitle(e))+'</h3>'+captureBox(e)+'</div>':"")+
  '</div><div class="detail-side">'+detailSidebar(e)+'</div></div></div>';
@@ -1294,6 +1333,9 @@ function openCreate(type,contextId,opts){
  if(type==="resource")field='<div class="field"><label for="new-url">Paste a URL (or upload a file instead)</label><input id="new-url" placeholder="https://example.com"></div><div class="field"><label for="new-title">Title (optional)</label><input id="new-title" placeholder="Recognized automatically if blank"></div><button class="button" data-act="upload" data-context="'+esc(modalState.contextId||"")+'">'+ic("upload",15)+' Choose a file</button>';
  if(type==="event")field+='<div class="field-row"><div class="field"><label for="new-date">Date</label><input id="new-date" type="date" value="'+esc(opts.date||state.ui.selectedDate||today())+'" required></div><div class="field"><label for="new-time">Time</label><input id="new-time" type="time" value="14:00"></div></div><div class="field"><label for="new-location">Location (optional)</label><input id="new-location" placeholder="Add location"></div>';
  if(type==="task")field+='<div class="field"><label for="new-due">Due date (optional)</label><input id="new-due" type="date" value="'+esc(opts.dueDate||"")+'"></div>';
+ if(type==="goal")field+='<div class="field"><label for="new-target">Target date (optional)</label><input id="new-target" type="date"></div><div class="field"><label for="new-body">What does success look like? (optional)</label><textarea id="new-body" rows="3" placeholder="You can add details later."></textarea></div>';
+ if(type==="habit")field+='<div class="field"><label for="new-frequency">Repeat</label><select id="new-frequency"><option value="daily">Every day</option><option value="weekly">Once a week</option></select></div>';
+ if(type==="routine")field+='<div class="field"><label for="new-frequency">Repeat</label><select id="new-frequency"><option value="daily">Daily</option><option value="weekly">Weekly</option></select></div><div class="field"><label for="new-steps">Steps (optional, one per line)</label><textarea id="new-steps" rows="4" placeholder="Add steps now or when you use the routine."></textarea></div>';
  if(type==="note"||type==="project")field+='<div class="field"><label for="new-body">Start writing (optional)</label><textarea id="new-body" rows="3" placeholder="Anything you want to remember…"></textarea></div>';
  openModal('<div class="modal-header"><h2>'+esc(title)+'</h2><button class="icon-button" data-act="modal-close" aria-label="Close">'+ic("x",19)+'</button></div><div class="modal-scroll"><p class="modal-help">'+esc(hint)+'</p><form id="create-form">'+field+'<div class="modal-buttons"><button type="button" class="button" data-act="modal-close">Cancel</button><button type="submit" class="button primary">'+ic("plus",14)+' Create</button></div></form></div>');
  var input=$("new-title")||$("new-url");if(input)input.focus();
@@ -1308,6 +1350,9 @@ function submitCreate(){
  if(type==="resource"){extra.url=url;extra.resourceKind=classifyUrl(url)}
  if(type==="event"){extra.date=$("new-date").value||today();extra.time=$("new-time").value;extra.location=$("new-location").value.trim()}
  if(type==="task"){extra.dueDate=$("new-due").value||"";extra.inbox=!!(modalState.opts&&modalState.opts.inbox&&!context)}
+ if(type==="goal"){extra.targetDate=$("new-target").value||"";extra.body=$("new-body").value.trim();extra.goalStatus="active";extra.goalProgress=0}
+ if(type==="habit"){extra.frequency=$("new-frequency").value||"daily";extra.habitLog=[]}
+ if(type==="routine"){extra.frequency=$("new-frequency").value||"daily";extra.routineLog={};extra.routineSteps=($("new-steps").value||"").split(/\r?\n/).map(function(x){return x.trim()}).filter(Boolean).map(function(x){return {id:uid(),text:x}})}
  if((type==="note"||type==="project")&&$("new-body")){extra.body=$("new-body").value.trim();if(type==="note")extra.html=extra.body?"<p>"+esc(extra.body).replace(/\n/g,"</p><p>")+"</p>":""}
  if(context)extra.sourceId=context.id;
  if(context&&context.type==="notebook"&&type==="note")extra.notebookId=context.id;
@@ -1740,7 +1785,10 @@ function editField(target){
  var e=get(state.ui.detailId);if(!e)return;var f=target.getAttribute("data-edit");if(!f)return;
  if(f==="areaId"){if(!assignArea(e,target.value))paint();return}
  if(f==="categoryId"){if(!assignCategory(e,target.value))paint();return}
- if(["title","body","date","time","dueDate","location","projectStatus"].includes(f)){e[f]=target.value;touched(e)}
+ if(["title","body","date","time","dueDate","location","projectStatus","targetDate","goalStatus","frequency"].includes(f)){
+  e[f]=target.value;touched(e);return
+ }
+ if(f==="goalProgress"){var pct=Math.min(100,Math.max(0,Number(target.value)||0));e.goalProgress=pct;if(pct===100)e.goalStatus="achieved";touched(e)}
 }
 function applyRichEdit(){var e=get(state.ui.detailId),el=$("rich-content");if(!e||!el)return;e.html=safeRich(el.innerHTML);e.body=stripHtml(e.html);touched(e)}
 function formatRich(command){var el=$("rich-content");if(!el)return;el.focus();document.execCommand(command,false,null);applyRichEdit()}
