@@ -496,7 +496,7 @@ function renderHome(){
  var todaysEvents=events.filter(function(e){return e.date===d}).sort(function(a,b){return a.time.localeCompare(b.time)});
  var upcoming=events.filter(function(e){return e.date>d}).sort(function(a,b){return (a.date+a.time).localeCompare(b.date+b.time)}).slice(0,3);
  var active=(state.ui.recent||[]).map(get).filter(function(e){return e&&["project","event","notebook","journal"].includes(e.type)&&!e.trashed}).slice(0,4);
- var j=list("journal").find(function(x){return x.date===d});
+ var j=list("journal").find(function(x){return x.date===d&&x.journalBookId===state.ui.defaultJournalId});
  return pageHeader("Today",humanDay(d,{weekday:"long",month:"long",day:"numeric",year:"numeric"}),'<button class="button primary" data-act="new-menu">'+ic("plus",15)+' Capture</button>',"YOUR DAY")+
  '<div class="hero"><div><h2>Everything in its place.</h2><p>Open anything, add what belongs to it, and let Shelf keep things connected.</p></div><div class="hero-illustration">'+ic("layers",53)+'</div></div>'+
  '<div class="dashboard-grid"><div>'+
@@ -508,13 +508,34 @@ function renderHome(){
  panel("Quick capture",'<div class="inline-add"><span style="color:#93a0a4">'+ic("plus",16)+'</span><input id="home-capture" placeholder="Write, paste a link, or add a task…" aria-label="Quick capture"><button data-act="home-capture">Save</button></div><div class="capture-tip">Use “todo: ” to capture a task.</div>')+'</div></div>';
 }
 function renderJournal(){
- var entries=list("journal").sort(function(a,b){return b.date.localeCompare(a.date)}),view=state.ui.view,d=today();
- if(view==="today"){var j=entries.find(function(x){return x.date===d});return pageHeader("Today's journal",humanDay(d,{weekday:"long",month:"long",day:"numeric"}),"","JOURNAL")+
- (j?'<div style="max-width:830px">'+rows([j],noteRow)+'</div><div style="margin-top:15px"><button class="button primary" data-act="open" data-id="'+j.id+'">'+ic("pen",15)+' Continue writing</button></div>':
- '<div class="panel" style="max-width:660px;padding:28px"><div style="font-size:16px;font-weight:700;margin-bottom:8px">A page for today.</div><p style="color:#929ea1;margin-bottom:20px">Write about your day without setting up a notebook, template or database.</p><button class="button primary" data-act="journal-today">'+ic("pen",16)+' Start writing</button></div>')}
- if(view.startsWith("month:"))entries=entries.filter(function(x){return monthKey(x.date)===view.slice(6)});
- return pageHeader(view==="timeline"?"Journal timeline":prettyMonth(view.slice(6)),"Your days, collected automatically.",'<button class="button" data-act="journal-today">'+ic("pen",15)+" Today's entry</button>","JOURNAL")+
- (entries.length?entries.map(function(e){return '<article class="journal-entry"><div class="entry-date">'+esc(humanDay(e.date,{weekday:"long",month:"long",day:"numeric",year:"numeric"}))+'</div><h3>'+esc(e.title||"Journal entry")+'</h3><p>'+esc(trim(stripHtml(e.html),260))+'</p><button class="panel-link" data-act="open" data-id="'+e.id+'" style="margin-top:10px">Open entry '+ic("chevron-right",12)+'</button></article>'}).join(""):empty("book-open","No entries here yet","Your journal entries are organized by date, automatically."))}
+ var view=state.ui.view||"",bookId=journalBookForView(view),book=bookId?get(bookId):null;
+ var entries=journalEntriesInScope(bookId).sort(function(a,b){return b.date.localeCompare(a.date)||b.createdAt-a.createdAt});
+ var date=view.startsWith("day:")?view.slice(4):view==="today"?today():null;
+ if(date){
+  entries=entries.filter(function(e){return e.date===date});
+  var dayHeading=humanDay(date,{weekday:"long",month:"long",day:"numeric",year:"numeric"});
+  var createAction='<button class="button primary" data-act="journal-create-date" data-date="'+esc(date)+'" data-book="'+esc(bookId||state.ui.defaultJournalId)+'">'+ic("pen",15)+' Write entry</button>';
+  return pageHeader(dayHeading,book?objTitle(book):"All journals",createAction,"JOURNAL")+
+   (entries.length?entries.map(function(e){
+    return '<article class="journal-entry"><div class="entry-date">'+esc(objTitle(get(e.journalBookId)||{title:"Journal"}))+'</div>'+
+     '<h3>'+esc(e.title||"Journal entry")+'</h3><p>'+esc(trim(stripHtml(e.html),260))+'</p>'+
+     '<button class="panel-link" data-act="open" data-id="'+e.id+'" style="margin-top:10px">Open entry '+ic("chevron-right",12)+'</button></article>'
+   }).join(""):empty("book-open","No entry for this day","You can start writing for this date."))+
+   (!entries.length?"":'<div style="margin-top:13px">'+createAction+'</div>');
+ }
+ if(view.startsWith("month:"))entries=entries.filter(function(e){return monthKey(e.date)===view.slice(6)});
+ var title=view==="all"||view==="timeline"?"All entries":book?objTitle(book):"Journal";
+ if(view.startsWith("month:"))title=prettyMonth(view.slice(6));
+ return pageHeader(title,"Your days, collected automatically.",
+  '<button class="button" data-act="journal-today">'+ic("pen",15)+" Today's entry</button>","JOURNAL")+
+  (entries.length?entries.map(function(e){
+   return '<article class="journal-entry"><div class="entry-date">'+esc(humanDay(e.date,{weekday:"long",month:"long",day:"numeric",year:"numeric"}))+
+    (bookId?"":' · '+esc(objTitle(get(e.journalBookId)||{title:"Journal"})))+'</div>'+
+    '<h3>'+esc(e.title||"Journal entry")+'</h3>'+
+    '<p>'+esc(trim(stripHtml(e.html),260))+'</p>'+
+    '<button class="panel-link" data-act="open" data-id="'+e.id+'" style="margin-top:10px">Open entry '+ic("chevron-right",12)+'</button></article>'
+  }).join(""):empty("book-open","No entries yet","Your journal entries will appear here automatically."));
+}
 function calendarMonthHtml(key){
  var y=+key.slice(0,4),m=+key.slice(5,7)-1,first=new Date(y,m,1),start=first.getDay(),days=new Date(y,m+1,0).getDate(),events=list("event");
  var html='<div class="calendar-wrap"><div class="cal-head"><h2>'+esc(prettyMonth(key))+'</h2><div class="cal-nav"><button data-act="month-prev" aria-label="Previous month">'+ic("chevron-left",17)+'</button><button data-act="month-next" aria-label="Next month">'+ic("chevron-right",17)+'</button></div><button class="button" data-act="calendar-today">Today</button></div><div class="calendar-grid">';
@@ -826,7 +847,14 @@ function go(tool,view,stay){if(!stay&&state.ui.detailId){state.ui.detailId=null}
  save();paint();workspace.scrollTop=0}
 function openEntity(id){var e=get(id);if(!e)return;if(e.type==="area"){go("planner","area:"+e.id);return}if(e.type==="category"){go("planner","category:"+e.id);return}if(e.type==="journalbook"){go("journal","journalbook:"+e.id);return}if(state.ui.detailId&&state.ui.detailId!==id){state.ui.detailTrail=(state.ui.detailTrail||[]).concat(state.ui.detailId).slice(-15)}else if(!state.ui.detailId){state.ui.detailTrail=[];state.ui.lastTool=state.ui.tool;state.ui.lastView=state.ui.view}state.ui.detailId=id;addRecent(id);save();paint();workspace.scrollTop=0}
 function back(){if(state.ui.detailTrail&&state.ui.detailTrail.length){state.ui.detailId=state.ui.detailTrail.pop();save();paint();workspace.scrollTop=0;return}state.ui.detailId=null;state.ui.tool=state.ui.lastTool||state.ui.tool;state.ui.view=state.ui.lastView||state.ui.view;save();paint();workspace.scrollTop=0}
-function journalToday(){var j=list("journal").find(function(e){return e.date===today()});if(!j){j=ent("journal","",{date:today()});state.entities.unshift(j);save()}openEntity(j.id)}
+function journalToday(date,bookId){
+ var day=date||today(),active=state.ui.tool==="journal"?journalBookForView():null;
+ var journalId=bookId||active||state.ui.defaultJournalId;
+ var book=get(journalId);if(!book||book.trashed||book.type!=="journalbook")journalId=state.ui.defaultJournalId;
+ var j=list("journal").find(function(e){return e.date===day&&e.journalBookId===journalId});
+ if(!j){j=ent("journal","",{date:day,journalBookId:journalId});state.entities.unshift(j);save()}
+ openEntity(j.id)
+}
 function classifyUrl(url){
  var u=new URL(url),h=u.hostname.toLowerCase(),p=u.pathname.toLowerCase();
  if(/\.(png|jpg|jpeg|webp|gif|avif)$/i.test(p))return "image";
@@ -1150,6 +1178,10 @@ function onClick(ev){
  if(act==="rename-category"){openRenameCategory(id);return}
  if(act==="delete-category"){deleteCategory(id);return}
  if(act==="rename-area"){openRenameArea(id);return}
+ if(act==="journal-calendar-toggle"){state.ui.journalCalendarExpanded=!state.ui.journalCalendarExpanded;save();renderSidebar();return}
+ if(act==="journal-month-prev"||act==="journal-month-next"){state.ui.journalMonth=monthStep(state.ui.journalMonth||monthKey(today()),act==="journal-month-next"?1:-1);save();renderSidebar();return}
+ if(act==="journal-date"){var jd=b.getAttribute("data-date");if(!jd)return;state.ui.journalDayBookId=journalBookForView();state.ui.journalSelectedDate=jd;state.ui.journalMonth=monthKey(jd);go("journal","day:"+jd);return}
+ if(act==="journal-create-date"){journalToday(b.getAttribute("data-date"),b.getAttribute("data-book"));return}
  if(act==="journal-today"){journalToday();return}
  if(act==="search"){searchModal();return}
  if(act==="date"){state.ui.selectedDate=b.getAttribute("data-date");state.ui.month=monthKey(state.ui.selectedDate);go("calendar","month");return}
