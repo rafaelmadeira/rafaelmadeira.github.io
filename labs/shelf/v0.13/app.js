@@ -184,6 +184,79 @@ function prettyMonth(k){return new Date(k+"-15T12:00:00").toLocaleDateString("en
 function byRecent(a,b){return b.updatedAt-a.updatedAt}
 function byDue(a,b){return (a.dueDate||"9999").localeCompare(b.dueDate||"9999")||a.createdAt-b.createdAt}
 function addRecent(id){if(!id)return;state.ui.recent=[id].concat((state.ui.recent||[]).filter(function(x){return x!==id})).slice(0,12)}
+
+var QUICK_PAGES=[
+ {tool:"home",view:"today",label:"Desk · Today",icon:"sun"},
+ {tool:"home",view:"inbox",label:"Desk · Inbox",icon:"inbox"},
+ {tool:"calendar",view:"month",label:"Calendar · Month",icon:"calendar"},
+ {tool:"calendar",view:"upcoming",label:"Calendar · Upcoming",icon:"calendar-days"},
+ {tool:"planner",view:"today",label:"Planner · Today",icon:"sun"},
+ {tool:"planner",view:"inbox",label:"Planner · Inbox",icon:"inbox"},
+ {tool:"planner",view:"upcoming",label:"Planner · Upcoming",icon:"calendar-days"},
+ {tool:"planner",view:"projects",label:"All projects",icon:"clipboard"},
+ {tool:"planner",view:"all",label:"All tasks",icon:"check-circle"},
+ {tool:"notebooks",view:"all",label:"All notes",icon:"notebook"},
+ {tool:"library",view:"bookmarks",label:"Bookmarks",icon:"bookmark"},
+ {tool:"library",view:"all",label:"Library · All items",icon:"library"},
+ {tool:"journal",view:"today",label:"Today's journal",icon:"book-open"},
+ {tool:"journal",view:"timeline",label:"Journal timeline",icon:"clock"}
+];
+function quickKey(q){return q.kind==="entity"?"entity:"+q.id:"view:"+q.tool+":"+q.view}
+function quickHas(q){return (state.ui.quickAccess||[]).some(function(x){return quickKey(x)===quickKey(q)})}
+function quickVisible(q){
+ if(q.kind==="entity"){var e=get(q.id);return !!(e&&!e.trashed&&!e.archived)}
+ return q.kind==="view"&&TOOLS.some(function(t){return t.id===q.tool})&&typeof q.view==="string"&&q.view.length>0
+}
+function quickItem(q){
+ if(q.kind==="entity"){
+  var e=get(q.id);
+  return e?{key:quickKey(q),label:objTitle(e),desc:typeName(e.type),icon:e.type==="area"?areaIcon(e):typeIcon(e)}:null
+ }
+ var p=QUICK_PAGES.find(function(x){return x.tool===q.tool&&x.view===q.view});
+ if(p)return {key:quickKey(q),label:p.label,desc:TOOLS.find(function(x){return x.id===q.tool}).name,icon:p.icon};
+ if(q.tool==="planner"&&q.view.startsWith("area:")){
+  var area=get(q.view.slice(5));if(area)return {key:quickKey(q),label:objTitle(area),desc:"Planner · Area",icon:areaIcon(area)}
+ }
+ if(q.tool==="notebooks"&&q.view.startsWith("book:")){
+  var book=get(q.view.slice(5));if(book)return {key:quickKey(q),label:objTitle(book),desc:"Notebook",icon:"notebook"}
+ }
+ if(q.tool==="library"&&q.view.startsWith("folder:")){
+  var folder=get(q.view.slice(7));if(folder)return {key:quickKey(q),label:objTitle(folder),desc:"Collection",icon:"folder"}
+ }
+ return {key:quickKey(q),label:q.view.replace(/[-:]/g," "),desc:q.tool,icon:"layers"}
+}
+function quickList(){return (state.ui.quickAccess||[]).filter(quickVisible).map(function(q){return {ref:q,item:quickItem(q)}}).filter(function(x){return x.item}).slice(0,80)}
+function quickAdd(q){
+ if(!q||!quickVisible(q)||quickHas(q))return false;
+ state.ui.quickAccess.push(q);save();return true
+}
+function quickRemove(key){state.ui.quickAccess=state.ui.quickAccess.filter(function(q){return quickKey(q)!==key});save()}
+function quickReorder(key,target){
+ var arr=state.ui.quickAccess,from=arr.findIndex(function(q){return quickKey(q)===key});
+ var to=arr.findIndex(function(q){return quickKey(q)===target});
+ if(from<0||to<0||from===to)return false;
+ var entry=arr.splice(from,1)[0];arr.splice(to,0,entry);save();return true
+}
+function quickMove(key,by){
+ var arr=state.ui.quickAccess,i=arr.findIndex(function(q){return quickKey(q)===key});
+ if(i<0||i+by<0||i+by>=arr.length)return false;
+ var entry=arr.splice(i,1)[0];arr.splice(i+by,0,entry);save();return true
+}
+function quickRef(key){return (state.ui.quickAccess||[]).find(function(q){return quickKey(q)===key})}
+function quickOpen(key){var q=quickRef(key);if(!q||!quickVisible(q))return;if(q.kind==="entity")openEntity(q.id);else go(q.tool,q.view)}
+function quickRow(q,idx){
+ var info=quickItem(q),key=quickKey(q);
+ if(!info)return "";
+ return '<div class="quick-row" draggable="true" data-quick-drag="'+esc(key)+'" data-quick-drop="'+esc(key)+'">'+
+ '<button class="sb-row quick-link" data-act="quick-open" data-key="'+esc(key)+'" title="'+esc(info.label+' · '+info.desc)+'" aria-label="'+esc(info.label)+'">'+
+ '<span class="sb-ico">'+ic(info.icon,16)+'</span><span class="label">'+esc(info.label)+'</span></button>'+
+ '<span class="quick-controls">'+
+ '<button class="quick-control" data-act="quick-move" data-key="'+esc(key)+'" data-dir="-1" title="Move shortcut up" aria-label="Move '+esc(info.label)+' up"'+(idx===0?' disabled':'')+'>'+ic("chevron-up",12)+'</button>'+
+ '<button class="quick-control" data-act="quick-move" data-key="'+esc(key)+'" data-dir="1" title="Move shortcut down" aria-label="Move '+esc(info.label)+' down"'+(idx===state.ui.quickAccess.length-1?' disabled':'')+'>'+ic("chevron-down",12)+'</button>'+
+ '<button class="quick-control remove" data-act="quick-remove" data-key="'+esc(key)+'" title="Remove shortcut (original stays)" aria-label="Remove '+esc(info.label)+' shortcut">'+ic("x",12)+'</button>'+
+ '</span></div>'
+}
+
 function buttonIcon(name){return ic(name,17)}
 function getAllSearchable(){return list().filter(function(x){return x.type!=="folder"&&x.type!=="notebook"})}
 function searchMatch(e,q){q=(q||"").toLowerCase().trim();if(!q)return true;var txt=[e.title,e.body,stripHtml(e.html),e.url,e.fileName,contextName(e),(e.tags||[]).join(" ")].join(" ").toLowerCase();return q.split(/\s+/).every(function(w){return txt.includes(w)})}
@@ -207,10 +280,10 @@ function miniCalendar(){
 function renderSidebar(){
  var t=state.ui.tool,html='<div class="sb-head"><h2>'+esc((TOOLS.find(function(x){return x.id===t})||TOOLS[0]).name)+'</h2><button data-act="create-primary" title="New in '+esc(t)+'">'+ic("plus",18)+'</button></div><div class="sb-scroll">';
  if(t==="home"){
-  html+=sr("Today","today","sun")+sr("Inbox","inbox","inbox",{count:list("task").filter(function(x){return !x.dueDate&&!x.completed}).length})+sr("Recent","recent","clock")+sr("Starred","starred","star");
-  html+=sh("Working on");
-  var recent=(state.ui.recent||[]).map(get).filter(function(e){return e&&!e.archived&&!e.trashed}).slice(0,6);
-  html+=recent.map(function(e){return '<button class="sb-row" data-act="open" data-id="'+e.id+'"><span class="sb-ico">'+ic(typeIcon(e),16)+'</span><span class="label">'+esc(objTitle(e))+'</span></button>'}).join("")||'<div class="sidebar-empty">Open anything to see it here</div>';
+  html+=sr("Today","today","sun")+sr("Inbox","inbox","inbox",{count:inboxCount()})+sr("Recent","recent","clock")+sr("Starred","starred","star");
+  html+='<div class="sb-section-heading"><span>Quick Access</span><button data-act="quick-add" title="Add a shortcut to Desk" aria-label="Add Quick Access shortcut">'+ic("plus",15)+'</button></div>';
+  var quicks=quickList();
+  html+=quicks.length?quicks.map(function(x,i){return quickRow(x.ref,i)}).join(""):'<div class="sidebar-empty quick-empty">Keep your favorite destinations here.<br><button data-act="quick-add">+ Add shortcut</button></div>';
  }
  if(t==="journal"){
   html+=sr("Today's entry","today","sun")+sr("Timeline","timeline","clock");
@@ -227,7 +300,7 @@ function renderSidebar(){
  if(t==="planner"){
   var tasks=list("task");
   html+=sr("Today","today","sun",{count:tasks.filter(function(x){return !x.completed&&x.dueDate&&x.dueDate<=today()}).length});
-  html+=sr("Inbox","inbox","inbox",{count:tasks.filter(function(x){return !x.completed&&!x.dueDate}).length});
+  html+=sr("Inbox","inbox","inbox",{count:inboxCount()});
   html+=sr("Upcoming","upcoming","calendar-days");
   html+=sr("All tasks","all","check-circle",{count:tasks.length});
   html+=sr("All projects","projects","clipboard",{count:count("project")});
@@ -293,7 +366,7 @@ function resourceCard(e){
 function contextBreadcrumb(e){var p=sources(e);return p.map(function(x){return '<button data-act="open" data-id="'+x.id+'">'+esc(objTitle(x))+'</button>'}).join(' <span style="color:#acb7ba"> / </span> ')}
 function renderHome(){
  var view=state.ui.view,tasks=list("task"),events=list("event");
- if(view==="inbox"){var inbox=tasks.filter(function(e){return !e.completed&&!e.dueDate});return pageHeader("Inbox","Tasks without a scheduled date.",'<button class="button primary" data-act="create" data-type="task">'+ic("plus",15)+' New task</button>',"DESK")+ (inbox.length?rows(inbox,taskRow):empty("inbox","Your inbox is clear","New tasks without a date will appear here."))}
+ if(view==="inbox"){var inbox=tasks.filter(inInbox);return pageHeader("Inbox","Tasks waiting to be processed.",'<button class="button primary" data-act="create" data-type="task">'+ic("plus",15)+' New task</button>',"DESK")+ (inbox.length?rows(inbox,taskRow):empty("inbox","Your inbox is clear","Captured tasks waiting for a decision will appear here."))}
  if(view==="recent"){var all=(state.ui.recent||[]).map(get).filter(function(e){return e&&!e.trashed&&!e.archived});return pageHeader("Recently opened","Jump back into the things you've been working on.","","DESK")+(all.length?rows(all,contextRow):empty("clock","Nothing opened yet","Open an event, note, or project to see it here."))}
  if(view==="starred"){var stars=list().filter(function(e){return e.starred});return pageHeader("Starred","Things you keep close.","","DESK")+(stars.length?'<div class="card-grid">'+stars.map(entityCard).join("")+'</div>':empty("star","Nothing starred yet","Star items from their detail pages."))}
  var d=today(),due=tasks.filter(function(e){return !e.completed&&e.dueDate&&e.dueDate<=d}).sort(byDue);
@@ -374,7 +447,7 @@ function renderPlanner(){
  if(view.startsWith("area:"))return renderArea(get(view.slice(5)));
  if(view==="projects")return renderAllProjects();
  if(view==="today")items=all.filter(function(e){return !e.completed&&e.dueDate&&e.dueDate<=today()}).sort(byDue);
- else if(view==="inbox")items=all.filter(function(e){return !e.completed&&!e.dueDate});
+ else if(view==="inbox")items=all.filter(inInbox);
  else if(view==="upcoming")items=all.filter(function(e){return !e.completed&&e.dueDate>today()}).sort(byDue);
  else if(view==="completed")items=all.filter(function(e){return e.completed}).sort(byRecent);
  else items=all.sort(byRecent);
