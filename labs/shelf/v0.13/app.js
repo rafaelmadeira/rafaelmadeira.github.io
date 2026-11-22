@@ -153,7 +153,7 @@ ensureV13();
 var $=function(id){return document.getElementById(id)};
 var rail=$("toolrail"),sidebar=$("sidebar"),workspace=$("workspace"),modalRoot=$("modal-root"),toastEl=$("toast");
 var activeComposer="auto",composerFor=null,composerText="",modalState=null,uploadContext=null,mediaUrls=[],toastTimer=null;
-var lastToolView=null,workingSearch="",draggingAreaItem=null;
+var lastToolView=null,workingSearch="",draggingAreaItem=null,draggingQuickKey=null;
 function get(id){return state.entities.find(function(x){return x.id===id})}
 function list(type,includeHidden){return state.entities.filter(function(x){return (!type||x.type===type)&&(includeHidden||(!x.archived&&!x.trashed))})}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){toast("Cannot save: browser storage may be full. Export a backup.")}}
@@ -878,6 +878,17 @@ function monthMove(dir){state.ui.month=monthStep(state.ui.month||monthKey(today(
 function onClick(ev){
  var b=ev.target.closest("[data-act]");if(!b)return;
  var act=b.getAttribute("data-act"),id=b.getAttribute("data-id"),type=b.getAttribute("data-type"),ctx=b.getAttribute("data-context"),view=b.getAttribute("data-view"),tool=b.getAttribute("data-tool"),current=get(id);
+ if(act==="quick-add"){openQuickAdd();return}
+ if(act==="quick-open"){quickOpen(b.getAttribute("data-key"));return}
+ if(act==="quick-remove"){quickRemove(b.getAttribute("data-key"));paint();toast("Shortcut removed · original item kept");return}
+ if(act==="quick-move"){if(quickMove(b.getAttribute("data-key"),Number(b.getAttribute("data-dir")))){paint()}return}
+ if(act==="quick-pin-current"){quickToggleCurrent();return}
+ if(act==="quick-toggle-entity"){quickToggleEntity(id);return}
+ if(act==="quick-pin-choice"){
+  var q=b.getAttribute("data-kind")==="entity"?{kind:"entity",id:id}:{kind:"view",tool:tool,view:view};
+  if(quickAdd(q)){renderSidebar();renderWorkspace();updateQuickResults($("quick-search")?$("quick-search").value:"");toast("Added to Desk Quick Access")}
+  return
+ }
  if(act==="tool"){go(tool);return}
  if(act==="navigate"){go(tool||state.ui.tool,view);return}
  if(act==="open"){closeModal();openEntity(id);return}
@@ -936,6 +947,7 @@ document.addEventListener("click",onClick);
 document.addEventListener("submit",function(ev){if(ev.target.id==="create-form"){ev.preventDefault();submitCreate()}else if(ev.target.id==="rename-area-form"){ev.preventDefault();submitRenameArea()}});
 document.addEventListener("input",function(ev){
  var el=ev.target;
+ if(el.id==="quick-search"){updateQuickResults(el.value);return}
  if(el.id==="global-search"){updateSearchResults(el.value);return}
  if(el.id==="attach-search"){updateAttachResults(el.value);return}
  if(el.id==="rich-content"){applyRichEdit();return}
@@ -960,6 +972,26 @@ document.addEventListener("paste",function(ev){
 });
 $("upload-input").addEventListener("change",function(){handleUpload(this.files);this.value=""});
 $("backup-input").addEventListener("change",function(){if(this.files[0])importAll(this.files[0]);this.value=""});
+document.addEventListener("dragstart",function(ev){
+ var item=ev.target.closest("[data-quick-drag]");if(!item)return;
+ draggingQuickKey=item.getAttribute("data-quick-drag");
+ if(ev.dataTransfer){ev.dataTransfer.effectAllowed="move";ev.dataTransfer.setData("text/plain",draggingQuickKey)}
+});
+document.addEventListener("dragend",function(){draggingQuickKey=null;document.querySelectorAll(".quick-over").forEach(function(x){x.classList.remove("quick-over")})});
+document.addEventListener("dragover",function(ev){
+ var target=ev.target.closest("[data-quick-drop]");if(!target||!draggingQuickKey)return;
+ ev.preventDefault();if(ev.dataTransfer)ev.dataTransfer.dropEffect="move";
+ target.classList.add("quick-over")
+});
+document.addEventListener("dragleave",function(ev){
+ var target=ev.target.closest("[data-quick-drop]");
+ if(target&&!target.contains(ev.relatedTarget))target.classList.remove("quick-over")
+});
+document.addEventListener("drop",function(ev){
+ var target=ev.target.closest("[data-quick-drop]");if(!target||!draggingQuickKey)return;
+ ev.preventDefault();quickReorder(draggingQuickKey,target.getAttribute("data-quick-drop"));
+ draggingQuickKey=null;paint()
+});
 document.addEventListener("dragstart",function(ev){
  var item=ev.target.closest("[data-area-drag]");if(!item)return;
  draggingAreaItem=item.getAttribute("data-area-drag");
