@@ -1206,7 +1206,7 @@ function renderHabits(){
  var out=pageHeader(v==="all"?"All habits":date===today()?"Habits · Today":"Habits · "+humanDay(date),
  "Check in with one click; no separate tasks to create.",
  '<button class="button primary" data-act="create" data-type="habit">'+ic("plus",15)+' Habit</button>',"HABITS");
- if(miniDateForTool("habits"))out+=calendarDateHeader("Habits",date,"Check-in history for this day","").replace(/<div class="page-header">[\s\S]*?<\/div><\/div>/,"");
+ if(miniDateForTool("habits"))out+='<div class="calendar-context-note">Viewing check-ins for '+esc(humanDay(date))+' · <button data-act="sidebar-mini-clear">Clear date</button></div>';
  return out+(items.length?'<div class="life-list">'+items.map(function(e){return habitRow(e,date)}).join("")+'</div>':
  empty("flame","No habits yet","Add a habit and start checking it off.","Add habit","habit"))
 }
@@ -1793,6 +1793,44 @@ function editField(target){
 function applyRichEdit(){var e=get(state.ui.detailId),el=$("rich-content");if(!e||!el)return;e.html=safeRich(el.innerHTML);e.body=stripHtml(e.html);touched(e)}
 function formatRich(command){var el=$("rich-content");if(!el)return;el.focus();document.execCommand(command,false,null);applyRichEdit()}
 function monthMove(dir){state.ui.month=monthStep(state.ui.month||monthKey(today()),dir);state.ui.selectedDate=state.ui.month+"-01";miniCalendarPreferences("calendar").month=state.ui.month;state.ui.detailId=null;save();paint()}
+function toggleHabit(id,date){
+ var e=get(id);if(!e||e.type!=="habit")return;
+ date=date||today();if(!Array.isArray(e.habitLog))e.habitLog=[];
+ if(e.frequency==="weekly"){
+  var d=new Date(date+"T12:00:00"),dow=d.getDay();d.setDate(d.getDate()-dow);
+  var start=ndate(d),end=offsetDay(start,6);
+  var found=e.habitLog.find(function(v){return v>=start&&v<=end});
+  if(found)e.habitLog=e.habitLog.filter(function(v){return v!==found});else e.habitLog.push(date)
+ }else if(e.habitLog.includes(date))e.habitLog=e.habitLog.filter(function(v){return v!==date});
+ else e.habitLog.push(date);
+ touched(e);paint();toast(habitDone(e,date)?"Habit checked off":"Check-in undone")
+}
+function routineStepAdd(id){
+ var e=get(id),el=$("routine-new-step");
+ if(!e||e.type!=="routine"||!el||!el.value.trim())return;
+ if(!Array.isArray(e.routineSteps))e.routineSteps=[];
+ e.routineSteps.push({id:uid(),text:el.value.trim().slice(0,300)});
+ touched(e);paint();toast("Step added")
+}
+function routineStepToggle(id,stepId,date){
+ var e=get(id);if(!e||e.type!=="routine"||!Array.isArray(e.routineSteps)||!e.routineSteps.some(function(x){return x.id===stepId}))return;
+ if(!e.routineLog||typeof e.routineLog!=="object")e.routineLog={};
+ date=date||today();var history=e.routineLog[date]||[];
+ e.routineLog[date]=history.includes(stepId)?history.filter(function(v){return v!==stepId}):history.concat(stepId);
+ touched(e);paint()
+}
+function routineStepRemove(id,stepId){
+ var e=get(id);if(!e||e.type!=="routine")return;
+ e.routineSteps=(e.routineSteps||[]).filter(function(x){return x.id!==stepId});
+ Object.keys(e.routineLog||{}).forEach(function(day){e.routineLog[day]=e.routineLog[day].filter(function(x){return x!==stepId})});
+ touched(e);paint()
+}
+function routineReset(id,date){
+ var e=get(id);if(!e||e.type!=="routine")return;
+ if(e.routineLog)delete e.routineLog[date||today()];
+ touched(e);paint();toast("Routine reset for this day")
+}
+
 function onClick(ev){
  var b=ev.target.closest("[data-act]");if(!b)return;
  var act=b.getAttribute("data-act"),id=b.getAttribute("data-id"),type=b.getAttribute("data-type"),ctx=b.getAttribute("data-context"),view=b.getAttribute("data-view"),tool=b.getAttribute("data-tool"),current=get(id);
@@ -1844,6 +1882,11 @@ function onClick(ev){
  if(act==="month-prev"){monthMove(-1);return}
  if(act==="month-next"){monthMove(1);return}
  if(act==="calendar-today"){state.ui.selectedDate=today();state.ui.month=monthKey(today());miniCalendarPreferences("calendar").month=state.ui.month;go("calendar","month");return}
+ if(act==="habit-toggle"){toggleHabit(id,b.getAttribute("data-date")||today());return}
+ if(act==="routine-step-add"){routineStepAdd(id);return}
+ if(act==="routine-step-toggle"){routineStepToggle(id,b.getAttribute("data-step"),b.getAttribute("data-date")||today());return}
+ if(act==="routine-step-remove"){routineStepRemove(id,b.getAttribute("data-step"));return}
+ if(act==="routine-reset"){routineReset(id,b.getAttribute("data-date")||today());return}
  if(act==="toggle-task"){toggleTask(id);return}
  if(act==="clear-inbox"){clearInbox(id);return}
  if(act==="mark-inbox"){markInbox(id);return}
@@ -1925,6 +1968,9 @@ document.addEventListener("keydown",function(ev){
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="global-search"&&target.value&&target.value.trim()){ev.preventDefault();universalSearchCreate("auto");return}
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="home-capture"){ev.preventDefault();captureSave(null);return}
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="global-capture"){ev.preventDefault();saveGlobalCapture();return}
+ if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="routine-new-step"){
+  ev.preventDefault();var current=get(state.ui.detailId);if(current)routineStepAdd(current.id);return
+ }
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="category-quick"){ev.preventDefault();var b=document.querySelector('[data-act="category-quick"]');if(b)b.click();return}
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="area-quick"){ev.preventDefault();var b=document.querySelector('[data-act="area-quick"]');if(b)b.click();return}
  if(ev.key==="Enter"&&!ev.shiftKey&&target.id==="planner-quick"){ev.preventDefault();var b=document.querySelector('[data-act="planner-quick"]');if(b)b.click();return}
