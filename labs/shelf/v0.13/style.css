@@ -363,3 +363,13 @@ svg{flex-shrink:0;vertical-align:middle}
 .sb-foot{padding:7px 9px 11px}
 .sb-foot small{padding:4px 9px 0}
 @media(max-height:555px){.toolrail{overflow-y:auto;scrollbar-width:none}.toolrail::-webkit-scrollbar{display:none}.rail-logo{margin-bottom:6px}.rail-item{min-height:51px}.rail-footer-tools .rail-bottom{min-height:47px}}
+
+/* Journal: contextual calendar lives at the bottom, independent of the scrolling journal list. */
+.journal-calendar-shell{flex:0 0 auto;min-width:0;max-height:min(345px,55dvh);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#e2e7e7 transparent;padding:7px 9px 2px}
+.journal-calendar-toggle{display:flex;align-items:center;gap:10px;width:100%;min-height:33px;border:0;background:transparent;color:#75868d;padding:7px 10px;border-radius:7px;text-align:left;font-size:12px;font-weight:600}
+.journal-calendar-toggle:hover{background:#ecefed;color:#426a80}
+.journal-calendar-toggle span{flex:1}
+.journal-calendar-toggle svg:last-child{color:#a0a9ab}
+.journal-mini-calendar{margin:5px 0 7px;padding:10px 8px 11px}
+.journal-mini-calendar .mini-grid button:focus-visible{outline:2px solid #80a9c1;outline-offset:-2px}
+@media(max-height:650px){.journal-calendar-shell{max-height:42dvh}.journal-mini-calendar .mini-grid button{height:23px}.journal-mini-calendar{padding:6px}}
