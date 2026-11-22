@@ -179,7 +179,7 @@ function inInbox(e){return e&&e.type==="task"&&!e.completed&&e.inbox===true}
 function inboxCount(){return list("task").filter(inInbox).length}
 function toast(s){toastEl.textContent=s;toastEl.classList.add("open");clearTimeout(toastTimer);toastTimer=setTimeout(function(){toastEl.classList.remove("open")},2800)}
 function typeIcon(e){if(!e)return "layers";if(e.type==="resource")return e.resourceKind==="image"?"image":e.resourceKind==="video"?"video":e.resourceKind==="link"?"link":"file";return {event:"calendar",task:"check-circle",note:"note",project:"clipboard",journal:"book-open",notebook:"notebook",folder:"folder",area:"layers"}[e.type]||"layers"}
-function typeName(type){return {event:"Event",task:"Task",note:"Note",resource:"Resource",project:"Project",journal:"Journal entry",notebook:"Notebook",folder:"Folder",area:"Area"}[type]||"Item"}
+function typeName(type){return {event:"Event",task:"Task",note:"Note",resource:"Resource",project:"Project",journal:"Journal entry",notebook:"Notebook",folder:"Collection",area:"Area"}[type]||"Item"}
 function objTitle(e){return e.title|| (e.type==="journal"?humanDay(e.date):e.fileName||hostname(e.url)||"Untitled")}
 function outOfDate(e){return !!(e.dueDate&&!e.completed&&e.dueDate<today())}
 function contextName(e){var p=sources(e);return p.length?p.map(function(x){return objTitle(x)}).join(" · "):""}
@@ -307,13 +307,14 @@ function renderSidebar(){
   html+=sr("Inbox","inbox","inbox",{count:inboxCount()});
   html+=sr("Upcoming","upcoming","calendar-days");
   html+=sr("All tasks","all","check-circle",{count:tasks.length});
-  html+=sr("All projects","projects","clipboard",{count:count("project")});
   html+=sr("Completed","completed","check");
   html+=sh("Areas","area");
   html+=list("area").map(function(a){
    var n=tasks.filter(function(e){return inArea(e,a)&&!e.completed}).length;
    return sr(objTitle(a),"area:"+a.id,areaIcon(a),{count:n,areaDrop:a.id})
   }).join("")||'<div class="sidebar-empty">Create your first area</div>';
+  html+=sh("Projects","project");
+  html+=sr("All projects","projects","clipboard",{count:count("project")});
  }
  if(t==="notebooks"){
   html+=sr("All notes","all","note",{count:list("note").length})+sr("Starred","starred","star");
@@ -327,9 +328,9 @@ function renderSidebar(){
  if(t==="library"){
   var rs=list("resource"),folders=list("folder");
   html+=sr("All items","all","library",{count:rs.length})+sr("Unsorted","unsorted","inbox",{count:rs.filter(function(x){return !x.folderId&&!meaningfulContext(x)&&!isBookmark(x)}).length})+sr("Bookmarks","bookmarks","bookmark",{count:rs.filter(isBookmark).length})+sr("Starred","starred","star");
-  html+=sh("Folders","folder");
-  html+=folders.map(function(f){return sr(objTitle(f),"folder:"+f.id,"folder",{count:rs.filter(function(r){return r.folderId===f.id}).length})}).join("")||'<div class="sidebar-empty">No folders yet</div>';
-  html+=sh("Collections");
+  html+=sh("Collections","folder");
+  html+=folders.map(function(f){return sr(objTitle(f),"folder:"+f.id,"folder",{count:rs.filter(function(r){return r.folderId===f.id}).length})}).join("")||'<div class="sidebar-empty">No collections yet</div>';
+  html+=sh("From other tools");
   html+=sr("From Calendar","from-events","calendar-days")+sr("From Planner","from-projects","clipboard");
   html+=sh("Filters");
   LIBRARY_TYPES.forEach(function(item){var n=rs.filter(function(r){return r.resourceKind===item.id}).length;if(n)html+=sr(item.name,"kind:"+item.id,item.icon,{count:n})});
@@ -507,8 +508,8 @@ function renderLibrary(){
  if(v==="archive"){title="Archive";sub="Out of sight, but not forgotten."}
  if(v==="trash"){title="Trash";sub="Restore or permanently remove an item."}
  if(v.startsWith("kind:")){var filter=LIBRARY_TYPES.find(function(x){return x.id===v.slice(5)});title=filter?filter.name:"Resources"}
- if(v.startsWith("folder:")){var f=get(v.slice(7));title=f?objTitle(f):"Folder"}
- var actions=(v==="trash"||v==="archive")?"":'<button class="button" data-act="create" data-type="folder">'+ic("folder",15)+' Folder</button><button class="button primary" data-act="create" data-type="resource">'+ic("plus",15)+' Save anything</button>';
+ if(v.startsWith("folder:")){var f=get(v.slice(7));title=f?objTitle(f):"Collection"}
+ var actions=(v==="trash"||v==="archive")?"":'<button class="button" data-act="create" data-type="folder">'+ic("folder",15)+' Collection</button><button class="button primary" data-act="create" data-type="resource">'+ic("plus",15)+' Save anything</button>';
  var folderView=v==="all"?list("folder").length?"<div class=\"card-grid\">"+list("folder").map(entityCard).join("")+"</div>":"":"";
  var normalCards=all.map(function(e){return e.type==="resource"?resourceCard(e):entityCard(e)}).join("");
  return pageHeader(title,sub,actions,"LIBRARY")+
@@ -552,7 +553,7 @@ function detailMain(e){
   parts+='<div class="context-actions"><button class="button" data-act="create" data-type="note" data-context="'+e.id+'">'+ic("plus",14)+' New note</button></div>';
  }else if(e.type==="folder"){
   var files=list("resource").filter(function(r){return r.folderId===e.id});
-  parts+=files.length?rows(files,resourceRow):empty("folder","Empty folder","Save or move resources here.");
+  parts+=files.length?rows(files,resourceRow):empty("folder","Empty collection","Save or add resources here.");
   parts+='<div class="context-actions"><button class="button" data-act="create" data-type="resource" data-context="'+e.id+'">'+ic("plus",14)+' Save resource</button></div>';
  }else{
   if(e.type==="project")parts+='<div class="detail-section"><h3>About this project</h3><textarea class="plain-editor" data-edit="body" placeholder="Context, current state, or anything useful…">'+esc(e.body)+'</textarea></div>';
@@ -858,12 +859,12 @@ async function handleUpload(files){
  save();closeModal();paint();toast(saved+" file"+(saved===1?"":"s")+" saved"+(context?" · linked to "+objTitle(context):"")+". Also in Library")}
 function toB64(b){return new Promise(function(resolve,reject){var reader=new FileReader();reader.onload=function(){resolve(String(reader.result).split(",")[1])};reader.onerror=reject;reader.readAsDataURL(b)})}
 function fromB64(data,mime){var raw=atob(data),chunks=[];for(var i=0;i<raw.length;i+=8192){var bit=raw.slice(i,i+8192),a=new Uint8Array(bit.length);for(var j=0;j<bit.length;j++)a[j]=bit.charCodeAt(j);chunks.push(a)}return new Blob(chunks,{type:mime||"application/octet-stream"})}
-async function exportAll(){try{var out={format:"shelf-v012",savedAt:new Date().toISOString(),data:state,files:[]};
+async function exportAll(){try{var out={format:"shelf-v013",savedAt:new Date().toISOString(),data:state,files:[]};
  var ids=Array.from(new Set(state.entities.map(function(e){return e.blobId}).filter(Boolean)));
  for(var id of ids){var b=await loadBlob(id);if(b)out.files.push({id:id,mime:b.type,data:await toB64(b)})}
- var url=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download="shelf-v012-backup-"+today()+".json";a.click();setTimeout(function(){URL.revokeObjectURL(url)},10000);toast("Backup exported")
+ var url=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download="shelf-v013-backup-"+today()+".json";a.click();setTimeout(function(){URL.revokeObjectURL(url)},10000);toast("Backup exported")
  }catch(err){toast("Export failed: "+err.message)}}
-async function importAll(file){try{var d=JSON.parse(await file.text());if(!d||!["shelf-v012","shelf-v011"].includes(d.format)||!d.data||!Array.isArray(d.data.entities))throw Error("Invalid Shelf backup");if(!confirm("Replace current v0.12 content with this backup?"))return;for(var f of d.files||[]){await storeBlob(f.id,fromB64(f.data,f.mime))}state=d.data;ensureAreas();state.ui.detailId=null;save();paint();toast("Backup restored")}catch(err){toast("Import failed: "+err.message)}}
+async function importAll(file){try{var d=JSON.parse(await file.text());if(!d||!["shelf-v013","shelf-v012","shelf-v011"].includes(d.format)||!d.data||!Array.isArray(d.data.entities))throw Error("Invalid Shelf backup");if(!confirm("Replace current v0.13 content with this backup?"))return;for(var f of d.files||[]){await storeBlob(f.id,fromB64(f.data,f.mime))}state=d.data;ensureAreas();state.ui=state.ui||seed().ui;ensureV13();state.ui.detailId=null;save();paint();toast("Backup restored")}catch(err){toast("Import failed: "+err.message)}}
 function assignArea(e,id){
  if(!e||!["task","project"].includes(e.type))return false;
  var next=id?get(id):null;if(id&&(!next||next.type!=="area"||next.trashed))return false;
