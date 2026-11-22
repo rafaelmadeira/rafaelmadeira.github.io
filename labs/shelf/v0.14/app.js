@@ -1018,7 +1018,7 @@ function detailMain(e){
   if(e.type==="habit"){
    var done=habitDone(e,today());
    parts+='<div class="habit-detail-check"><button class="habit-check'+(done?" done":"")+'" data-act="habit-toggle" data-id="'+esc(e.id)+'" data-date="'+today()+'">'+(done?ic("check",18):"")+'</button>'+
-   '<div><strong>'+(done?"Completed today":"Check in today")+'</strong><small>'+habitStreak(e)+'-day streak · '+(Array.isArray(e.habitLog)?e.habitLog.length:0)+' total check-ins</small></div></div>'+
+   '<div><strong>'+(done?"Completed today":"Check in today")+'</strong><small>'+habitStreak(e)+(e.frequency==="weekly"?"-week":"-day")+" streak · "+(Array.isArray(e.habitLog)?e.habitLog.length:0)+" total check-ins"+'</small></div></div>'+
    '<div class="detail-section"><h3>Notes</h3><textarea class="plain-editor" data-edit="body" placeholder="Make this habit easier to keep…">'+esc(e.body)+'</textarea></div>';
   }
   if(e.type==="routine")parts+=routineDetail(e);
@@ -1201,7 +1201,12 @@ function habitDone(e,date){
 }
 function habitStreak(e){
  var count=0;
- for(var k=0;k<365;k++){if(!habitDone(e,offsetDay(today(),-k)))break;count++}
+ if(e.frequency==="weekly"){
+  var d=new Date(today()+"T12:00:00");d.setDate(d.getDate()-d.getDay());
+  for(var k=0;k<52;k++){var key=ndate(d);if(!habitDone(e,key))break;count++;d.setDate(d.getDate()-7)}
+ }else{
+  for(var j=0;j<365;j++){if(!habitDone(e,offsetDay(today(),-j)))break;count++}
+ }
  return count
 }
 function habitRow(e,date){
@@ -1211,7 +1216,7 @@ function habitRow(e,date){
  (complete?ic("check",18):"")+'</button>'+
  '<button class="life-row-main" data-act="open" data-id="'+esc(e.id)+'"><strong>'+esc(objTitle(e))+'</strong>'+
  '<small>'+esc(e.frequency==="weekly"?"Once a week":"Every day")+'</small></button>'+
- '<span class="life-row-stat">'+(complete?"Done":habitStreak(e)+" day streak")+'</span></div>'
+ '<span class="life-row-stat">'+(complete?"Done":habitStreak(e)+(e.frequency==="weekly"?" week":" day")+" streak")+'</span></div>'
 }
 function renderHabits(){
  var v=state.ui.view||"today",date=miniDateForTool("habits")||today(),items=list("habit").sort(byRecent);
@@ -1222,8 +1227,16 @@ function renderHabits(){
  return out+(items.length?'<div class="life-list">'+items.map(function(e){return habitRow(e,date)}).join("")+'</div>':
  empty("flame","No habits yet","Add a habit and start checking it off.","Add habit","habit"))
 }
+function routineRunKey(e,date){
+ date=date||today();
+ if(e&&e.frequency==="weekly"){
+  var d=new Date(date+"T12:00:00");d.setDate(d.getDate()-d.getDay());return ndate(d)
+ }
+ return date
+}
 function routineStepsForDate(e,date){
- return e.routineLog&&Array.isArray(e.routineLog[date])?e.routineLog[date]:[]
+ var key=routineRunKey(e,date);
+ return e.routineLog&&Array.isArray(e.routineLog[key])?e.routineLog[key]:[]
 }
 function routineItemRow(e,date){
  var steps=Array.isArray(e.routineSteps)?e.routineSteps:[],done=routineStepsForDate(e,date).length;
@@ -1833,7 +1846,7 @@ function routineStepAdd(id){
 function routineStepToggle(id,stepId,date){
  var e=get(id);if(!e||e.type!=="routine"||!Array.isArray(e.routineSteps)||!e.routineSteps.some(function(x){return x.id===stepId}))return;
  if(!e.routineLog||typeof e.routineLog!=="object")e.routineLog={};
- date=date||today();var history=e.routineLog[date]||[];
+ date=routineRunKey(e,date);var history=e.routineLog[date]||[];
  e.routineLog[date]=history.includes(stepId)?history.filter(function(v){return v!==stepId}):history.concat(stepId);
  touched(e);paint()
 }
@@ -1845,7 +1858,7 @@ function routineStepRemove(id,stepId){
 }
 function routineReset(id,date){
  var e=get(id);if(!e||e.type!=="routine")return;
- if(e.routineLog)delete e.routineLog[date||today()];
+ if(e.routineLog)delete e.routineLog[routineRunKey(e,date)];
  touched(e);paint();toast("Routine reset for this day")
 }
 
