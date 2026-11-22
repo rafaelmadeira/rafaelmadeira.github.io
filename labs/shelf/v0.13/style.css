@@ -296,3 +296,37 @@ svg{flex-shrink:0;vertical-align:middle}
 .sb-row[data-area-drop].area-drop-hover{background:#dcecf4;color:#275f7e;outline:2px dashed #7cafc5;outline-offset:-2px}
 .task-row[draggable="true"],.item-card[draggable="true"]{cursor:grab}
 .task-row[draggable="true"]:active,.item-card[draggable="true"]:active{cursor:grabbing}
+
+/* v0.13: Desktop quick access. Shortcuts remain separate from Recent and Starred. */
+.quick-row{position:relative;display:flex;align-items:center;min-height:35px;border-radius:7px;transition:background .12s ease}
+.quick-row .quick-link{padding-right:12px;flex:1;min-width:0}
+.quick-row:hover{background:#ecefed}
+.quick-row:hover .quick-link{background:transparent}
+.quick-row:focus-within{background:#edf1f2}
+.quick-controls{position:absolute;right:3px;top:50%;transform:translateY(-50%);display:flex;gap:0;align-items:center;opacity:0;pointer-events:none;background:linear-gradient(90deg,#f8f8f600,#ecefed 17%);padding-left:10px;border-radius:6px;transition:opacity .1s ease}
+.quick-row:hover .quick-controls,.quick-row:focus-within .quick-controls{opacity:1;pointer-events:auto}
+.quick-control{width:21px;height:23px;background:transparent;border:0;border-radius:5px;color:#849197;display:grid;place-items:center;padding:2px}
+.quick-control:hover{background:#e0e9ee;color:#42728d}
+.quick-control.remove:hover{background:#f4e6e2;color:#a05f52}
+.quick-control:disabled{opacity:.25}
+.quick-row.quick-over{background:#e4eef3;outline:1px dashed #7eabbf;outline-offset:-2px}
+.quick-row[draggable="true"]{cursor:grab}
+.quick-row[draggable="true"]:active{cursor:grabbing}
+.quick-empty{font-size:11px;line-height:1.6;padding:7px 11px 10px;color:#a0abad}
+.quick-empty button{font-size:11px;background:none;border:0;padding:5px 0 0;color:#5a8198;font-weight:650}
+.quick-empty button:hover{text-decoration:underline}
+.quick-search-field{display:flex;align-items:center;gap:10px;border:1px solid #e1e9e9;border-radius:9px;padding:6px 11px;margin:8px 0 14px;color:#8e9b9f}
+.quick-search-field:focus-within{border-color:#95bed2;background:#fbfdfe}
+.quick-search-field input{border:0;outline:none;width:100%;padding:7px 1px;font-size:12.5px;color:#34454c;background:none}
+.quick-search-field input::placeholder{color:#a8b1b4}
+.quick-search-results{max-height:440px}
+.quick-results-heading{color:#a5afb1;font-size:10px;letter-spacing:.09em;font-weight:750;padding:17px 3px 5px}
+.quick-results-heading:first-child{padding-top:3px}
+.quick-candidate{border-radius:7px;border-bottom:0}
+.quick-candidate:hover{background:#eef5f8}
+.quick-result-add{color:#86a1af}
+.quick-pinned{color:#377a9d!important;background:#edf5f9!important}
+.task-inbox-clear{font-size:10px;padding:5px 8px;color:#668696;border-color:#e4edee}
+.task-inbox-clear:hover{color:#376e8a}
+@media (hover:none){.quick-controls{opacity:1;pointer-events:auto}.quick-row .quick-link{padding-right:64px}}
+@media (max-width:680px){.quick-controls{right:1px}.quick-control{width:17px}.quick-empty{padding-left:5px}.quick-row .quick-link{padding-right:60px}}
