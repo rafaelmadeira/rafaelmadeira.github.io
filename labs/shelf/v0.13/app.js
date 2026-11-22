@@ -49,6 +49,10 @@ var ICONS={
  'chevron-right':'<path d="m9 5 7 7-7 7"/>',
  arrow:'<path d="M19 12H5m7-7-7 7 7 7"/>',
  more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+ pin:'<path d="m16 3 5 5-3 1-3 4 1 4-4 1-6-6 1-4 4 1 3-3zM9 15 3 21"/>',
+ pinfill:'<path d="m16 3 5 5-3 1-3 4 1 4-4 1-6-6 1-4 4 1 3-3zM9 15 3 21" fill="currentColor" stroke="currentColor"/>',
+ 'chevron-up':'<path d="m5 15 7-7 7 7"/>',
+ 'chevron-down':'<path d="m5 9 7 7 7-7"/>',
  x:'<path d="M5 5 19 19M19 5 5 19"/>',
  bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 9H3c0-1 3-2 3-9M10 21h4"/>',
  hash:'<path d="M10 3 7 21M17 3l-3 18M4 9h16M3 16h16"/>',
@@ -336,6 +340,7 @@ function renderSidebar(){
 function topbar(){
  var focus=isFocusValid();
  return '<div class="topbar"><button class="search-trigger" data-act="search" title="Search everything">'+ic("search",18)+'<span>Search anything…</span><small class="kbd">/</small></button><div class="topbar-spacer"></div>'+
+ (!state.ui.detailId&&state.ui.tool!=="home"?'<button class="icon-button'+(quickHas({kind:"view",tool:state.ui.tool,view:state.ui.view})?' quick-pinned':'')+'" data-act="quick-pin-current" title="'+(quickHas({kind:"view",tool:state.ui.tool,view:state.ui.view})?'Remove page from Desk':'Pin this page to Desk')+'" aria-label="Pin or unpin current page in Quick Access">'+ic(quickHas({kind:"view",tool:state.ui.tool,view:state.ui.view})?"pinfill":"pin",17)+'</button>':"")+
  (focus?'<div class="context-pill" title="New items can be linked to this context">'+ic("layers",13)+'<span class="context-name">'+esc(objTitle(focus))+'</span><button data-act="clear-focus" title="Stop using this context">'+ic("x",13)+'</button></div>':"")+
  '<button class="top-new" data-act="new-menu">'+ic("plus",16)+' New</button><span class="top-avatar" title="Local prototype">'+ic("layers",16)+'</span></div>'
 }
@@ -422,7 +427,8 @@ function renderArea(area){
  var tasks=list("task").filter(function(e){return inArea(e,area)}).sort(byDue);
  var direct=tasks.filter(function(e){return !projectOf(e)}),within=tasks.filter(function(e){return !!projectOf(e)});
  var pending=tasks.filter(function(t){return !t.completed}).length;
- var actions='<button class="button" data-act="rename-area" data-id="'+esc(area.id)+'">'+ic("pen",15)+' Rename</button>'+
+ var actions='<button class="button" data-act="quick-toggle-entity" data-id="'+esc(area.id)+'">'+ic(quickHas({kind:"entity",id:area.id})?"pinfill":"pin",15)+' '+(quickHas({kind:"entity",id:area.id})?"Unpin from Desk":"Pin to Desk")+'</button>'+
+ '<button class="button" data-act="rename-area" data-id="'+esc(area.id)+'">'+ic("pen",15)+' Rename</button>'+
  '<button class="button" data-act="create" data-type="project" data-context="'+esc(area.id)+'">'+ic("plus",15)+' Project</button>'+
  '<button class="button primary" data-act="create" data-type="task" data-context="'+esc(area.id)+'">'+ic("plus",15)+' Task</button>';
  var overview='<div class="area-summary"><span>'+ic("folder",15)+' '+projects.length+' project'+(projects.length===1?"":"s")+'</span><span>'+ic("check-circle",15)+' '+pending+' open task'+(pending===1?"":"s")+'</span></div>';
@@ -614,6 +620,7 @@ function renderDetail(e){
  '<div class="'+(e.type==="task"?"check-title":"")+'">'+(e.type==="task"?'<button class="task-check'+(e.completed?" checked":"")+'" data-act="toggle-task" data-id="'+e.id+'">'+(e.completed?ic("check",16):"")+'</button>':"")+
  '<input id="detail-title" class="detail-title-input" data-edit="title" aria-label="Title" value="'+esc(e.title)+'" placeholder="'+(e.type==="journal"?humanDay(e.date):"Untitled")+'"></div></div>'+
  '<div class="detail-actions"><button class="icon-button'+(e.starred?" active":"")+'" data-act="toggle-star" data-id="'+e.id+'" title="'+(e.starred?"Unstar":"Star")+'">'+ic(e.starred?"starfill":"star",17)+'</button>'+
+ '<button class="icon-button'+(quickHas({kind:"entity",id:e.id})?' quick-pinned':'')+'" data-act="quick-toggle-entity" data-id="'+e.id+'" title="'+(quickHas({kind:"entity",id:e.id})?'Remove from Desk Quick Access':'Pin to Desk Quick Access')+'" aria-label="Pin or unpin in Desk">'+ic(quickHas({kind:"entity",id:e.id})?"pinfill":"pin",17)+'</button>'+
  '<button class="icon-button'+(state.ui.focusId===e.id?" active":"")+'" data-act="focus-context" data-id="'+e.id+'" title="Work in this context">'+ic("layers",17)+'</button>'+
  '<button class="icon-button" data-act="detail-menu" data-id="'+e.id+'" title="More options">'+ic("more",19)+'</button></div></div>';
  var related=relatedSection(e),showCapture=["event","project","task","note","resource","journal"].includes(e.type);
@@ -768,6 +775,7 @@ function detailsMenu(e){
  modalState={mode:"options",id:e.id};
  openModal('<div class="modal-header"><h2>'+esc(objTitle(e))+'</h2><button class="icon-button" data-act="modal-close">'+ic("x",19)+'</button></div><div class="modal-scroll"><div class="menu-list">'+
  '<button class="menu-choice" data-act="toggle-star" data-id="'+e.id+'">'+ic("star",19)+'<span>'+(e.starred?"Remove star":"Star this item")+'</span></button>'+
+ '<button class="menu-choice" data-act="quick-toggle-entity" data-id="'+e.id+'">'+ic("pin",19)+'<span>'+(quickHas({kind:"entity",id:e.id})?"Remove from Desk Quick Access":"Pin to Desk")+'</span></button>'+
  '<button class="menu-choice" data-act="focus-context" data-id="'+e.id+'">'+ic("layers",19)+'<span>'+(state.ui.focusId===e.id?"Stop working here":"Work in this context")+'</span></button>'+
  '<button class="menu-choice" data-act="attach-existing" data-context="'+e.id+'">'+ic("link",19)+'<span>Link an existing item</span></button>'+
  '<button class="menu-choice" data-act="archive-item" data-id="'+e.id+'">'+ic("archive",19)+'<span>'+(e.archived?"Restore from archive":"Archive")+'</span></button>'+
