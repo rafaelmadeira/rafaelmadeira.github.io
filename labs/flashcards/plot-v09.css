@@ -1,0 +1,192 @@
+/* Flashcards Lab v0.9 — encounter history + emoji plots and manual harvesting. */
+
+/* Library: up to 100 cards in a stable-height plot preview. */
+.v09-deck{min-height:492px;padding:22px 23px 19px}
+.v09-deck .deck-card-top{margin-bottom:17px}
+.v09-deck .deck-symbol{width:43px;height:43px;font:26px/1 sans-serif;background:#eff3e8;border:1px solid #e1e9d9}
+.v09-deck h3{font-size:21px;line-height:1.2;min-height:49px;margin:0 0 9px}
+.v09-deck .deck-description{font-size:12px;line-height:1.55;min-height:39px;margin:0 0 17px}
+.plot-preview-shell{height:194px;display:flex;align-items:flex-start;justify-content:flex-start;position:relative;overflow:hidden;border:1px solid #e4e7db;border-radius:10px;background:repeating-linear-gradient(0deg,#f9faf5,#f9faf5 22px,#f5f6f0 23px);padding:10px;margin-bottom:11px}
+.plot-preview{position:relative;display:grid;grid-template-columns:repeat(10,16px);grid-auto-rows:16px;gap:2px;align-content:start;width:178px}
+.plot-tile{appearance:none;display:grid;place-items:center;border:1px solid rgba(72,95,73,.12);border-radius:5px;padding:0;aspect-ratio:1;background:#e9ece7;color:#334d32;font-family:"Segoe UI Emoji","Apple Color Emoji",sans-serif;line-height:1;flex:none;user-select:none;transition:background .2s ease,transform .18s,box-shadow .18s;outline-offset:2px}
+.plot-tile:disabled{opacity:1;cursor:default}
+.plot-tile.stage-empty{background:#e8ecee;border-color:#e3e8e8}
+.plot-tile.stage-budding{background:#e6efdd;font-size:18px}
+.plot-tile.stage-growing{background:#e0ecd9;font-size:15px;color:#87a487;opacity:.62}
+.plot-tile.stage-mature{background:#cfe5be;font-size:24px;border-color:#b6d4a4;cursor:pointer}
+.plot-tile.stage-mature:not(:disabled):hover{transform:scale(1.12);background:#bfe4a8;box-shadow:0 2px 10px rgba(60,110,51,.2);z-index:2}
+.plot-tile.preview-tile{width:16px;height:16px;border-radius:3px;pointer-events:none}
+.plot-tile.preview-tile.stage-budding{font-size:11px}
+.plot-tile.preview-tile.stage-growing{font-size:9px}
+.plot-tile.preview-tile.stage-mature{font-size:15px}
+.preview-critter{position:absolute;left:6%;top:68px;font-size:13px;pointer-events:none;animation:plotWalk 8.7s ease-in-out infinite alternate;filter:drop-shadow(0 1px 1px #9baa86)}
+@keyframes plotWalk{from{transform:translateX(0)}to{transform:translateX(121px)}}
+.preview-statline{display:flex;justify-content:space-between;gap:8px;color:#8c9386;font-size:10px;line-height:1.5;margin-bottom:17px}
+.preview-statline strong{color:#487a49}
+.plot-preview-actions{display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:center}
+.plot-open-link{appearance:none;border:1px solid #d2ded0;background:#fafcf8;color:#436545;border-radius:8px;font-size:11px;font-weight:700;padding:12px 11px;white-space:nowrap}
+.plot-open-link:hover{background:#eaf0e4}
+.plot-preview-actions .deck-play-button{padding:12px 7px;font-size:11px;min-width:0}
+.preview-due{display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid #e8ebe5;margin-top:13px;padding-top:12px;color:#81897d;font-size:11px}
+.preview-due strong{color:#547a4d}
+.preview-due span{font:700 9px "DM Mono",monospace;color:#8a6b32}
+#garden-legend{gap:14px}
+.plot-legend-key{display:flex;align-items:center;gap:8px;font-size:14px}
+.plot-legend-key i{height:14px;width:14px;background:#e8ecee;border:1px solid #dce1df;display:inline-block;border-radius:3px}
+#garden-legend span:last-child{margin-left:0}
+.v09-deck:hover{transform:translateY(-2px);box-shadow:0 19px 35px rgba(38,59,41,.065);border-color:#c2d1bd}
+
+/* Session strip: one square per encounter, not per unique flashcard. */
+.session-encounters{max-width:830px;margin:0 auto 24px;border:1px solid #dde3d8;border-radius:11px;background:#fffefa;padding:15px 17px 14px}
+.encounters-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;color:#7b8378;margin-bottom:12px;font:10px "DM Mono",monospace;letter-spacing:.2px}
+.encounters-heading strong{font-weight:600;color:#426e42}
+.session-strip{display:flex;flex-wrap:wrap;gap:5px;align-content:flex-start;min-height:24px}
+.encounter{width:24px;height:24px;flex:none;border-radius:5px;border:1px solid #d8ded5;display:grid;place-items:center;background:#f4f6f1;font-size:15px;line-height:1;font-weight:700;color:#899b89;transition:background .2s,border-color .2s,transform .2s}
+.encounter.pending{background:#f8f9f5;border-color:#e1e5dc}
+.encounter.active{background:#eaf1e3;border:2px solid #4a8250;box-shadow:0 0 0 3px #d7ead3;animation:encounterBreathe 2.2s infinite}
+.encounter.correct,.encounter.effortless,.encounter.assisted{background:#3e9361;color:white;border-color:#31814e;animation:cellFinish .21s ease-out}
+.encounter.effortless{background:#2d8456}
+.encounter.assisted{background:#70a97c}
+.encounter.incorrect{background:#d95551;color:white;border-color:#c54442;animation:cellFinish .21s ease-out}
+.encounter.norecall{background:#aeb5bc;color:white;border-color:#949ca5;animation:cellFinish .21s ease-out}
+@keyframes cellFinish{0%{transform:scale(.65)}70%{transform:scale(1.17)}100%{transform:scale(1)}}
+@keyframes encounterBreathe{50%{box-shadow:0 0 0 4px rgba(140,190,135,.45)}}
+.encounter-caption{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;color:#9a9e93;font-size:10px}
+.encounter-legend{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.encounter-legend span{display:inline-flex;align-items:center;gap:5px}
+.encounter-legend i{display:inline-grid;width:14px;height:14px;border-radius:3px;place-items:center;font:700 11px sans-serif;color:white;font-style:normal}
+.encounter-legend .c-correct{background:#3e9361}
+.encounter-legend .c-incorrect{background:#d95551}
+.encounter-legend .c-norecall{background:#aeb5bc}
+.encounter-legend .c-pending{background:#f6f7f3;border:1px solid #ccd7ca}
+.encounter-overflow{color:#b35f53;font-size:10px;letter-spacing:.1px}
+.session-strip-summary{max-width:590px;margin:0 auto 28px;padding:18px 21px;border:1px solid #dce3d9;background:#fffefa;border-radius:11px}
+.session-strip-summary .session-encounters{border:0;padding:0;margin:0}
+.session-strip-summary .encounters-heading{margin-bottom:10px}
+.session-strip-summary .encounter-caption{margin-top:10px}
+.session-strip-summary .encounter{width:21px;height:21px;font-size:13px}
+#study-view .session-title-row{margin-bottom:19px}
+
+/* Plot details */
+#plot-view{padding:27px 0 18px}
+.plot-navigation{display:flex;align-items:center;justify-content:space-between;gap:15px;margin:8px 0 33px}
+.plot-navigation .eyebrow{margin:0;font-size:10px;color:#9aa398}
+.plot-page-heading{display:flex;justify-content:space-between;align-items:end;gap:26px;margin:0 0 25px}
+.plot-page-heading h1{font-size:clamp(25px,3vw,40px);letter-spacing:-1.3px;margin:7px 0 8px;line-height:1.15}
+.plot-page-heading h1>span{vertical-align:-3px;font-size:.85em;margin-right:5px}
+.plot-page-heading p{color:#81897d;font-size:13px;line-height:1.65;margin:0}
+.plot-overline{display:block;font:10px "DM Mono",monospace;color:#92a087;letter-spacing:1.05px}
+.plot-page-heading .button{min-width:165px}
+.plot-detail-layout{display:grid;grid-template-columns:minmax(0,1fr) 296px;gap:18px;align-items:start}
+.plot-board-panel,.plot-side-card{border:1px solid #e0e4d9;background:var(--paper);border-radius:12px;box-shadow:var(--shadow)}
+.plot-board-panel{overflow:hidden}
+.plot-board-head{padding:21px 23px;display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid #e6e9e1}
+.plot-board-head>div:first-child{display:grid;gap:5px}
+.plot-board-head strong{font-size:14px}
+.plot-board-head span{font-size:11px;color:#9a9f93}
+.plot-palette-switch{display:flex;align-items:center;border:1px solid #e0e5d8;border-radius:7px;padding:3px;background:#f4f5ef}
+.plot-palette-switch button{background:transparent;border:0;border-radius:4px;font:600 10px "DM Sans",sans-serif;color:#7d897a;padding:7px 8px;white-space:nowrap}
+.plot-palette-switch button[aria-pressed="true"]{background:#fffefa;color:#3c704a;box-shadow:0 1px 4px #d2d9cb}
+.plot-board-viewport{position:relative;padding:30px 20px 34px;min-height:270px;overflow-x:auto;background:repeating-linear-gradient(0deg,transparent,transparent 40px,#f7f8f2 41px)}
+.plot-board{position:relative;display:grid;grid-template-columns:repeat(14,34px);grid-auto-rows:34px;gap:5px;align-content:start;justify-content:start;max-width:max-content;z-index:1}
+.plot-board .plot-tile{width:34px;height:34px}
+.plot-field-critter{position:absolute;pointer-events:none;font-size:22px;z-index:2;top:55%;left:20px;opacity:.88;filter:drop-shadow(0 2px 2px #becbb2);animation:fieldCritter 13s ease-in-out infinite alternate}
+.plot-field-critter.critter-two{left:85px;top:72%;animation-duration:15.5s;animation-delay:-7s}
+@keyframes fieldCritter{from{transform:translateX(0) rotate(-3deg)}to{transform:translateX(55px) rotate(5deg)}}
+.plot-board-footer{border-top:1px solid #ecede7;padding:14px 20px;display:grid;gap:10px;font-size:11px;line-height:1.6;color:#879181}
+.plot-legend-inline{color:#7e8979}
+.plot-harvest-actions{border-top:1px solid #e6e9df;padding:15px 20px;display:flex;align-items:center;gap:17px;min-height:79px}
+.plot-harvest-actions .button{min-height:45px;padding:11px 15px;white-space:nowrap;font-size:12px}
+#plot-notice{font-size:11px;color:#83927e;line-height:1.6}
+.plot-tile.just-harvested{animation:harvestPop .44s ease-out;box-shadow:inset 0 0 0 2px #d1d7b7}
+@keyframes harvestPop{0%{transform:scale(1.15);background:#fff5be}100%{transform:scale(1);background:#e6efdd}}
+.plot-board.harvest-mode{touch-action:none}
+.plot-board.harvest-mode .plot-tile.stage-mature{cursor:crosshair}
+#scythe-cursor{position:fixed;left:-100px;top:-100px;pointer-events:none;z-index:9999;filter:drop-shadow(1px 2px 2px rgba(0,0,0,.24));}
+#scythe-cursor[hidden]{display:none!important}
+.scythe-active .plot-board-viewport{cursor:none}
+.scythe-active .plot-board .plot-tile{cursor:none!important}
+.plot-sidebar{display:grid;gap:13px}
+.plot-side-card{padding:20px}
+.plot-side-card h2{font-size:17px;letter-spacing:-.5px;line-height:1.25;margin:8px 0 15px}
+.plot-side-card p{font-size:12px;color:#899185;line-height:1.65;margin:0 0 13px}
+.plot-emoji-picker{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.emoji-option{height:34px;width:100%;border-radius:7px;border:1px solid #e6e9df;background:#f6f7f2;font-size:20px;display:grid;place-items:center}
+.emoji-option:hover{background:#e8efe4}
+.emoji-option.selected{border-color:#72997b;background:#dfece0}
+.plot-custom-emoji{display:flex;gap:6px;margin-top:12px}
+.plot-custom-emoji input{min-width:0;width:100%;border:1px solid #dfe5da;border-radius:6px;padding:10px;font-size:12px;outline-color:#86ab82;background:#fff}
+.plot-custom-emoji button{border:1px solid #c9dac8;color:#3c6941;background:#ebf2e8;font-size:11px;font-weight:700;padding:8px;border-radius:6px;white-space:nowrap}
+.helper-card{background:#f6f9f1;border-color:#d6e2d2}
+.helper-card h2{display:flex;justify-content:space-between;gap:10px}
+.helper-card .button{width:100%;border-radius:8px;min-height:43px;padding:11px;font-size:12px}
+.helper-buy{background:#466b48;color:white}
+.helper-buy:hover{background:#365638}
+.helper-hired{background:#deead9;color:#4c8150}
+.helper-card .helper-detail{font-size:10px;color:#96a192;margin:11px 0 0}
+.plot-mini-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:18px}
+.plot-mini-stats>div{background:#f4f5ef;padding:11px 3px;border-radius:6px;text-align:center;display:grid;gap:6px}
+.plot-mini-stats span{font-size:9px;color:#899287}
+.plot-mini-stats strong{font-size:18px;font-variant-numeric:tabular-nums}
+.plot-economy-stat{display:flex;justify-content:space-between;align-items:center;gap:15px;border-top:1px solid #edf0e9;padding:10px 0;font-size:11px;color:#889185}
+.plot-economy-stat strong{font-size:14px;color:#546b4f;white-space:nowrap;font-variant-numeric:tabular-nums}
+#plot-harvest-value,#plot-earned-total{color:#ab8036}
+.plot-legacy{margin-top:8px;background:#fcf6e9;border:1px solid #efe0bd;border-radius:8px;padding:10px;display:grid;gap:10px;font-size:11px;color:#936f37}
+.plot-legacy button{border:1px solid #e3cc96;background:#fff8eb;color:#93702e;border-radius:6px;padding:10px;font-size:11px;font-weight:700}
+.plot-test-card{border-style:dashed;box-shadow:none;background:#f7f8f4}
+.plot-demo-button{width:100%;background:#ecefe7;border:1px solid #d8dfd1;color:#526953;padding:12px;min-height:42px;font-size:11px}
+.plot-reset{border:0;background:none;text-decoration:underline;text-underline-offset:4px;color:#8c948a;font-size:11px;text-align:left;padding:8px 3px}
+.plot-reset:hover{color:#b44d47}
+
+@media(max-width:1060px){
+  .plot-detail-layout{grid-template-columns:minmax(0,1fr) 252px}
+  .plot-board{grid-template-columns:repeat(11,34px)}
+  .plot-emoji-picker{grid-template-columns:repeat(6,1fr)}
+}
+@media(max-width:820px){
+  .plot-detail-layout{grid-template-columns:minmax(0,1fr)}
+  .plot-sidebar{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .plot-board{grid-template-columns:repeat(14,34px)}
+  .plot-test-card{grid-column:auto}
+}
+@media(max-width:680px){
+  .v09-deck{min-height:438px;padding:20px}
+  .v09-deck h3{min-height:0}
+  .plot-preview-shell{height:155px}
+  .plot-preview{grid-template-columns:repeat(10,13px);grid-auto-rows:13px;gap:2px;width:148px}
+  .plot-tile.preview-tile{width:13px;height:13px;border-radius:2px}
+  .plot-tile.preview-tile.stage-budding{font-size:10px}
+  .plot-tile.preview-tile.stage-growing{font-size:9px}
+  .plot-tile.preview-tile.stage-mature{font-size:13px}
+  .v09-deck .deck-description{min-height:0}
+  .plot-navigation{margin-top:0}
+  .plot-navigation .eyebrow{display:none}
+  .plot-page-heading{flex-direction:column;align-items:start;gap:13px}
+  .plot-page-heading .button{min-width:0}
+  .plot-board-head{flex-direction:column;align-items:start;padding:17px}
+  .plot-board-viewport{padding:23px 15px;min-height:200px}
+  .plot-board{grid-template-columns:repeat(8,32px);grid-auto-rows:32px;gap:4px}
+  .plot-board .plot-tile{width:32px;height:32px}
+  .plot-board-footer,.plot-harvest-actions{padding:14px 16px}
+  .plot-harvest-actions{align-items:start;flex-direction:column;gap:10px}
+  .plot-sidebar{grid-template-columns:1fr}
+  .session-encounters{margin-bottom:18px;padding:14px 12px}
+  .encounter{width:22px;height:22px;font-size:13px}
+  .session-strip{gap:4px}
+  .encounters-heading{font-size:9px}
+  .encounter-caption{font-size:9px}
+  .session-strip-summary{padding:15px}
+}
+@media(max-width:370px){.plot-board{grid-template-columns:repeat(7,32px)}}
+@media(prefers-reduced-motion:reduce){.preview-critter,.plot-field-critter,.encounter,.plot-tile.just-harvested{animation:none!important}}
+
+.plot-home-subtitle{margin:0;font:12px "DM Mono",monospace;color:#959f91}
+.plot-board .plot-tile.stage-growing{opacity:.8}
+.plot-field-helper{position:absolute;pointer-events:none;top:30%;left:44%;font-size:27px;z-index:2;filter:drop-shadow(0 2px 3px rgba(30,65,36,.2));animation:helperStroll 11s ease-in-out infinite alternate}
+@keyframes helperStroll{from{transform:translateX(-30px)}to{transform:translateX(44px)}}
+.plot-activity-list{display:grid}
+.plot-activity-row{border-top:1px solid #edf0e9;padding:10px 0;display:flex;justify-content:space-between;gap:14px;align-items:start}
+.plot-activity-row span{font-size:11px;color:#697568;line-height:1.5}
+.plot-activity-row strong{flex:none;font-size:10px;color:#517550;font-weight:700;white-space:nowrap;padding-top:2px}
+.plot-activity-empty{margin:0}
+@media(prefers-reduced-motion:reduce){.plot-field-helper{animation:none!important}}

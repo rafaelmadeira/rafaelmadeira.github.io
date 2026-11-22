@@ -101,7 +101,7 @@
     if (session) el("session-xp").textContent = niceNumber(session.xp);
   }
   function view(id) {
-    ["library-view", "study-view", "summary-view"].forEach(function (name) {
+    ["library-view", "plot-view", "study-view", "summary-view"].forEach(function (name) {
       el(name).hidden = name !== id;
     });
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -119,6 +119,17 @@
     updateXP();
     if (window.FlashcardsGame) window.FlashcardsGame.updateBalance();
   }
+
+  window.FlashcardsOpenPlot = function (deck) {
+    if (!window.FlashcardsGarden || !window.FlashcardsGarden.renderPlot) return;
+    window.FlashcardsGarden.renderPlot(deck, getRecord, deckStats, startSession, window.FlashcardsGame);
+    view("plot-view");
+  };
+  window.FlashcardsClosePlot = function () {
+    if (window.FlashcardsGarden && window.FlashcardsGarden.closePlot) window.FlashcardsGarden.closePlot();
+    renderLibrary();
+    view("library-view");
+  };
 
   function normalizeDeck(source, filename, imported) {
     var object = Array.isArray(source) ? { title: filename.replace(/\.json$/i, ""), cards: source } : source;
@@ -226,6 +237,8 @@
     session = {
       deck: deck,
       queue: candidates.slice(0, single ? 1 : LIMIT),
+      outcomes: [],
+      initialCount: Math.min(candidates.length, single ? 1 : LIMIT),
       index: 0,
       seen: Object.create(null),
       correct: 0,
@@ -238,6 +251,7 @@
       mode: "practice",
       coins: 0
     };
+    session.outcomes = session.queue.map(function () { return null; });
     revealed = false;
     ratingLocked = false;
     var canPlay = window.FlashcardsGame &&
@@ -252,6 +266,38 @@
     showCard();
     if (practice) toast("All caught up! Extra practice does not change reviews or earn XP.");
     if (early) toast("Early review: learning updates, no XP gained or lost.");
+  }
+
+  function drawEncounters(finished, targetId, isSummary) {
+    var target = el(targetId);
+    if (!target || !finished) return;
+    target.replaceChildren();
+    finished.queue.forEach(function (card, index) {
+      var state = finished.outcomes[index] ||
+        (!isSummary && index === finished.index ? "active" : "pending");
+      var mark = { norecall: "—", incorrect: "×", correct: "✓",
+        effortless: "✓", assisted: "✓" }[state] || "";
+      var cell = document.createElement("span");
+      cell.className = "encounter " + state;
+      cell.textContent = mark;
+      cell.title = "Encounter " + (index + 1) + " · " + card.front + " · " +
+        (state === "norecall" ? "No recall" :
+          state === "incorrect" ? "Incorrect" :
+          state === "active" ? "Current card" :
+          state === "pending" ? "Not attempted yet" :
+          state === "assisted" ? "Correct with lifeline" : "Correct");
+      cell.setAttribute("aria-hidden", "true");
+      target.appendChild(cell);
+    });
+    if (!isSummary) {
+      el("encounter-total").textContent = finished.queue.length + " total";
+      el("encounter-position").textContent =
+        Math.min(finished.index + 1, finished.queue.length) + " / " + finished.queue.length;
+      var extra = Math.max(0, finished.queue.length - finished.initialCount);
+      el("encounter-added").textContent = extra + " extra encounter" + (extra === 1 ? "" : "s");
+      target.setAttribute("aria-label", "Encounter history: " + finished.queue.length +
+        " total, " + extra + " added after misses, " + finished.index + " completed");
+    }
   }
 
   function showCard() {
@@ -278,8 +324,8 @@
     el("lifeline-options").replaceChildren();
     el("lifeline-feedback").textContent = "";
     el("card-counter").textContent = String(session.index + 1).padStart(2, "0") + " / " + String(session.queue.length).padStart(2, "0");
-    el("progress-fill").style.width = (100 * session.index / session.queue.length) + "%";
-    el("remaining-text").textContent = (session.queue.length - session.index) + " card(s) remaining";
+    drawEncounters(session, "session-strip", false);
+    el("remaining-text").textContent = (session.queue.length - session.index) + " encounter(s) remaining";
     updateXP();
     if (window.FlashcardsGame) window.FlashcardsGame.beginRound(record);
     el("lifeline-button").disabled = uniqueAnswers(session.deck, card).length < 4;
@@ -499,20 +545,27 @@
       totalXP += score.total;
       save(STORAGE.xp, totalXP);
     }
+    session.outcomes[session.index] = rating;
     if (success) {
       session.correct++;
-      // Remove duplicate pending retries after successful recall.
-      session.queue = session.queue.slice(0, session.index + 1).concat(
-        session.queue.slice(session.index + 1).filter(function (queued) {
-          return queued.id !== card.id;
-        })
-      );
+      // A single successful encounter finishes this card. Preserve past
+      // encounters, while discarding only any duplicate future retries.
+      var kept = [];
+      var keptOutcomes = [];
+      session.queue.forEach(function (queued, index) {
+        if (index > session.index && queued.id === card.id) return;
+        kept.push(queued);
+        keptOutcomes.push(session.outcomes[index]);
+      });
+      session.queue = kept;
+      session.outcomes = keptOutcomes;
     } else {
       session.wrong++;
-      if (!session.practice && seen < 2) {
-        var insertAt = Math.min(session.queue.length, session.index + 4);
-        session.queue.splice(insertAt, 0, card);
-      }
+      // Every failed encounter remains visible, and creates one new attempt.
+      // No retry cap: the student can see a session grow from 15 to 20, 30 ...
+      var insertAt = Math.min(session.queue.length, session.index + 4);
+      session.queue.splice(insertAt, 0, card);
+      session.outcomes.splice(insertAt, 0, null);
     }
     session.events.push({
       question: card.front, rating: rating, base: score.base, decay: score.decay,
@@ -521,6 +574,7 @@
       total: score.total
     });
     session.seen[card.id] = seen + 1;
+    drawEncounters(session, "session-strip", false);
     updateXP();
     if (session.practice) {
       toast("Extra practice: no XP, coin or schedule changes.");
@@ -609,6 +663,15 @@
     el("summary-wrong").textContent = niceNumber(finished.wrong);
     if (window.FlashcardsGame) window.FlashcardsGame.renderSummary(finished);
     renderScoreReport(finished);
+    var summaryHost = el("summary-session-strip");
+    if (summaryHost) {
+      summaryHost.innerHTML =
+        '<div class="encounters-heading"><span>YOUR SESSION PATH</span><strong>' +
+          finished.queue.length + " encounters · " +
+          Math.max(0, finished.queue.length - finished.initialCount) +
+          ' retries added</strong></div><div id="summary-encounters" class="session-strip" role="img"></div>';
+      drawEncounters(finished, "summary-encounters", true);
+    }
     var stats = deckStats(finished.deck);
     if (finished.practice) {
       el("summary-next").textContent = "You were already up to date. Extra practice did not change your review schedule.";
@@ -625,6 +688,8 @@
   }
 
   function backHome() {
+    if (window.FlashcardsGarden && window.FlashcardsGarden.closePlot)
+      window.FlashcardsGarden.closePlot();
     if (window.FlashcardsGame) window.FlashcardsGame.endSession();
     session = null;
     renderLibrary();
@@ -637,7 +702,12 @@
     if (window.FlashcardsGame) window.FlashcardsGame.resetPlotAccrual(deck, getRecord);
     delete progress[deck.id];
     if (!save(STORAGE.progress, progress)) return;
+    if (window.FlashcardsGarden && window.FlashcardsGarden.resetDeckVisuals)
+      window.FlashcardsGarden.resetDeckVisuals(deck);
+    if (window.FlashcardsGarden && window.FlashcardsGarden.closePlot)
+      window.FlashcardsGarden.closePlot();
     renderLibrary();
+    view("library-view");
     toast("Study progress reset for " + deck.title + ".");
   };
   el("import-button").addEventListener("click", function () { el("deck-file").click(); });

@@ -21,6 +21,7 @@
   }
   var wallet = load();
   wallet.coins = Math.max(0, Math.floor(wallet.coins));
+  if (!wallet.helpers || typeof wallet.helpers !== "object") wallet.helpers = {};
   // A page reload while studying should never strand a previous session's escrow.
   if (wallet.active && Number.isFinite(wallet.active.bankroll)) {
     wallet.coins += Math.max(0, wallet.active.bankroll);
@@ -51,15 +52,23 @@
   }
   function earningsWithFraction(deck, getRecord) {
     var plot = seedPlot(deck);
-    var elapsed = Math.max(0, Date.now() - (Number(plot.since) || Date.now()));
-    return Math.max(0, Number(plot.pending) || 0) +
-      (elapsed / HOUR) * plantedCount(deck, getRecord) * 0.025;
+    // v0.9 retires passive production. Freeze and preserve all pending v0.8
+    // earnings (including accumulation since its last visit) for one-time claim.
+    if (!plot.v09Frozen) {
+      var elapsed = Math.max(0, Date.now() - (Number(plot.since) || Date.now()));
+      plot.pending = Math.max(0, Number(plot.pending) || 0) +
+        (elapsed / HOUR) * plantedCount(deck, getRecord) * 0.025;
+      plot.since = Date.now();
+      plot.v09Frozen = true;
+      save();
+    }
+    return Math.max(0, Number(plot.pending) || 0);
   }
   function plotEarnings(deck, getRecord) { return Math.floor(earningsWithFraction(deck, getRecord)); }
   function collectPlot(deck, getRecord) {
     var total = earningsWithFraction(deck, getRecord), amount = Math.floor(total);
     if (amount <= 0) return 0;
-    wallet.plots[deck.id] = { pending: total - amount, since: Date.now() };
+    wallet.plots[deck.id] = { pending: total - amount, since: Date.now(), v09Frozen: true };
     wallet.coins += amount;
     save();
     updateBalance();
@@ -68,9 +77,31 @@
   function resetPlotAccrual(deck, getRecord) {
     // Keep already-earned coins (including fractional) on deck-learning reset.
     var retained = earningsWithFraction(deck, getRecord);
-    wallet.plots[deck.id] = { pending: retained, since: Date.now() };
+    wallet.plots[deck.id] = { pending: retained, since: Date.now(), v09Frozen: true };
     save();
   }
+  // Harvest is deliberately manual. A hired helper changes the gesture,
+  // but never gathers coins automatically or affects spaced repetition.
+  var HELPER_COST = 60;
+  function helperCost() { return HELPER_COST; }
+  function hasHelper(deckId) { return wallet.helpers[deckId] === true; }
+  function hireHelper(deckId) {
+    if (!deckId || hasHelper(deckId) || wallet.coins < HELPER_COST) return false;
+    wallet.coins -= HELPER_COST;
+    wallet.helpers[deckId] = true;
+    save();
+    updateBalance();
+    return true;
+  }
+  function creditHarvest(amount) {
+    var value = Math.floor(Number(amount) || 0);
+    if (value <= 0 || value > 100) return 0;
+    wallet.coins += value;
+    save();
+    updateBalance();
+    return value;
+  }
+
   function getBuyIn() { return BUY_IN; }
   function walletBalance() { return wallet.coins; }
   function updateBalance() {
@@ -181,7 +212,8 @@
     plotEarnings:plotEarnings,collectPlot:collectPlot,resetPlotAccrual:resetPlotAccrual,
     updateBalance:updateBalance,getBuyIn:getBuyIn,walletBalance:walletBalance,
     startSession:startSession,endSession:endSession,beginRound:setCardRecord,
-    lockRound:lockRound,resolveRound:resolveRound,renderSummary:renderSummary
+    lockRound:lockRound,resolveRound:resolveRound,renderSummary:renderSummary,
+    helperCost:helperCost,hasHelper:hasHelper,hireHelper:hireHelper,creditHarvest:creditHarvest
   };
   updateBalance();
 })();

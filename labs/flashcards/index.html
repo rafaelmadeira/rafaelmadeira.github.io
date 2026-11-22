@@ -8,8 +8,10 @@
   <title>Flashcards Lab — Memory Garden</title>
   <link rel="stylesheet" href="./style.css">
   <link rel="stylesheet" href="./game.css">
+  <link rel="stylesheet" href="./plot-v09.css">
   <script src="./game.js" defer></script>
   <script src="./garden.js" defer></script>
+  <script src="./garden-v09.js" defer></script>
   <script src="./app.js" defer></script>
 </head>
 <body>
@@ -20,7 +22,7 @@
         <span class="brand-wordmark">flashcards<span class="brand-light">/lab</span></span>
       </button>
       <div class="topbar-right">
-        <span class="prototype-tag">EXPERIMENT 008</span>
+        <span class="prototype-tag">EXPERIMENT 009</span>
         <button id="import-button" class="top-import" type="button"><span aria-hidden="true">↥</span> Import JSON deck</button>
         <div class="coin-balance" aria-label="Coin balance"><span aria-hidden="true">◈</span><strong id="total-coins">30</strong><span>coins</span></div>
         <div class="global-score" aria-label="Total XP">
@@ -35,31 +37,23 @@
       <section id="library-view" class="view" aria-labelledby="plots-title">
         <div class="section-heading">
           <h1 id="plots-title" class="plots-title">Your plots <span id="deck-count" class="count-tag">0</span></h1>
-          <div class="palette-control">
-            <span class="palette-caption">PLOT COLORS</span>
-            <div class="palette-toggle" role="group" aria-label="Plot color palette">
-              <button type="button" data-plot-palette="greens" aria-pressed="true">4 greens</button>
-              <button type="button" data-plot-palette="spectrum" aria-pressed="false">Red → green</button>
-            </div>
-          </div>
+          <p class="plot-home-subtitle">A little garden for every subject.</p>
         </div>
         <div id="deck-grid" class="deck-grid" aria-live="polite"></div>
         <div id="garden-legend" class="garden-legend" aria-label="Plot memory-health color scale">
-          <span>Never opened</span>
-          <span id="legend-swatches" class="legend-swatches" aria-hidden="true">
-            <i style="background:#e8ecee"></i><i style="background:#d8f2be"></i>
-            <i style="background:#9bd982"></i><i style="background:#41b56b"></i>
-            <i style="background:#086b45"></i>
-          </span>
-          <span>Stronger estimated recall</span>
+          <span>Empty</span>
+          <span class="plot-legend-key">🌱 → 🌿 → 🌼</span>
+          <span>Mature</span>
         </div>
-        <p class="garden-disclaimer">Color is an experimental estimate of memory health, not a calibrated recall probability. Each square is a snapshot, not an individual study button.</p>
+        <p class="garden-disclaimer">Each square is a card. Open a plot to personalize it and harvest mature cells.</p>
         <div id="library-empty" class="empty-state" hidden>
           <h3>No decks available</h3>
           <p>Import a JSON file to start studying.</p>
         </div>
 
       </section>
+
+      <section id="plot-view" class="view" aria-label="Plot details" hidden></section>
 
       <section id="study-view" class="view" aria-labelledby="study-title" hidden>
         <div class="session-head">
@@ -73,7 +67,19 @@
           </div>
           <span class="counter" id="card-counter">01 / 15</span>
         </div>
-        <div class="progress-track" aria-label="Session progress"><div id="progress-fill" class="progress-fill"></div></div>
+        <section class="session-encounters" aria-label="History of every attempt in this study session">
+          <div class="encounters-heading"><span>SESSION ENCOUNTERS <strong id="encounter-total">15</strong></span><span id="encounter-position">1 / 15</span></div>
+          <div id="session-strip" class="session-strip" role="img" aria-label="Attempts: outlined pending, green correct, red incorrect, gray no recall"></div>
+          <div class="encounter-caption">
+            <div class="encounter-legend">
+              <span><i class="c-correct">✓</i> Correct</span>
+              <span><i class="c-incorrect">×</i> Incorrect</span>
+              <span><i class="c-norecall">—</i> No recall</span>
+              <span><i class="c-pending"></i> Pending</span>
+            </div>
+            <span class="encounter-overflow" id="encounter-added">0 extra encounters</span>
+          </div>
+        </section>
 
         <button id="flashcard" type="button" class="flashcard" aria-label="Reveal answer">
           <span class="card-topline">
@@ -158,6 +164,7 @@
           <div id="summary-coin-block" class="stat-block stat-coins" hidden><span>NET COINS</span><strong id="summary-coins">0</strong></div>
         </div>
         <div id="summary-recall-counts" class="summary-recall-counts" aria-label="Recall ratings"></div>
+        <div class="session-strip-summary" id="summary-session-strip" aria-label="History of this session's encounters"></div>
         <section class="score-report" aria-labelledby="score-report-title">
           <div class="score-report-head">
             <span class="eyebrow">YOUR SCORE</span>
@@ -176,7 +183,7 @@
     </main>
 
     <footer class="site-footer">
-      <span>FLASHCARDS / LAB — V0.8</span>
+      <span>FLASHCARDS / LAB — V0.9</span>
       <span>A living picture of what you know.</span>
     </footer>
   </div>
