@@ -528,7 +528,7 @@ function renderSidebar(){
  var t=state.ui.tool,html='<div class="sb-head"><h2>'+esc((TOOLS.find(function(x){return x.id===t})||TOOLS[0]).name)+'</h2>'+(t==="journals"?"":'<button data-act="create-primary" title="New in '+esc(t)+'">'+ic("plus",18)+'</button>')+'</div><div class="sb-scroll">';
  if(t==="home"){
   html+=sr("Today","today","sun")+sr("Inbox","inbox","inbox",{count:inboxCount()})+sr("Recent","recent","clock")+sr("Starred","starred","star");
-  html+='<div class="sb-section-heading"><span>Quick Access</span><button data-act="quick-add" title="Add a shortcut to Desk" aria-label="Add Quick Access shortcut">'+ic("plus",15)+'</button></div>';
+  html+='<div class="sb-section-heading"><span>Quick Access</span><button data-act="quick-add" title="Add a shortcut to Home" aria-label="Add Quick Access shortcut">'+ic("plus",15)+'</button></div>';
   var quicks=quickList();
   html+=quicks.length?quicks.map(function(x,i){return quickRow(x.ref,i)}).join(""):'<div class="sidebar-empty quick-empty">Keep your favorite destinations here.<br><button data-act="quick-add">+ Add shortcut</button></div>';
  }
@@ -574,7 +574,7 @@ function renderSidebar(){
   html+=sr("All notes","all","note",{count:list("note").length})+sr("Starred","starred","star");
   html+=sh("From other tools");
   html+=sr("From Calendar","from-events","calendar-days",{count:list("note").filter(function(e){return sources(e).some(function(x){return x.type==="event"})}).length});
-  html+=sr("From Planner","from-projects","clipboard",{count:list("note").filter(function(e){return sources(e).some(function(x){return x.type==="project"||x.type==="task"})}).length});
+  html+=sr("From To do and Projects","from-projects","clipboard",{count:list("note").filter(function(e){return sources(e).some(function(x){return x.type==="project"||x.type==="task"})}).length});
   html+=sr("From Journal","from-journal","book-open",{count:list("note").filter(function(e){return sources(e).some(function(x){return x.type==="journal"})}).length});
   html+=sh("My notebooks","notebook");
   html+=list("notebook").sort(byRecent).map(function(n){return sr(objTitle(n),"book:"+n.id,"notebook",{count:list("note").filter(function(x){return x.notebookId===n.id}).length})}).join("")||'<div class="sidebar-empty">No notebooks yet</div>';
@@ -585,7 +585,7 @@ function renderSidebar(){
   html+=sh("Collections","folder");
   html+=folders.map(function(f){return sr(objTitle(f),"folder:"+f.id,"folder",{count:rs.filter(function(r){return r.folderId===f.id}).length})}).join("")||'<div class="sidebar-empty">No collections yet</div>';
   html+=sh("From other tools");
-  html+=sr("From Calendar","from-events","calendar-days")+sr("From Planner","from-projects","clipboard");
+  html+=sr("From Calendar","from-events","calendar-days")+sr("From To do and Projects","from-projects","clipboard");
   html+=sh("Filters");
   LIBRARY_TYPES.forEach(function(item){var n=rs.filter(function(r){return r.resourceKind===item.id}).length;if(n)html+=sr(item.name,"kind:"+item.id,item.icon,{count:n})});
  }
@@ -633,7 +633,7 @@ function renderSidebar(){
 function topbar(){
  var focus=isFocusValid();
  return '<div class="topbar"><button class="search-trigger" data-act="search" title="Search or create anything">'+ic("search",18)+'<span>Search or capture anything…</span><small class="kbd">/</small></button><div class="topbar-spacer"></div>'+
- (!state.ui.detailId&&state.ui.tool!=="home"?'<button class="icon-button'+(quickHas({kind:"view",tool:state.ui.tool,view:state.ui.view})?' quick-pinned':'')+'" data-act="quick-pin-current" title="'+(quickHas({kind:"view",tool:state.ui.tool,view:state.ui.view})?'Remove page from Desk':'Pin this page to Desk')+'" aria-label="Pin or unpin current page in Quick Access">'+ic(quickHas({kind:"view",tool:state.ui.tool,view:state.ui.view})?"pinfill":"pin",17)+'</button>':"")+
+ (!state.ui.detailId&&state.ui.tool!=="home"?'<button class="icon-button'+(quickHas({kind:"view",tool:state.ui.tool,view:state.ui.view})?' quick-pinned':'')+'" data-act="quick-pin-current" title="'+(quickHas({kind:"view",tool:state.ui.tool,view:state.ui.view})?'Remove page from Home':'Pin this page to Home')+'" aria-label="Pin or unpin current page in Quick Access">'+ic(quickHas({kind:"view",tool:state.ui.tool,view:state.ui.view})?"pinfill":"pin",17)+'</button>':"")+
  (focus?'<div class="context-pill" title="New items can be linked to this context">'+ic("layers",13)+'<span class="context-name">'+esc(objTitle(focus))+'</span><button data-act="clear-focus" title="Stop using this context">'+ic("x",13)+'</button></div>':"")+
  '<button class="top-new" data-act="new-menu">'+ic("plus",16)+' New</button></div>'
 }
@@ -675,7 +675,7 @@ function renderDeskForDate(date){
   return createdDate(e)===date&&["task","project","event","journal","note","resource","notebook","folder"].includes(e.type)&&
    !due.some(function(t){return t.id===e.id})&&!events.some(function(t){return t.id===e.id})&&!journal.some(function(t){return t.id===e.id})
  }).sort(byRecent);
- var result=calendarDateHeader("Desk",date,"Everything connected to this day.","");
+ var result=calendarDateHeader("Home",date,"Everything connected to this day.","");
  var total=events.length+due.length+journal.length+created.length;
  if(!total)return result+empty("calendar","Nothing recorded for this day","Use the calendar to explore another date, or capture something new.");
  if(events.length)result+=section("Events",rows(events,eventRow),events.length);
@@ -777,7 +777,7 @@ function renderArea(area){
  var tasks=allTasks.filter(function(e){return !categoryOf(e)});
  var categories=categoriesIn(area);
  var pending=allTasks.filter(function(t){return !t.completed}).length;
- var actions='<button class="button" data-act="quick-toggle-entity" data-id="'+esc(area.id)+'">'+ic(quickHas({kind:"entity",id:area.id})?"pinfill":"pin",15)+' '+(quickHas({kind:"entity",id:area.id})?"Unpin from Desk":"Pin to Desk")+'</button>'+
+ var actions='<button class="button" data-act="quick-toggle-entity" data-id="'+esc(area.id)+'">'+ic(quickHas({kind:"entity",id:area.id})?"pinfill":"pin",15)+' '+(quickHas({kind:"entity",id:area.id})?"Unpin from Home":"Pin to Home")+'</button>'+
  '<button class="button" data-act="rename-area" data-id="'+esc(area.id)+'">'+ic("pen",15)+' Rename</button>'+
  '<button class="button" data-act="create-category" data-area="'+esc(area.id)+'">'+ic("plus",15)+' Category</button>'+
  '<button class="button" data-act="create" data-type="project" data-context="'+esc(area.id)+'">'+ic("plus",15)+' Project</button>'+
@@ -814,7 +814,7 @@ function renderCategory(category){
  var tasks=list("task").filter(function(e){return inCategory(e,category)}).sort(byDue);
  var direct=tasks.filter(function(e){return !projectOf(e)}),within=tasks.filter(function(e){return !!projectOf(e)});
  var pending=tasks.filter(function(e){return !e.completed}).length;
- var actions='<button class="button" data-act="quick-toggle-entity" data-id="'+esc(category.id)+'">'+ic(quickHas({kind:"entity",id:category.id})?"pinfill":"pin",15)+' '+(quickHas({kind:"entity",id:category.id})?"Unpin":"Pin to Desk")+'</button>'+
+ var actions='<button class="button" data-act="quick-toggle-entity" data-id="'+esc(category.id)+'">'+ic(quickHas({kind:"entity",id:category.id})?"pinfill":"pin",15)+' '+(quickHas({kind:"entity",id:category.id})?"Unpin":"Pin to Home")+'</button>'+
  '<button class="button" data-act="rename-category" data-id="'+esc(category.id)+'">'+ic("pen",15)+' Rename</button>'+
  '<button class="button" data-act="delete-category" data-id="'+esc(category.id)+'">'+ic("trash",15)+' Remove</button>'+
  '<button class="button" data-act="create" data-type="project" data-context="'+esc(category.id)+'">'+ic("plus",15)+' Project</button>'+
@@ -840,7 +840,7 @@ function renderAllProjects(){
  return out;
 }
 function renderPlannerDate(date){
- var v=state.ui.view,tasks=list("task"),projects=list("project"),context="Planner";
+ var v=state.ui.view,tasks=list("task"),projects=list("project"),context="To do";
  if(v.startsWith("area:")){
   var a=get(v.slice(5));if(a){context=objTitle(a);tasks=tasks.filter(function(t){return inArea(t,a)});projects=projects.filter(function(p){return inArea(p,a)})}
  }else if(v.startsWith("category:")){
@@ -849,7 +849,7 @@ function renderPlannerDate(date){
  var due=v==="projects"?[]:tasks.filter(function(t){return t.dueDate===date}).sort(byDue);
  var createdTasks=v==="projects"?[]:tasks.filter(function(t){return createdDate(t)===date&&!due.some(function(x){return x.id===t.id})}).sort(byRecent);
  var createdProjects=projects.filter(function(p){return createdDate(p)===date}).sort(byRecent);
- var out=calendarDateHeader("Planner",date,"Tasks due or created on this date · "+context,"");
+ var out=calendarDateHeader("To do",date,"Tasks due or created on this date · "+context,"");
  if(due.length)out+=section("Due on this day",rows(due,taskRow),due.length);
  if(createdTasks.length)out+=section("Tasks created on this day",rows(createdTasks,taskRow),createdTasks.length);
  if(createdProjects.length)out+=section("Projects created on this day",'<div class="card-grid">'+createdProjects.map(entityCard).join("")+'</div>',createdProjects.length);
@@ -868,7 +868,7 @@ function renderPlanner(){
  else if(view==="upcoming")items=all.filter(function(e){return !e.completed&&e.dueDate>today()}).sort(byDue);
  else if(view==="completed")items=all.filter(function(e){return e.completed}).sort(byRecent);
  else items=all.sort(byRecent);
- var names={today:"Today",inbox:"Inbox",upcoming:"Upcoming",completed:"Completed",all:"All tasks"},title=names[view]||"Planner";
+ var names={today:"Today",inbox:"Inbox",upcoming:"Upcoming",completed:"Completed",all:"All tasks"},title=names[view]||"To do";
  return pageHeader(title,view==="today"?"Focus on what needs action.":"Tasks belong here, even when created elsewhere.",
  '<button class="button" data-act="create" data-type="project">'+ic("folder",15)+' Project</button><button class="button primary" data-act="create" data-type="task">'+ic("plus",15)+' Task</button>',"PLANNER")+
  (items.length?'<div class="panel" style="max-width:840px;padding:8px 20px">'+items.map(taskRow).join("")+
@@ -898,7 +898,7 @@ function renderNotebook(){
  var v=state.ui.view,notebooks=list("notebook"),notes=notesForView().sort(byRecent),heading="All notes",sub="Every note is findable, wherever it was written.";
  if(v==="starred")heading="Starred notes";
  if(v==="from-events"){heading="Notes from Calendar";sub="Notes created while looking at an event."}
- if(v==="from-projects"){heading="Notes from Planner";sub="Notes connected to projects and tasks."}
+ if(v==="from-projects"){heading="Notes from To do and Projects";sub="Notes connected to projects and tasks."}
  if(v==="from-journal"){heading="Notes from Journal";sub="Notes linked to journal entries."}
  if(v.startsWith("book:")){var book=get(v.slice(5));heading=book?book.title:"Notebook";sub="A familiar place for your notes."}
  var actions='<button class="button" data-act="create" data-type="notebook">'+ic("notebook",15)+' Notebook</button><button class="button primary" data-act="create" data-type="note">'+ic("plus",15)+' Note</button>';
@@ -922,7 +922,7 @@ function renderLibrary(){
  if(filter){
   var saved=resourcesForView().filter(function(x){return createdDate(x)===filter}).sort(byRecent);
   var collections=state.ui.view==="all"?list("folder").filter(function(x){return createdDate(x)===filter}):[];
-  var out=calendarDateHeader("Library",filter,"Resources saved or created on this date · Current Library view","");
+  var out=calendarDateHeader("Resources",filter,"Resources saved or created on this date · Current Resources view","");
   if(saved.length)out+=section("Saved items",'<div class="card-grid">'+saved.map(function(e){return e.type==="resource"?resourceCard(e):entityCard(e)}).join("")+'</div>',saved.length);
   if(collections.length)out+=section("Collections created",'<div class="card-grid">'+collections.map(entityCard).join("")+'</div>',collections.length);
   return saved.length||collections.length?out:out+empty("library","Nothing saved on this day","Choose another date or clear the selection.");
@@ -932,7 +932,7 @@ function renderLibrary(){
  if(v==="bookmarks"){title="Bookmarks";sub="Links you saved, whether or not they belong to a project or folder."}
  if(v==="starred")title="Starred";
  if(v==="from-events"){title="From Calendar";sub="Files and references attached to calendar events."}
- if(v==="from-projects"){title="From Planner";sub="Resources supporting your work."}
+ if(v==="from-projects"){title="From To do and Projects";sub="Resources supporting your work."}
  if(v==="archive"){title="Archive";sub="Out of sight, but not forgotten."}
  if(v==="trash"){title="Trash";sub="Restore or permanently remove an item."}
  if(v.startsWith("kind:")){var filter=LIBRARY_TYPES.find(function(x){return x.id===v.slice(5)});title=filter?filter.name:"Resources"}
@@ -1111,7 +1111,7 @@ function renderDetail(e){
  '<div class="'+(e.type==="task"?"check-title":"")+'">'+(e.type==="task"?'<button class="task-check'+(e.completed?" checked":"")+'" data-act="toggle-task" data-id="'+e.id+'">'+(e.completed?ic("check",16):"")+'</button>':"")+
  '<input id="detail-title" class="detail-title-input" data-edit="title" aria-label="Title" value="'+esc(e.title)+'" placeholder="'+(e.type==="journal"?humanDay(e.date):"Untitled")+'"></div></div>'+
  '<div class="detail-actions"><button class="icon-button'+(e.starred?" active":"")+'" data-act="toggle-star" data-id="'+e.id+'" title="'+(e.starred?"Unstar":"Star")+'">'+ic(e.starred?"starfill":"star",17)+'</button>'+
- '<button class="icon-button'+(quickHas({kind:"entity",id:e.id})?' quick-pinned':'')+'" data-act="quick-toggle-entity" data-id="'+e.id+'" title="'+(quickHas({kind:"entity",id:e.id})?'Remove from Desk Quick Access':'Pin to Desk Quick Access')+'" aria-label="Pin or unpin in Desk">'+ic(quickHas({kind:"entity",id:e.id})?"pinfill":"pin",17)+'</button>'+
+ '<button class="icon-button'+(quickHas({kind:"entity",id:e.id})?' quick-pinned':'')+'" data-act="quick-toggle-entity" data-id="'+e.id+'" title="'+(quickHas({kind:"entity",id:e.id})?'Remove from Home Quick Access':'Pin to Home Quick Access')+'" aria-label="Pin or unpin in Desk">'+ic(quickHas({kind:"entity",id:e.id})?"pinfill":"pin",17)+'</button>'+
  '<button class="icon-button'+(state.ui.focusId===e.id?" active":"")+'" data-act="focus-context" data-id="'+e.id+'" title="Work in this context">'+ic("layers",17)+'</button>'+
  '<button class="icon-button" data-act="detail-menu" data-id="'+e.id+'" title="More options">'+ic("more",19)+'</button></div></div>';
  var related=relatedSection(e),showCapture=["event","project","task","note","resource","journal","goal","habit","routine"].includes(e.type);
@@ -1513,7 +1513,7 @@ function saveGlobalCapture(){var el=$("global-capture");if(!el||!el.value.trim()
 function openQuickAdd(){
  modalState={mode:"quick-add"};
  openModal('<div class="modal-header"><h2>Add to Quick Access</h2><button class="icon-button" data-act="modal-close" aria-label="Close">'+ic("x",19)+'</button></div>'+
- '<div class="modal-scroll"><p class="modal-help">Put any destination on your Desk. These are shortcuts, not copies or folders.</p>'+
+ '<div class="modal-scroll"><p class="modal-help">Put any destination on your Home. These are shortcuts, not copies or folders.</p>'+
  '<div class="quick-search-field">'+ic("search",18)+'<input id="quick-search" placeholder="Find a project, notebook, Area or page…" autocomplete="off" aria-label="Find destination to pin"></div>'+
  '<div id="quick-results" class="search-results quick-search-results"></div></div>');
  updateQuickResults("");
@@ -1543,13 +1543,13 @@ function quickToggleEntity(id){
  var e=get(id);if(!e||e.trashed||e.archived)return;
  var ref={kind:"entity",id:e.id},on=quickHas(ref);
  if(on)quickRemove(quickKey(ref));else quickAdd(ref);
- closeModal();paint();toast(on?"Removed from Desk (original kept)":"Pinned "+objTitle(e)+" to Desk")
+ closeModal();paint();toast(on?"Removed from Home (original kept)":"Pinned "+objTitle(e)+" to Home")
 }
 function quickToggleCurrent(){
  if(state.ui.detailId){quickToggleEntity(state.ui.detailId);return}
  var ref={kind:"view",tool:state.ui.tool,view:state.ui.view},on=quickHas(ref);
  if(on)quickRemove(quickKey(ref));else quickAdd(ref);
- paint();toast(on?"Shortcut removed from Desk":"Page pinned to Desk")
+ paint();toast(on?"Shortcut removed from Home":"Page pinned to Home")
 }
 
 // Universal capture is deliberately independent of the currently open tool and focus.
@@ -1711,7 +1711,7 @@ function detailsMenu(e){
  modalState={mode:"options",id:e.id};
  openModal('<div class="modal-header"><h2>'+esc(objTitle(e))+'</h2><button class="icon-button" data-act="modal-close">'+ic("x",19)+'</button></div><div class="modal-scroll"><div class="menu-list">'+
  '<button class="menu-choice" data-act="toggle-star" data-id="'+e.id+'">'+ic("star",19)+'<span>'+(e.starred?"Remove star":"Star this item")+'</span></button>'+
- '<button class="menu-choice" data-act="quick-toggle-entity" data-id="'+e.id+'">'+ic("pin",19)+'<span>'+(quickHas({kind:"entity",id:e.id})?"Remove from Desk Quick Access":"Pin to Desk")+'</span></button>'+
+ '<button class="menu-choice" data-act="quick-toggle-entity" data-id="'+e.id+'">'+ic("pin",19)+'<span>'+(quickHas({kind:"entity",id:e.id})?"Remove from Home Quick Access":"Pin to Home")+'</span></button>'+
  (e.type==="task"?'<button class="menu-choice" data-act="'+(inInbox(e)?"clear-inbox":"mark-inbox")+'" data-id="'+e.id+'">'+ic("inbox",19)+'<span>'+(inInbox(e)?"Remove from Inbox":"Send to Inbox")+'</span></button>':"")+
  '<button class="menu-choice" data-act="focus-context" data-id="'+e.id+'">'+ic("layers",19)+'<span>'+(state.ui.focusId===e.id?"Stop working here":"Work in this context")+'</span></button>'+
  '<button class="menu-choice" data-act="attach-existing" data-context="'+e.id+'">'+ic("link",19)+'<span>Link an existing item</span></button>'+
@@ -1873,7 +1873,7 @@ function onClick(ev){
  if(act==="quick-toggle-entity"){quickToggleEntity(id);return}
  if(act==="quick-pin-choice"){
   var q=b.getAttribute("data-kind")==="entity"?{kind:"entity",id:id}:{kind:"view",tool:tool,view:view};
-  if(quickAdd(q)){renderSidebar();renderWorkspace();updateQuickResults($("quick-search")?$("quick-search").value:"");toast("Added to Desk Quick Access")}
+  if(quickAdd(q)){renderSidebar();renderWorkspace();updateQuickResults($("quick-search")?$("quick-search").value:"");toast("Added to Home Quick Access")}
   return
  }
  if(act==="tool"){go(tool);return}
@@ -1958,7 +1958,7 @@ function onClick(ev){
   return
  }
  if(act==="planner-quick"){
-  var inp=$("planner-quick");if(inp&&inp.value.trim()){var task=ent("task",inp.value.trim(),{dueDate:state.ui.view==="today"?today():"",inbox:state.ui.view==="inbox"});var focus=isFocusValid();if(focus){task.contextIds=[focus.id];task.inbox=false}state.entities.unshift(task);save();paint();toast("Task saved in Planner")}return
+  var inp=$("planner-quick");if(inp&&inp.value.trim()){var task=ent("task",inp.value.trim(),{dueDate:state.ui.view==="today"?today():"",inbox:state.ui.view==="inbox"});var focus=isFocusValid();if(focus){task.contextIds=[focus.id];task.inbox=false}state.entities.unshift(task);save();paint();toast("Task saved in To do")}return
  }
  if(act==="upload"){universalUpload=false;uploadContext=ctx||state.ui.detailId||state.ui.focusId||null;$("upload-input").click();return}
  if(act==="download-resource"){if(current)resourceDownload(current);return}
