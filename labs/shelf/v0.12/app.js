@@ -468,6 +468,13 @@ function detailMeta(e){
  if(e.type==="task")out+='<div class="meta-pill">'+ic("calendar",15)+'<input type="date" data-edit="dueDate" value="'+esc(e.dueDate)+'" aria-label="Due date"></div>';
  if(e.type==="journal")out+='<div class="meta-pill">'+ic("calendar",15)+'<input type="date" data-edit="date" value="'+esc(e.date)+'" aria-label="Journal date"></div>';
  if(e.type==="project")out+='<div class="meta-pill">'+ic("layers",15)+'<select data-edit="projectStatus" aria-label="Project status"><option value="active"'+(e.projectStatus==="active"?" selected":"")+'>Active</option><option value="waiting"'+(e.projectStatus==="waiting"?" selected":"")+'>Waiting</option><option value="completed"'+(e.projectStatus==="completed"?" selected":"")+'>Completed</option></select></div>';
+ if(e.type==="task"||e.type==="project"){
+  var parent=e.type==="task"?projectOf(e):null,via=parent?areaOf(parent):null;
+  var label=via?"Via "+objTitle(parent)+" · "+objTitle(via):"No area";
+  out+='<div class="meta-pill">'+ic("layers",15)+'<select data-edit="areaId" aria-label="Area" title="Area">'+
+   '<option value="">'+esc(label)+'</option>'+
+   list("area").map(function(a){return '<option value="'+esc(a.id)+'"'+(e.areaId===a.id?' selected':"")+'>'+esc(objTitle(a))+'</option>'}).join("")+'</select></div>';
+ }
  if(e.type==="resource")out+='<div class="meta-pill">'+ic(typeIcon(e),15)+' '+esc(e.resourceKind)+'</div>';
  if(e.notebookId&&get(e.notebookId))out+='<div class="meta-pill meta-readonly">'+ic("notebook",15)+' '+esc(objTitle(get(e.notebookId)))+'</div>';
  return out?'<div class="meta-rows">'+out+'</div>':""
@@ -494,7 +501,9 @@ function relatedSection(e){
 }
 function detailSidebar(e){
  var src=sources(e);[e.notebookId,e.folderId].filter(Boolean).forEach(function(id){var p=get(id);if(p&&!src.includes(p))src.push(p)});
- var s='<div class="panel"><h3>Context</h3>'+
+ var area=["task","project"].includes(e.type)?areaOf(e):null;
+ var areaLink=area?'<div class="related-context">'+ic(areaIcon(area),15)+'<button data-act="navigate" data-tool="planner" data-view="area:'+esc(area.id)+'">'+esc(objTitle(area))+'</button></div>':"";
+ var s='<div class="panel"><h3>Context</h3>'+areaLink+
  (src.length?src.map(function(p){return '<div class="related-context">'+ic(typeIcon(p),15)+'<button data-act="open" data-id="'+p.id+'">'+esc(objTitle(p))+'</button><button class="icon-button" data-act="unlink" data-id="'+e.id+'" data-parent="'+p.id+'" title="Unlink from '+esc(objTitle(p))+'">'+ic("x",12)+'</button></div>'}).join(""):'<div style="font-size:11.5px;color:#9ba5a8">An independent item. It is still searchable everywhere.</div>')+
  '<div class="context-actions"><button class="button" data-act="attach-existing" data-context="'+e.id+'">'+ic("link",14)+' Link something</button></div></div>';
  if(e.type==="event"||e.type==="project"||e.type==="task"||e.type==="journal"){
