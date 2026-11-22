@@ -13,7 +13,7 @@ var TOOLS=[
   {id:"journal",name:"Journal",icon:"book-open"},
   {id:"calendar",name:"Calendar",icon:"calendar"},
   {id:"planner",name:"Planner",icon:"clipboard"},
-  {id:"notebooks",name:"Notebooks",icon:"notebook"},
+  {id:"notebooks",name:"Notebook",icon:"notebook"},
   {id:"library",name:"Library",icon:"library"}
 ];
 var ICONS={
@@ -310,7 +310,10 @@ function searchMatch(e,q){q=(q||"").toLowerCase().trim();if(!q)return true;var a
 function renderRail(){
  rail.innerHTML='<button class="rail-logo" data-act="navigate" data-tool="home" data-view="today" aria-label="Shelf Desk" title="Shelf">'+ic("layers",23)+'</button>'+
  TOOLS.map(function(t){return '<button class="rail-item'+(state.ui.tool===t.id?" active":"")+'" data-act="tool" data-tool="'+t.id+'" title="'+t.name+'" aria-label="'+t.name+'">'+ic(t.icon,21)+'<span>'+t.name+'</span></button>'}).join("")+
- '<span class="rail-spacer"></span><button class="rail-footer-btn" data-act="search" title="Search everything" aria-label="Search">'+ic("search",18)+'</button>';
+ '<span class="rail-spacer"></span><div class="rail-footer-tools">'+
+ '<button class="rail-item rail-bottom'+(state.ui.tool==="library"&&state.ui.view==="archive"?" active":"")+'" data-act="navigate" data-tool="library" data-view="archive" title="Archive" aria-label="Archive">'+ic("archive",20)+'<span>Archive</span></button>'+
+ '<button class="rail-item rail-bottom'+(state.ui.tool==="library"&&state.ui.view==="trash"?" active":"")+'" data-act="navigate" data-tool="library" data-view="trash" title="Trash" aria-label="Trash">'+ic("trash",20)+'<span>Trash</span></button>'+
+ '</div>';
 }
 function sr(label,view,icon,opts){opts=opts||{};var sel=state.ui.view===view&&state.ui.tool===(opts.tool||state.ui.tool);return '<button class="sb-row'+(sel?" active":"")+(opts.sub?" sb-sub":"")+'" data-act="navigate" data-tool="'+esc(opts.tool||state.ui.tool)+'" data-view="'+esc(view)+'"'+(opts.areaDrop?' data-area-drop="'+esc(opts.areaDrop)+'"':"")+'><span class="sb-ico">'+ic(icon,16)+'</span><span class="label">'+esc(label)+'</span>'+(opts.count==null?"":'<span class="sb-num">'+opts.count+'</span>')+'</button>'}
 function sh(label,createType){return '<div class="sb-section-heading"><span>'+esc(label)+'</span>'+(createType?'<button data-act="create" data-type="'+createType+'" title="New '+createType+'">'+ic("plus",14)+'</button>':"")+'</div>'}
@@ -391,7 +394,7 @@ function renderSidebar(){
   html+=sh("Filters");
   LIBRARY_TYPES.forEach(function(item){var n=rs.filter(function(r){return r.resourceKind===item.id}).length;if(n)html+=sr(item.name,"kind:"+item.id,item.icon,{count:n})});
  }
- html+='</div><div class="sb-foot"><button class="sb-row" data-act="navigate" data-tool="library" data-view="archive"><span class="sb-ico">'+ic("archive",16)+'</span><span class="label">Archive</span></button><button class="sb-row" data-act="navigate" data-tool="library" data-view="trash"><span class="sb-ico">'+ic("trash",16)+'</span><span class="label">Trash</span></button><small><span>SHELF · v0.13</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></small></div>';
+ html+='</div><div class="sb-foot"><small><span>SHELF · v0.13</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></small></div>';
  sidebar.innerHTML=html;
 }
 function topbar(){
