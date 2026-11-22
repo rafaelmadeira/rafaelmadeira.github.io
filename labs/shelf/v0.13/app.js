@@ -385,9 +385,7 @@ function renderSidebar(){
   html+=sh("Journals","journalbook");
   html+=sr("All entries","all","book-open",{count:list("journal").length});
   html+=list("journalbook").sort(function(a,b){return (a.id===state.ui.defaultJournalId?-1:b.id===state.ui.defaultJournalId?1:0)||a.createdAt-b.createdAt}).map(function(book){
-   return '<div class="sb-journal-item">'+
-    sr(objTitle(book),"journalbook:"+book.id,"book-open",{count:list("journal").filter(function(e){return e.journalBookId===book.id}).length})+
-    '<button class="sb-journal-more" data-act="journal-options" data-id="'+esc(book.id)+'" title="Options for '+esc(objTitle(book))+'" aria-label="Options for '+esc(objTitle(book))+'">'+ic("more",17)+'</button></div>'
+   return sr(objTitle(book),"journalbook:"+book.id,"book-open",{count:list("journal").filter(function(e){return e.journalBookId===book.id}).length})
   }).join("");
  }
  if(t==="calendar"){
@@ -509,6 +507,10 @@ function renderHome(){
  panel("Journal",j?'<div class="card-excerpt" style="margin-bottom:13px">'+esc(trim(stripHtml(j.html),170))+'</div>':'<p style="color:#96a2a5;font-size:12px;margin:0 0 12px">A page for today is ready when you are.</p>','<button class="panel-link" data-act="journal-today">'+(j?"Continue writing":"Write today")+'</button>')+
  panel("Quick capture",'<div class="inline-add"><span style="color:#93a0a4">'+ic("plus",16)+'</span><input id="home-capture" placeholder="Write, paste a link, or add a task…" aria-label="Quick capture"><button data-act="home-capture">Save</button></div><div class="capture-tip">Use “todo: ” to capture a task.</div>')+'</div></div>';
 }
+function journalPageMenu(book){
+ if(!book||book.trashed)return "";
+ return '<button class="button journal-page-options" data-act="journal-options" data-id="'+esc(book.id)+'" title="Journal options" aria-label="Options for '+esc(objTitle(book))+'">'+ic("more",18)+'</button>'
+}
 function renderJournal(){
  var view=state.ui.view||"",bookId=journalBookForView(view),book=bookId?get(bookId):null;
  var entries=journalEntriesInScope(bookId).sort(function(a,b){return b.date.localeCompare(a.date)||b.createdAt-a.createdAt});
@@ -517,7 +519,7 @@ function renderJournal(){
   entries=entries.filter(function(e){return e.date===date});
   var dayHeading=humanDay(date,{weekday:"long",month:"long",day:"numeric",year:"numeric"});
   var createAction='<button class="button primary" data-act="journal-create-date" data-date="'+esc(date)+'" data-book="'+esc(bookId||state.ui.defaultJournalId)+'">'+ic("pen",15)+' Write entry</button>';
-  return pageHeader(dayHeading,book?objTitle(book):"All journals",createAction,"JOURNAL")+
+  return pageHeader(dayHeading,book?objTitle(book):"All journals",createAction+journalPageMenu(book),"JOURNAL")+
    (entries.length?entries.map(function(e){
     return '<article class="journal-entry"><div class="entry-date">'+esc(objTitle(get(e.journalBookId)||{title:"Journal"}))+'</div>'+
      '<h3>'+esc(e.title||"Journal entry")+'</h3><p>'+esc(trim(stripHtml(e.html),260))+'</p>'+
@@ -529,7 +531,7 @@ function renderJournal(){
  var title=view==="all"||view==="timeline"?"All entries":book?objTitle(book):"Journal";
  if(view.startsWith("month:"))title=prettyMonth(view.slice(6));
  return pageHeader(title,"Your days, collected automatically.",
-  '<button class="button" data-act="journal-today">'+ic("pen",15)+" Today's entry</button>","JOURNAL")+
+  '<button class="button" data-act="journal-today">'+ic("pen",15)+" Today's entry</button>"+journalPageMenu(book),"JOURNAL")+
   (entries.length?entries.map(function(e){
    return '<article class="journal-entry"><div class="entry-date">'+esc(humanDay(e.date,{weekday:"long",month:"long",day:"numeric",year:"numeric"}))+
     (bookId?"":' · '+esc(objTitle(get(e.journalBookId)||{title:"Journal"})))+'</div>'+
