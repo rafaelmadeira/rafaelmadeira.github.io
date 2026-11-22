@@ -1,8 +1,8 @@
 (function(){
 "use strict";
-var KEY="shelf-everyday-v011", DB="shelf-v011-files";
+var KEY="shelf-everyday-v012", LEGACY="shelf-everyday-v011", DB="shelf-v011-files";
 var TOOLS=[
-  {id:"home",name:"Home",icon:"house"},
+  {id:"home",name:"Desk",icon:"desk"},
   {id:"journal",name:"Journal",icon:"book-open"},
   {id:"calendar",name:"Calendar",icon:"calendar"},
   {id:"planner",name:"Planner",icon:"clipboard"},
@@ -10,6 +10,10 @@ var TOOLS=[
   {id:"library",name:"Library",icon:"library"}
 ];
 var ICONS={
+ desk:'<path d="M4 20h16M7 20v-6m10 6v-6M4 14h16l-2-7H6zM12 7V3m-3 0h6"/>',
+ briefcase:'<rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/>',
+ graduation:'<path d="m2 9 10-5 10 5-10 5zM6 11v6c4 3 8 3 12 0v-6M22 9v8"/>',
+ user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
  house:'<path d="m3 10 9-7 9 7v11H3z"/><path d="M9 21v-7h6v7"/>',
  book:'<path d="M4 4h7a3 3 0 0 1 3 3v14H7a3 3 0 0 0-3 0zM14 7a3 3 0 0 1 3-3h7v17h-7a3 3 0 0 0-3 0"/>',
  'book-open':'<path d="M3 5h7a4 4 0 0 1 4 4v12H7a4 4 0 0 0-4 0zM14 9a4 4 0 0 1 4-4h3v16h-3a4 4 0 0 0-4 0"/>',
@@ -77,18 +81,19 @@ function plain(v){return String(v||"").replace(/<[^>]*>/g," ").replace(/\s+/g," 
 function trim(v,n){return String(v||"").slice(0,n||180)}
 function ent(type,title,extra){return Object.assign({
  id:uid(),type:type,title:title||"",body:"",html:"",createdAt:now(),updatedAt:now(),contextIds:[],
- notebookId:null,folderId:null,sourceId:null,starred:false,pinned:false,archived:false,trashed:false,
+ notebookId:null,folderId:null,areaId:null,sourceId:null,starred:false,pinned:false,archived:false,trashed:false,
  date:"",time:"",endTime:"",dueDate:"",location:"",completed:false,projectStatus:"active",
  url:"",resourceKind:"link",blobId:null,fileName:"",mime:"",fileSize:0,tags:[],color:"default",demo:false
 },extra||{})}
 function seed(){
  var d=today(),tomorrow=offsetDay(d,1),yesterday=offsetDay(d,-1);
- var project=ent("project","Alpine Park HOA",{body:"Example project context. Add a task, note, or resource here and find it again in its own tool.",starred:true,demo:true});
+ var aI=ent("area","Ivrnet",{demo:true}),aT=ent("area","Tec",{demo:true}),aC=ent("area","Casa",{demo:true}),aP=ent("area","Pessoal",{demo:true});
+ var project=ent("project","Alpine Park HOA",{areaId:aI.id,body:"Example project context. Add a task, note, or resource here and find it again in its own tool.",starred:true,demo:true});
  var visit=ent("event","Oftalmologista · exemplo",{date:tomorrow,time:"14:00",location:"Consultório (exemplo)",body:"A calendar event with its own supporting information.",demo:true});
  var t1=ent("task","Revisar homepage",{contextIds:[project.id],dueDate:d,demo:true});
- var t2=ent("task","Separar exames anteriores",{contextIds:[visit.id],dueDate:tomorrow,demo:true});
- var t3=ent("task","Anotar perguntas para a consulta",{contextIds:[visit.id],dueDate:tomorrow,demo:true});
- var t4=ent("task","Revisar referências de design",{dueDate:"",demo:true});
+ var t2=ent("task","Separar exames anteriores",{contextIds:[visit.id],areaId:aP.id,dueDate:tomorrow,demo:true});
+ var t3=ent("task","Anotar perguntas para a consulta",{contextIds:[visit.id],areaId:aP.id,dueDate:tomorrow,demo:true});
+ var t4=ent("task","Revisar referências de design",{areaId:aT.id,dueDate:"",demo:true});
  var notebook1=ent("notebook","Ideas",{demo:true});
  var notebook2=ent("notebook","Recipes",{demo:true});
  var n1=ent("note","Perguntas para o médico",{html:"<p>Quero conversar sobre mudanças no grau e perguntar quando seria indicado repetir os exames.</p>",contextIds:[visit.id],demo:true});
@@ -99,11 +104,29 @@ function seed(){
  var r2=ent("resource","Exame anterior.pdf",{resourceKind:"document",fileName:"Exame anterior.pdf",contextIds:[visit.id],body:"Arquivo ilustrativo. Anexe seu próprio PDF para testar um arquivo real.",demo:true});
  var r3=ent("resource","MDN Web Docs",{url:"https://developer.mozilla.org/en-US/",resourceKind:"link",starred:true,demo:true});
  var journal=ent("journal","",{date:yesterday,html:"<p>Um registro de exemplo para demonstrar como o diário funciona.</p><p>As notas adicionadas a esta entrada também podem ser encontradas em Notebooks.</p>",demo:true});
- return {version:11,entities:[project,visit,t1,t2,t3,t4,notebook1,notebook2,n1,n2,n3,n4,r1,r2,r3,journal],
+ return {version:12,entities:[aI,aT,aC,aP,project,visit,t1,t2,t3,t4,notebook1,notebook2,n1,n2,n3,n4,r1,r2,r3,journal],
  ui:{tool:"home",view:"today",selectedDate:d,month:monthKey(d),focusId:null,detailId:null,lastTool:"home",lastView:"today",recent:[project.id,visit.id],search:""},demo:true}
 }
 var state;
-try{state=JSON.parse(localStorage.getItem(KEY)||"null");if(!state||!Array.isArray(state.entities))state=seed()}catch(e){state=seed()}
+try{
+ var existing=localStorage.getItem(KEY),legacy=localStorage.getItem(LEGACY);
+ state=JSON.parse(existing||legacy||"null");
+ if(!state||!Array.isArray(state.entities))state=seed();
+}catch(e){state=seed()}
+function ensureAreas(){
+ if(state.version===12)return;
+ var names=["Ivrnet","Tec","Casa","Pessoal"],areas=state.entities.filter(function(e){return e.type==="area"});
+ if(!areas.length){areas=names.map(function(name){return ent("area",name,{demo:true})});state.entities.unshift.apply(state.entities,areas)}
+ function known(n){return areas.find(function(a){return a.title===n})}
+ state.entities.forEach(function(e){
+  if(!e.demo||e.areaId)return;
+  if(e.type==="project"&&e.title==="Alpine Park HOA"&&known("Ivrnet"))e.areaId=known("Ivrnet").id;
+  if(e.type==="task"&&e.title==="Revisar referências de design"&&known("Tec"))e.areaId=known("Tec").id;
+  if(e.type==="task"&&["Separar exames anteriores","Anotar perguntas para a consulta"].includes(e.title)&&known("Pessoal"))e.areaId=known("Pessoal").id;
+ });
+ state.version=12
+}
+ensureAreas();
 state.ui=state.ui||seed().ui;
 var $=function(id){return document.getElementById(id)};
 var rail=$("toolrail"),sidebar=$("sidebar"),workspace=$("workspace"),modalRoot=$("modal-root"),toastEl=$("toast");
@@ -116,11 +139,23 @@ function touched(e){if(!e)return;e.updatedAt=now();save()}
 function isDemo(e){return !!e.demo}
 function rels(e){return state.entities.filter(function(x){return !x.trashed&&!x.archived&&x.contextIds&&x.contextIds.includes(e.id)})}
 function sources(e){return (e.contextIds||[]).map(get).filter(function(x){return x&&!x.trashed&&!x.archived})}
-function meaningfulContext(e){return sources(e).length>0}
+function areaIcon(a){var n=(a&&a.title||"").toLowerCase();return n==="ivrnet"?"briefcase":n==="tec"?"graduation":n==="casa"?"house":n==="pessoal"?"user":"layers"}
+function areaOf(e,seen){
+ if(!e)return null;
+ if(e.type==="area")return !e.archived&&!e.trashed?e:null;
+ var assigned=get(e.areaId);if(assigned&&assigned.type==="area"&&!assigned.archived&&!assigned.trashed)return assigned;
+ seen=seen||new Set();if(seen.has(e.id))return null;seen.add(e.id);
+ for(var p of sources(e)){var a=areaOf(p,seen);if(a)return a}
+ return null
+}
+function projectOf(e){return sources(e).find(function(p){return p.type==="project"})||null}
+function inArea(e,area){var a=areaOf(e);return !!(a&&area&&a.id===area.id)}
+function isBookmark(e){return e.type==="resource"&&!!safeUrl(e.url)}
+function meaningfulContext(e){return sources(e).length>0||!!areaOf(e)}
 function count(type){return list(type).length}
 function toast(s){toastEl.textContent=s;toastEl.classList.add("open");clearTimeout(toastTimer);toastTimer=setTimeout(function(){toastEl.classList.remove("open")},2800)}
-function typeIcon(e){if(!e)return "layers";if(e.type==="resource")return e.resourceKind==="image"?"image":e.resourceKind==="video"?"video":e.resourceKind==="link"?"link":"file";return {event:"calendar",task:"check-circle",note:"note",project:"clipboard",journal:"book-open",notebook:"notebook",folder:"folder"}[e.type]||"layers"}
-function typeName(type){return {event:"Event",task:"Task",note:"Note",resource:"Resource",project:"Project",journal:"Journal entry",notebook:"Notebook",folder:"Folder"}[type]||"Item"}
+function typeIcon(e){if(!e)return "layers";if(e.type==="resource")return e.resourceKind==="image"?"image":e.resourceKind==="video"?"video":e.resourceKind==="link"?"link":"file";return {event:"calendar",task:"check-circle",note:"note",project:"clipboard",journal:"book-open",notebook:"notebook",folder:"folder",area:"layers"}[e.type]||"layers"}
+function typeName(type){return {event:"Event",task:"Task",note:"Note",resource:"Resource",project:"Project",journal:"Journal entry",notebook:"Notebook",folder:"Folder",area:"Area"}[type]||"Item"}
 function objTitle(e){return e.title|| (e.type==="journal"?humanDay(e.date):e.fileName||hostname(e.url)||"Untitled")}
 function outOfDate(e){return !!(e.dueDate&&!e.completed&&e.dueDate<today())}
 function contextName(e){var p=sources(e);return p.length?p.map(function(x){return objTitle(x)}).join(" · "):""}
