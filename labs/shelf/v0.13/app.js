@@ -678,6 +678,17 @@ function detailMeta(e){
    '<option value="">'+esc(label)+'</option>'+
    list("area").map(function(a){return '<option value="'+esc(a.id)+'"'+(e.areaId===a.id?' selected':"")+'>'+esc(objTitle(a))+'</option>'}).join("")+'</select></div>';
  }
+ if(e.type==="task"||e.type==="project"){
+  var a=areaOf(e),cat=categoryOf(e),parentProject=e.type==="task"?projectOf(e):null;
+  if(a){
+   var inherited=cat&&!e.categoryId&&parentProject;
+   var label=inherited?"Via "+objTitle(parentProject)+" · "+objTitle(cat):"No category";
+   out+='<div class="meta-pill">'+ic("folder",15)+'<select data-edit="categoryId" aria-label="Category" title="Category">'+
+    '<option value="">'+esc(label)+'</option>'+
+    categoriesIn(a).map(function(c){return '<option value="'+esc(c.id)+'"'+(e.categoryId===c.id?' selected':"")+'>'+esc(objTitle(c))+'</option>'}).join("")+
+    '</select></div>'
+  }
+ }
  if(e.type==="resource")out+='<div class="meta-pill">'+ic(typeIcon(e),15)+' '+esc(e.resourceKind)+'</div>';
  if(e.notebookId&&get(e.notebookId))out+='<div class="meta-pill meta-readonly">'+ic("notebook",15)+' '+esc(objTitle(get(e.notebookId)))+'</div>';
  return out?'<div class="meta-rows">'+out+'</div>':""
@@ -780,6 +791,7 @@ function captureObject(value,contextId,mode){
  if(context&&context.type==="notebook"&&type==="note")extra.notebookId=id;
  else if(context&&context.type==="folder"&&type==="resource")extra.folderId=id;
  else if(context&&context.type==="area"&&["task","project"].includes(type))extra.areaId=id;
+ else if(context&&context.type==="category"&&["task","project"].includes(type)){extra.areaId=context.areaId;extra.categoryId=context.id}
  else if(id)extra.contextIds=[id];
  var x=ent(type,title,extra);
  state.entities.unshift(x);save();return x;
@@ -793,6 +805,7 @@ function captureSave(contextId){
 function primaryType(t){return {home:null,journal:"journal",calendar:"event",planner:"task",notebooks:"note",library:"resource"}[t]}
 function openCreate(type,contextId,opts){
  opts=opts||{};if(type==="journal"){journalToday();return}
+ if(!contextId&&["task","project"].includes(type)&&state.ui.tool==="planner"&&state.ui.view.startsWith("category:"))contextId=state.ui.view.slice(9);
  if(!contextId&&["task","project"].includes(type)&&state.ui.tool==="planner"&&state.ui.view.startsWith("area:"))contextId=state.ui.view.slice(5);
  if(!contextId&&type==="note"&&state.ui.tool==="notebooks"&&state.ui.view.startsWith("book:"))contextId=state.ui.view.slice(5);
  if(!contextId&&type==="resource"&&state.ui.tool==="library"&&state.ui.view.startsWith("folder:"))contextId=state.ui.view.slice(7);
@@ -822,6 +835,7 @@ function submitCreate(){
  if(context&&context.type==="notebook"&&type==="note")extra.notebookId=context.id;
  else if(context&&context.type==="folder"&&type==="resource")extra.folderId=context.id;
  else if(context&&context.type==="area"&&["task","project"].includes(type))extra.areaId=context.id;
+ else if(context&&context.type==="category"&&["task","project"].includes(type)){extra.areaId=context.areaId;extra.categoryId=context.id}
  else if(context)extra.contextIds=[context.id];
  var e=ent(type,title,extra);state.entities.unshift(e);save();closeModal();openEntity(e.id);toast(typeName(type)+" created"+(context?" · linked to "+objTitle(context):""))
 }
@@ -973,11 +987,29 @@ function assignArea(e,id){
   if(!confirm("This task belongs to "+objTitle(parent)+". Move it out of that project and into "+objTitle(next)+"?"))return false;
   e.contextIds=(e.contextIds||[]).filter(function(p){return p!==parent.id});
  }
- e.areaId=next?next.id:null;if(next&&e.type==="task")e.inbox=false;touched(e);return true
+ e.areaId=next?next.id:null;if(e.categoryId&&(!next||!get(e.categoryId)||get(e.categoryId).areaId!==next.id))e.categoryId=null;
+ if(next&&e.type==="task")e.inbox=false;touched(e);return true
+}
+function assignCategory(e,id){
+ if(!e||!["task","project"].includes(e.type))return false;
+ var category=id?get(id):null;
+ if(id&&(!category||category.type!=="category"||category.trashed))return false;
+ if(category){
+  var currentArea=areaOf(e),parent=e.type==="task"?projectOf(e):null,parentArea=parent?areaOf(parent):null;
+  if(parent&&(!parentArea||parentArea.id!==category.areaId)){
+   if(!confirm("This task belongs to "+objTitle(parent)+". Move it out of that project and into "+objTitle(category)+"?"))return false;
+   e.contextIds=(e.contextIds||[]).filter(function(p){return p!==parent.id})
+  }
+  if(!currentArea||currentArea.id!==category.areaId||!parent)e.areaId=category.areaId
+ }
+ e.categoryId=category?category.id:null;
+ if(category&&e.type==="task")e.inbox=false;
+ touched(e);return true
 }
 function editField(target){
  var e=get(state.ui.detailId);if(!e)return;var f=target.getAttribute("data-edit");if(!f)return;
  if(f==="areaId"){if(!assignArea(e,target.value))paint();return}
+ if(f==="categoryId"){if(!assignCategory(e,target.value))paint();return}
  if(["title","body","date","time","dueDate","location","projectStatus"].includes(f)){e[f]=target.value;touched(e)}
 }
 function applyRichEdit(){var e=get(state.ui.detailId),el=$("rich-content");if(!e||!el)return;e.html=safeRich(el.innerHTML);e.body=stripHtml(e.html);touched(e)}
@@ -1063,7 +1095,7 @@ document.addEventListener("input",function(ev){
  if(el.id==="global-search"){updateSearchResults(el.value);return}
  if(el.id==="attach-search"){updateAttachResults(el.value);return}
  if(el.id==="rich-content"){applyRichEdit();return}
- if(el.hasAttribute("data-edit")){if(el.getAttribute("data-edit")==="areaId")return;editField(el);return}
+ if(el.hasAttribute("data-edit")){if(["areaId","categoryId"].includes(el.getAttribute("data-edit")))return;editField(el);return}
 });
 document.addEventListener("change",function(ev){if(ev.target.hasAttribute("data-edit")){editField(ev.target);paint()}});
 document.addEventListener("keydown",function(ev){
