@@ -536,7 +536,7 @@ function renderWorkspace(){
 }
 function paint(){renderRail();renderSidebar();renderWorkspace()}
 function go(tool,view,stay){if(!stay&&state.ui.detailId){state.ui.detailId=null}state.ui.detailTrail=[];state.ui.tool=tool;state.ui.view=view||({home:"today",journal:"today",calendar:"month",planner:"today",notebooks:"all",library:"all"}[tool]||"today");save();paint();workspace.scrollTop=0}
-function openEntity(id){var e=get(id);if(!e)return;if(state.ui.detailId&&state.ui.detailId!==id){state.ui.detailTrail=(state.ui.detailTrail||[]).concat(state.ui.detailId).slice(-15)}else if(!state.ui.detailId){state.ui.detailTrail=[];state.ui.lastTool=state.ui.tool;state.ui.lastView=state.ui.view}state.ui.detailId=id;addRecent(id);save();paint();workspace.scrollTop=0}
+function openEntity(id){var e=get(id);if(!e)return;if(e.type==="area"){go("planner","area:"+e.id);return}if(state.ui.detailId&&state.ui.detailId!==id){state.ui.detailTrail=(state.ui.detailTrail||[]).concat(state.ui.detailId).slice(-15)}else if(!state.ui.detailId){state.ui.detailTrail=[];state.ui.lastTool=state.ui.tool;state.ui.lastView=state.ui.view}state.ui.detailId=id;addRecent(id);save();paint();workspace.scrollTop=0}
 function back(){if(state.ui.detailTrail&&state.ui.detailTrail.length){state.ui.detailId=state.ui.detailTrail.pop();save();paint();workspace.scrollTop=0;return}state.ui.detailId=null;state.ui.tool=state.ui.lastTool||state.ui.tool;state.ui.view=state.ui.lastView||state.ui.view;save();paint();workspace.scrollTop=0}
 function journalToday(){var j=list("journal").find(function(e){return e.date===today()});if(!j){j=ent("journal","",{date:today()});state.entities.unshift(j);save()}openEntity(j.id)}
 function classifyUrl(url){
@@ -565,6 +565,7 @@ function captureObject(value,contextId,mode){
  if(id)extra.sourceId=id;
  if(context&&context.type==="notebook"&&type==="note")extra.notebookId=id;
  else if(context&&context.type==="folder"&&type==="resource")extra.folderId=id;
+ else if(context&&context.type==="area"&&["task","project"].includes(type))extra.areaId=id;
  else if(id)extra.contextIds=[id];
  var x=ent(type,title,extra);
  state.entities.unshift(x);save();return x;
@@ -578,9 +579,10 @@ function captureSave(contextId){
 function primaryType(t){return {home:null,journal:"journal",calendar:"event",planner:"task",notebooks:"note",library:"resource"}[t]}
 function openCreate(type,contextId,opts){
  opts=opts||{};if(type==="journal"){journalToday();return}
+ if(!contextId&&["task","project"].includes(type)&&state.ui.tool==="planner"&&state.ui.view.startsWith("area:"))contextId=state.ui.view.slice(5);
  if(!contextId&&type==="note"&&state.ui.tool==="notebooks"&&state.ui.view.startsWith("book:"))contextId=state.ui.view.slice(5);
  if(!contextId&&type==="resource"&&state.ui.tool==="library"&&state.ui.view.startsWith("folder:"))contextId=state.ui.view.slice(7);
- modalState={mode:"create",type:type,contextId:contextId||state.ui.focusId||null,opts:opts};
+ modalState={mode:"create",type:type,contextId:type==="area"?null:(contextId||state.ui.focusId||null),opts:opts};
  var e=get(modalState.contextId),hint=e?"This will be connected to "+objTitle(e)+".":"No setup needed. You can always organize it later.";
  var title="New "+typeName(type).toLowerCase(),field='<div class="field"><label for="new-title">Title</label><input id="new-title" placeholder="'+(type==="event"?"e.g. Dentist, 2 PM":type==="project"?"e.g. Alpine Park HOA":"Give it a name")+'" required></div>';
  if(type==="note")field='<div class="field"><label for="new-title">Title (optional)</label><input id="new-title" placeholder="Start with an idea…"></div>';
@@ -605,6 +607,7 @@ function submitCreate(){
  if(context)extra.sourceId=context.id;
  if(context&&context.type==="notebook"&&type==="note")extra.notebookId=context.id;
  else if(context&&context.type==="folder"&&type==="resource")extra.folderId=context.id;
+ else if(context&&context.type==="area"&&["task","project"].includes(type))extra.areaId=context.id;
  else if(context)extra.contextIds=[context.id];
  var e=ent(type,title,extra);state.entities.unshift(e);save();closeModal();openEntity(e.id);toast(typeName(type)+" created"+(context?" · linked to "+objTitle(context):""))
 }
