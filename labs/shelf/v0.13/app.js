@@ -92,7 +92,7 @@ function plain(v){return String(v||"").replace(/<[^>]*>/g," ").replace(/\s+/g," 
 function trim(v,n){return String(v||"").slice(0,n||180)}
 function ent(type,title,extra){return Object.assign({
  id:uid(),type:type,title:title||"",body:"",html:"",createdAt:now(),updatedAt:now(),contextIds:[],
- notebookId:null,folderId:null,areaId:null,sourceId:null,inbox:false,starred:false,pinned:false,archived:false,trashed:false,
+ notebookId:null,folderId:null,areaId:null,categoryId:null,sourceId:null,inbox:false,starred:false,pinned:false,archived:false,trashed:false,
  date:"",time:"",endTime:"",dueDate:"",location:"",completed:false,projectStatus:"active",
  url:"",resourceKind:"link",blobId:null,fileName:"",mime:"",fileSize:0,tags:[],color:"default",demo:false
 },extra||{})}
@@ -150,6 +150,21 @@ function ensureV13(){
  state.version=13;
 }
 ensureV13();
+function ensureCategories(){
+ if(state.ui.categoriesSeeded)return;
+ var defaults={"ivrnet":["Support tickets","Website development","WordPress maintenance","Admin","General tasks"],"tec":["Demandas","Iniciativas","Admin"]};
+ state.entities.filter(function(e){return e.type==="area"&&!e.trashed}).forEach(function(a){
+  var names=defaults[String(a.title).trim().toLowerCase()]||[];
+  names.forEach(function(name){
+   var exists=state.entities.some(function(c){return c.type==="category"&&c.areaId===a.id&&c.title.toLowerCase()===name.toLowerCase()&&!c.trashed});
+   if(!exists)state.entities.push(ent("category",name,{areaId:a.id}))
+  })
+ });
+ var alpine=state.entities.find(function(e){return e.type==="project"&&e.demo&&e.title==="Alpine Park HOA"&&!e.categoryId});
+ if(alpine){var c=state.entities.find(function(e){return e.type==="category"&&e.areaId===alpine.areaId&&e.title==="Website development"&&!e.trashed});if(c)alpine.categoryId=c.id}
+ state.ui.categoriesSeeded=true
+}
+ensureCategories();
 var $=function(id){return document.getElementById(id)};
 var rail=$("toolrail"),sidebar=$("sidebar"),workspace=$("workspace"),modalRoot=$("modal-root"),toastEl=$("toast");
 var activeComposer="auto",composerFor=null,composerText="",modalState=null,uploadContext=null,mediaUrls=[],toastTimer=null;
@@ -171,6 +186,17 @@ function areaOf(e,seen){
  return null
 }
 function projectOf(e){return sources(e).find(function(p){return p.type==="project"})||null}
+function categoriesIn(area){return list("category").filter(function(c){return !!area&&c.areaId===area.id})}
+function categoryOf(e,seen){
+ if(!e)return null;
+ if(e.type==="category")return !e.archived&&!e.trashed?e:null;
+ var area=areaOf(e),category=get(e.categoryId);
+ if(category&&category.type==="category"&&!category.trashed&&!category.archived&&area&&category.areaId===area.id)return category;
+ seen=seen||new Set();if(seen.has(e.id))return null;seen.add(e.id);
+ for(var p of sources(e)){var c=categoryOf(p,seen);if(c&&area&&c.areaId===area.id)return c}
+ return null
+}
+function inCategory(e,category){var c=categoryOf(e);return !!(c&&category&&c.id===category.id)}
 function inArea(e,area){var a=areaOf(e);return !!(a&&area&&a.id===area.id)}
 function isBookmark(e){return e.type==="resource"&&!!safeUrl(e.url)}
 function meaningfulContext(e){return sources(e).length>0||!!areaOf(e)}
@@ -178,8 +204,8 @@ function count(type){return list(type).length}
 function inInbox(e){return e&&e.type==="task"&&!e.completed&&e.inbox===true}
 function inboxCount(){return list("task").filter(inInbox).length}
 function toast(s){toastEl.textContent=s;toastEl.classList.add("open");clearTimeout(toastTimer);toastTimer=setTimeout(function(){toastEl.classList.remove("open")},2800)}
-function typeIcon(e){if(!e)return "layers";if(e.type==="resource")return e.resourceKind==="image"?"image":e.resourceKind==="video"?"video":e.resourceKind==="link"?"link":"file";return {event:"calendar",task:"check-circle",note:"note",project:"clipboard",journal:"book-open",notebook:"notebook",folder:"folder",area:"layers"}[e.type]||"layers"}
-function typeName(type){return {event:"Event",task:"Task",note:"Note",resource:"Resource",project:"Project",journal:"Journal entry",notebook:"Notebook",folder:"Collection",area:"Area"}[type]||"Item"}
+function typeIcon(e){if(!e)return "layers";if(e.type==="resource")return e.resourceKind==="image"?"image":e.resourceKind==="video"?"video":e.resourceKind==="link"?"link":"file";return {event:"calendar",task:"check-circle",note:"note",project:"clipboard",journal:"book-open",notebook:"notebook",folder:"folder",area:"layers",category:"folder"}[e.type]||"layers"}
+function typeName(type){return {event:"Event",task:"Task",note:"Note",resource:"Resource",project:"Project",journal:"Journal entry",notebook:"Notebook",folder:"Collection",area:"Area",category:"Category"}[type]||"Item"}
 function objTitle(e){return e.title|| (e.type==="journal"?humanDay(e.date):e.fileName||hostname(e.url)||"Untitled")}
 function outOfDate(e){return !!(e.dueDate&&!e.completed&&e.dueDate<today())}
 function contextName(e){var p=sources(e);return p.length?p.map(function(x){return objTitle(x)}).join(" · "):""}
@@ -657,7 +683,7 @@ function renderWorkspace(){
 }
 function paint(){renderRail();renderSidebar();renderWorkspace()}
 function go(tool,view,stay){if(!stay&&state.ui.detailId){state.ui.detailId=null}state.ui.detailTrail=[];state.ui.tool=tool;state.ui.view=view||({home:"today",journal:"today",calendar:"month",planner:"today",notebooks:"all",library:"all"}[tool]||"today");save();paint();workspace.scrollTop=0}
-function openEntity(id){var e=get(id);if(!e)return;if(e.type==="area"){go("planner","area:"+e.id);return}if(state.ui.detailId&&state.ui.detailId!==id){state.ui.detailTrail=(state.ui.detailTrail||[]).concat(state.ui.detailId).slice(-15)}else if(!state.ui.detailId){state.ui.detailTrail=[];state.ui.lastTool=state.ui.tool;state.ui.lastView=state.ui.view}state.ui.detailId=id;addRecent(id);save();paint();workspace.scrollTop=0}
+function openEntity(id){var e=get(id);if(!e)return;if(e.type==="area"){go("planner","area:"+e.id);return}if(e.type==="category"){go("planner","category:"+e.id);return}if(state.ui.detailId&&state.ui.detailId!==id){state.ui.detailTrail=(state.ui.detailTrail||[]).concat(state.ui.detailId).slice(-15)}else if(!state.ui.detailId){state.ui.detailTrail=[];state.ui.lastTool=state.ui.tool;state.ui.lastView=state.ui.view}state.ui.detailId=id;addRecent(id);save();paint();workspace.scrollTop=0}
 function back(){if(state.ui.detailTrail&&state.ui.detailTrail.length){state.ui.detailId=state.ui.detailTrail.pop();save();paint();workspace.scrollTop=0;return}state.ui.detailId=null;state.ui.tool=state.ui.lastTool||state.ui.tool;state.ui.view=state.ui.lastView||state.ui.view;save();paint();workspace.scrollTop=0}
 function journalToday(){var j=list("journal").find(function(e){return e.date===today()});if(!j){j=ent("journal","",{date:today()});state.entities.unshift(j);save()}openEntity(j.id)}
 function classifyUrl(url){
@@ -847,7 +873,7 @@ function unlink(id,parentId){var e=get(id);if(!e)return;e.contextIds=(e.contextI
 function archiveItem(id){var e=get(id);if(!e)return;e.archived=!e.archived;touched(e);closeModal();if(state.ui.detailId===id)back();else paint();toast(e.archived?"Archived":"Restored")}
 function trashItem(id){var e=get(id);if(!e)return;e.trashed=true;e.archived=false;touched(e);closeModal();if(state.ui.detailId===id)back();else paint();toast("Moved to Trash")}
 function restoreItem(id){var e=get(id);if(!e)return;e.trashed=false;touched(e);closeModal();paint();toast("Restored")}
-function deleteForever(id){if(!confirm("Permanently delete this item? This cannot be undone."))return;state.entities=state.entities.filter(function(x){return x.id!==id});state.entities.forEach(function(x){x.contextIds=(x.contextIds||[]).filter(function(y){return y!==id});if(x.folderId===id)x.folderId=null;if(x.notebookId===id)x.notebookId=null;if(x.areaId===id)x.areaId=null});save();closeModal();if(state.ui.detailId===id)back();else paint();toast("Deleted permanently")}
+function deleteForever(id){if(!confirm("Permanently delete this item? This cannot be undone."))return;state.entities=state.entities.filter(function(x){return x.id!==id});state.entities.forEach(function(x){x.contextIds=(x.contextIds||[]).filter(function(y){return y!==id});if(x.folderId===id)x.folderId=null;if(x.notebookId===id)x.notebookId=null;if(x.areaId===id)x.areaId=null;if(x.categoryId===id)x.categoryId=null});save();closeModal();if(state.ui.detailId===id)back();else paint();toast("Deleted permanently")}
 function resourceDownload(e){if(e.blobId){loadBlob(e.blobId).then(function(blob){if(!blob){toast("File missing from local storage");return}var link=document.createElement("a"),url=URL.createObjectURL(blob);link.href=url;link.download=e.fileName||objTitle(e);link.click();setTimeout(function(){URL.revokeObjectURL(url)},6000)}).catch(function(){toast("Could not load file")})}else if(safeUrl(e.url)){window.open(safeUrl(e.url),"_blank","noopener,noreferrer")}else{toast("This is an illustrative resource, not an attached file")}}
 function openDb(){return new Promise(function(resolve,reject){var req=indexedDB.open(DB,1);req.onupgradeneeded=function(){if(!req.result.objectStoreNames.contains("files"))req.result.createObjectStore("files")};req.onsuccess=function(){resolve(req.result)};req.onerror=function(){reject(req.error)}})}
 async function storeBlob(id,blob){var db=await openDb();try{await new Promise(function(resolve,reject){var t=db.transaction("files","readwrite");t.objectStore("files").put(blob,id);t.oncomplete=resolve;t.onerror=function(){reject(t.error)}})}finally{db.close()}}
@@ -872,7 +898,7 @@ async function exportAll(){try{var out={format:"shelf-v013",savedAt:new Date().t
  for(var id of ids){var b=await loadBlob(id);if(b)out.files.push({id:id,mime:b.type,data:await toB64(b)})}
  var url=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download="shelf-v013-backup-"+today()+".json";a.click();setTimeout(function(){URL.revokeObjectURL(url)},10000);toast("Backup exported")
  }catch(err){toast("Export failed: "+err.message)}}
-async function importAll(file){try{var d=JSON.parse(await file.text());if(!d||!["shelf-v013","shelf-v012","shelf-v011"].includes(d.format)||!d.data||!Array.isArray(d.data.entities))throw Error("Invalid Shelf backup");if(!confirm("Replace current v0.13 content with this backup?"))return;for(var f of d.files||[]){await storeBlob(f.id,fromB64(f.data,f.mime))}state=d.data;ensureAreas();state.ui=state.ui||seed().ui;ensureV13();state.ui.detailId=null;save();paint();toast("Backup restored")}catch(err){toast("Import failed: "+err.message)}}
+async function importAll(file){try{var d=JSON.parse(await file.text());if(!d||!["shelf-v013","shelf-v012","shelf-v011"].includes(d.format)||!d.data||!Array.isArray(d.data.entities))throw Error("Invalid Shelf backup");if(!confirm("Replace current v0.13 content with this backup?"))return;for(var f of d.files||[]){await storeBlob(f.id,fromB64(f.data,f.mime))}state=d.data;ensureAreas();state.ui=state.ui||seed().ui;ensureV13();ensureCategories();state.ui.detailId=null;save();paint();toast("Backup restored")}catch(err){toast("Import failed: "+err.message)}}
 function assignArea(e,id){
  if(!e||!["task","project"].includes(e.type))return false;
  var next=id?get(id):null;if(id&&(!next||next.type!=="area"||next.trashed))return false;
