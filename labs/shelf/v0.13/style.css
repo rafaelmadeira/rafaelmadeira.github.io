@@ -364,15 +364,17 @@ svg{flex-shrink:0;vertical-align:middle}
 .sb-foot small{padding:4px 9px 0}
 @media(max-height:555px){.toolrail{overflow-y:auto;scrollbar-width:none}.toolrail::-webkit-scrollbar{display:none}.rail-logo{margin-bottom:6px}.rail-item{min-height:51px}.rail-footer-tools .rail-bottom{min-height:47px}}
 
-/* Journal: contextual calendar lives at the bottom, independent of the scrolling journal list. */
-.journal-calendar-shell{flex:0 0 auto;min-width:0;max-height:min(345px,55dvh);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#e2e7e7 transparent;padding:7px 9px 2px}
-.journal-calendar-toggle{display:flex;align-items:center;gap:10px;width:100%;min-height:33px;border:0;background:transparent;color:#75868d;padding:7px 10px;border-radius:7px;text-align:left;font-size:12px;font-weight:600}
-.journal-calendar-toggle:hover{background:#ecefed;color:#426a80}
-.journal-calendar-toggle span{flex:1}
-.journal-calendar-toggle svg:last-child{color:#a0a9ab}
-.journal-mini-calendar{margin:5px 0 7px;padding:10px 8px 11px}
-.journal-mini-calendar .mini-grid button:focus-visible{outline:2px solid #80a9c1;outline-offset:-2px}
-@media(max-height:650px){.journal-calendar-shell{max-height:42dvh}.journal-mini-calendar .mini-grid button{height:23px}.journal-mini-calendar{padding:6px}}
+/* Shared, collapsible minicalendar in every tool's sidebar footer. */
+.sidebar-calendar-shell{flex:0 0 auto;min-width:0;max-height:min(345px,55dvh);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#e2e7e7 transparent;padding:7px 9px 2px}
+.sidebar-calendar-toggle{display:flex;align-items:center;gap:10px;width:100%;min-height:33px;border:0;background:transparent;color:#75868d;padding:7px 10px;border-radius:7px;text-align:left;font-size:12px;font-weight:600}
+.sidebar-calendar-toggle:hover{background:#ecefed;color:#426a80}
+.sidebar-calendar-toggle span{flex:1}
+.sidebar-calendar-toggle svg:last-child{color:#a0a9ab}
+.sidebar-mini-calendar{margin:5px 0 7px;padding:10px 8px 11px}
+.sidebar-mini-calendar .mini-grid button:focus-visible{outline:2px solid #80a9c1;outline-offset:-2px}
+.sidebar-mini-clear{display:flex;align-items:center;gap:5px;margin:7px auto 0;padding:5px 8px;background:#f2f5f5;border:0;border-radius:6px;color:#607d8a;font-size:10.5px}
+.sidebar-mini-clear:hover{background:#e3edf1;color:#376c85}
+@media(max-height:650px){.sidebar-calendar-shell{max-height:42dvh}.sidebar-mini-calendar .mini-grid button{height:23px}.sidebar-mini-calendar{padding:6px}}
 
 /* v0.13 universal search + Q capture */
 .universal-capture-box{border:1px solid #dde8e8;border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 4px 18px #26425209}
