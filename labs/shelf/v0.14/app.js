@@ -190,7 +190,7 @@ function ensureJournals(){
  if(typeof state.ui.journalCalendarExpanded!=="boolean")state.ui.journalCalendarExpanded=true;
  if(!state.ui.journalMonth)state.ui.journalMonth=monthKey(today());
  if(!state.ui.journalSelectedDate)state.ui.journalSelectedDate=today();
- if(state.ui.tool==="journal"&&(!state.ui.view||["today","timeline"].includes(state.ui.view)))state.ui.view="journalbook:"+def.id;
+ if(state.ui.tool==="journals"&&(!state.ui.view||["today","timeline"].includes(state.ui.view)))state.ui.view="journalbook:"+def.id;
 }
 ensureJournals();
 function canonicalTool(tool,view){
@@ -1071,27 +1071,46 @@ function renderDetail(e){
 }
 function renderWorkspace(){
  var inner;
- if(state.ui.detailId){var e=get(state.ui.detailId);if(e){inner=renderDetail(e)}else{state.ui.detailId=null;inner=renderHome()}}
- else if(state.ui.tool==="home")inner=renderHome();
- else if(state.ui.tool==="journal")inner=renderJournal();
+ if(state.ui.detailId){
+  var e=get(state.ui.detailId);if(e)inner=renderDetail(e);else{state.ui.detailId=null;inner=renderHome()}
+ }else if(state.ui.tool==="home")inner=renderHome();
+ else if(state.ui.tool==="journals")inner=renderJournal();
  else if(state.ui.tool==="calendar")inner=renderCalendar();
- else if(state.ui.tool==="planner")inner=renderPlanner();
- else if(state.ui.tool==="notebooks")inner=renderNotebook();
- else if(state.ui.tool==="library")inner=renderLibrary();
+ else if(state.ui.tool==="todo")inner=renderPlanner();
+ else if(state.ui.tool==="notes")inner=renderNotebook();
+ else if(state.ui.tool==="resources")inner=renderLibrary();
+ else if(state.ui.tool==="projects")inner=renderProjects();
+ else if(state.ui.tool==="bookmarks")inner=renderBookmarks();
+ else if(state.ui.tool==="goals")inner=renderGoals();
+ else if(state.ui.tool==="habits")inner=renderHabits();
+ else if(state.ui.tool==="routines")inner=renderRoutines();
  else inner=renderHome();
  mediaUrls.forEach(function(u){URL.revokeObjectURL(u)});mediaUrls=[];
  workspace.innerHTML=topbar()+'<div class="ws-body">'+inner+'</div>';
  fillPreviews()
 }
 function paint(){renderRail();renderSidebar();renderWorkspace()}
-function go(tool,view,stay){if(state.ui.sidebarDateFilters)delete state.ui.sidebarDateFilters[tool];if(!stay&&state.ui.detailId){state.ui.detailId=null}state.ui.detailTrail=[];state.ui.tool=tool;state.ui.view=view||(tool==="journal"?"journalbook:"+state.ui.defaultJournalId:({home:"today",calendar:"month",planner:"today",notebooks:"all",library:"all"}[tool]||"today"));
- if(tool==="planner"&&state.ui.view.startsWith("area:"))state.ui.expandedAreaId=state.ui.view.slice(5);
- if(tool==="planner"&&state.ui.view.startsWith("category:")){var c=get(state.ui.view.slice(9));if(c)state.ui.expandedAreaId=c.areaId}
- save();paint();workspace.scrollTop=0}
+function go(tool,view,stay){
+ var oldTool=tool;tool=canonicalTool(tool,view);
+ if(oldTool==="planner"&&view==="projects"||oldTool==="library"&&view==="bookmarks")view="all";
+ if(state.ui.sidebarDateFilters)delete state.ui.sidebarDateFilters[tool];
+ if(!stay&&state.ui.detailId)state.ui.detailId=null;
+ state.ui.detailTrail=[];state.ui.tool=tool;
+ state.ui.view=view||({
+  home:"today",todo:"today",calendar:"month",notes:"all",
+  journals:"journalbook:"+state.ui.defaultJournalId,goals:"active",
+  habits:"today",routines:"today",projects:"all",bookmarks:"all",resources:"all"
+ }[tool]||"all");
+ if(tool==="todo"&&state.ui.view.startsWith("area:"))state.ui.expandedAreaId=state.ui.view.slice(5);
+ if(tool==="todo"&&state.ui.view.startsWith("category:")){
+  var c=get(state.ui.view.slice(9));if(c)state.ui.expandedAreaId=c.areaId
+ }
+ save();paint();workspace.scrollTop=0
+}
 function openEntity(id){var e=get(id);if(!e)return;if(e.type==="area"){go("planner","area:"+e.id);return}if(e.type==="category"){go("planner","category:"+e.id);return}if(e.type==="journalbook"){go("journal","journalbook:"+e.id);return}if(state.ui.detailId&&state.ui.detailId!==id){state.ui.detailTrail=(state.ui.detailTrail||[]).concat(state.ui.detailId).slice(-15)}else if(!state.ui.detailId){state.ui.detailTrail=[];state.ui.lastTool=state.ui.tool;state.ui.lastView=state.ui.view}state.ui.detailId=id;addRecent(id);save();paint();workspace.scrollTop=0}
 function back(){if(state.ui.detailTrail&&state.ui.detailTrail.length){state.ui.detailId=state.ui.detailTrail.pop();save();paint();workspace.scrollTop=0;return}state.ui.detailId=null;state.ui.tool=state.ui.lastTool||state.ui.tool;state.ui.view=state.ui.lastView||state.ui.view;save();paint();workspace.scrollTop=0}
 function journalToday(date,bookId){
- var day=date||today(),active=state.ui.tool==="journal"?journalBookForView():null;
+ var day=date||today(),active=state.ui.tool==="journals"?journalBookForView():null;
  var journalId=bookId||active||state.ui.defaultJournalId;
  var book=get(journalId);if(!book||book.trashed||book.type!=="journalbook")journalId=state.ui.defaultJournalId;
  var j=list("journal").find(function(e){return e.date===day&&e.journalBookId===journalId});
@@ -1137,13 +1156,13 @@ function captureSave(contextId){
  var actual=contextId||state.ui.focusId||null,created=captureObject(input.value,actual,activeComposer);
  if(created){activeComposer="auto";paint();toast(typeName(created.type)+" saved"+(actual&&get(actual)?" · linked to "+objTitle(get(actual)):"")+". Also in "+(created.type==="task"?"Planner":created.type==="note"?"Notebook":"Library"))}
 }
-function primaryType(t){return {home:null,journal:"journal",calendar:"event",planner:"task",notebooks:"note",library:"resource"}[t]}
+function primaryType(t){return {home:null,todo:"task",calendar:"event",notes:"note",journals:"journal",goals:"goal",habits:"habit",routines:"routine",projects:"project",bookmarks:"resource",resources:"resource"}[t]}
 function openCreate(type,contextId,opts){
  opts=opts||{};if(type==="journal"){journalToday();return}
- if(!contextId&&["task","project"].includes(type)&&state.ui.tool==="planner"&&state.ui.view.startsWith("category:"))contextId=state.ui.view.slice(9);
- if(!contextId&&["task","project"].includes(type)&&state.ui.tool==="planner"&&state.ui.view.startsWith("area:"))contextId=state.ui.view.slice(5);
- if(!contextId&&type==="note"&&state.ui.tool==="notebooks"&&state.ui.view.startsWith("book:"))contextId=state.ui.view.slice(5);
- if(!contextId&&type==="resource"&&state.ui.tool==="library"&&state.ui.view.startsWith("folder:"))contextId=state.ui.view.slice(7);
+ if(!contextId&&["task","project"].includes(type)&&["todo","projects"].includes(state.ui.tool)&&state.ui.view.startsWith("category:"))contextId=state.ui.view.slice(9);
+ if(!contextId&&["task","project"].includes(type)&&["todo","projects"].includes(state.ui.tool)&&state.ui.view.startsWith("area:"))contextId=state.ui.view.slice(5);
+ if(!contextId&&type==="note"&&state.ui.tool==="notes"&&state.ui.view.startsWith("book:"))contextId=state.ui.view.slice(5);
+ if(!contextId&&type==="resource"&&["resources","bookmarks"].includes(state.ui.tool)&&state.ui.view.startsWith("folder:"))contextId=state.ui.view.slice(7);
  modalState={mode:"create",type:type,contextId:["area","journalbook"].includes(type)?null:(contextId||state.ui.focusId||null),opts:opts};
  var e=get(modalState.contextId),hint=e?"This will be connected to "+objTitle(e)+".":"No setup needed. You can always organize it later.";
  var title="New "+typeName(type).toLowerCase(),field='<div class="field"><label for="new-title">Title</label><input id="new-title" placeholder="'+(type==="event"?"e.g. Dentist, 2 PM":type==="project"?"e.g. Alpine Park HOA":"Give it a name")+'" required></div>';
@@ -1550,7 +1569,7 @@ async function fillPreviews(){
  for(var img of elems){try{var blob=await loadBlob(img.getAttribute("data-preview"));if(blob&&img.isConnected){var u=URL.createObjectURL(blob);mediaUrls.push(u);img.src=u}}catch(e){}}
 }
 async function handleUpload(files){
- files=Array.from(files||[]);if(!files.length)return;var context=universalUpload?null:get(uploadContext||(state.ui.tool==="library"&&state.ui.view.startsWith("folder:")?state.ui.view.slice(7):null));uploadContext=null;universalUpload=false;var saved=0;
+ files=Array.from(files||[]);if(!files.length)return;var context=universalUpload?null:get(uploadContext||(state.ui.tool==="resources"&&state.ui.view.startsWith("folder:")?state.ui.view.slice(7):null));uploadContext=null;universalUpload=false;var saved=0;
  for(var file of files){try{
   var kind=file.type.startsWith("image/")?"image":file.type.startsWith("video/")?"video":file.type.startsWith("audio/")?"music": "document";
   var e=ent("resource",file.name.replace(/\.[^/.]+$/,""),{resourceKind:kind,fileName:file.name,mime:file.type,fileSize:file.size,blobId:uid()});
@@ -1623,7 +1642,7 @@ function onClick(ev){
  if(act==="new-menu"){newMenu();return}
  if(act==="global-capture-save"){saveGlobalCapture();return}
  if(act==="create-primary"){var t=primaryType(state.ui.tool);if(!t)newMenu();else openCreate(t,null,{inbox:t==="task"&&state.ui.view==="inbox"});return}
- if(act==="create"){var fromInbox=type==="task"&&state.ui.view==="inbox"&&["planner","home"].includes(state.ui.tool);openCreate(type,ctx||null,{date:b.getAttribute("data-date")||null,inbox:fromInbox});return}
+ if(act==="create"){var fromInbox=type==="task"&&state.ui.view==="inbox"&&["todo","home"].includes(state.ui.tool);openCreate(type,ctx||null,{date:b.getAttribute("data-date")||null,inbox:fromInbox});return}
  if(act==="area-toggle"){state.ui.expandedAreaId=state.ui.expandedAreaId===id?null:id;save();renderSidebar();return}
  if(act==="area-open"){state.ui.expandedAreaId=id;go("planner","area:"+id);return}
  if(act==="category-open"){var c=get(id);if(c){state.ui.expandedAreaId=c.areaId;go("planner","category:"+id)}return}
