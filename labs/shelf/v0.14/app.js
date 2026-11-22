@@ -332,10 +332,10 @@ function quickItem(q){
  var p=QUICK_PAGES.find(function(x){return x.tool===q.tool&&x.view===q.view});
  if(p)return {key:quickKey(q),label:p.label,desc:TOOLS.find(function(x){return x.id===q.tool}).name,icon:p.icon};
  if(q.tool==="todo"&&q.view.startsWith("area:")){
-  var area=get(q.view.slice(5));if(area)return {key:quickKey(q),label:objTitle(area),desc:"Planner · Area",icon:areaIcon(area)}
+  var area=get(q.view.slice(5));if(area)return {key:quickKey(q),label:objTitle(area),desc:"To do · Area",icon:areaIcon(area)}
  }
  if(q.tool==="todo"&&q.view.startsWith("category:")){
-  var cat=get(q.view.slice(9));if(cat)return {key:quickKey(q),label:objTitle(cat),desc:"Planner · Category",icon:"folder"}
+  var cat=get(q.view.slice(9));if(cat)return {key:quickKey(q),label:objTitle(cat),desc:"To do · Category",icon:"folder"}
  }
  if(q.tool==="notes"&&q.view.startsWith("book:")){
   var book=get(q.view.slice(5));if(book)return {key:quickKey(q),label:objTitle(book),desc:"Notebook",icon:"notebook"}
@@ -627,7 +627,7 @@ function renderSidebar(){
  }
  html+='</div>';
  html+=sidebarCalendarFooter(t);
- html+='<div class="sb-foot"><small><span>SHELF · v0.13</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></small></div>';
+ html+='<div class="sb-foot"><small><span>SHELF · v0.14</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></small></div>';
  sidebar.innerHTML=html;
 }
 function topbar(){
@@ -1766,12 +1766,12 @@ async function handleUpload(files){
  save();closeModal();paint();toast(saved+" file"+(saved===1?"":"s")+" saved"+(context?" · linked to "+objTitle(context):"")+". Also in Library")}
 function toB64(b){return new Promise(function(resolve,reject){var reader=new FileReader();reader.onload=function(){resolve(String(reader.result).split(",")[1])};reader.onerror=reject;reader.readAsDataURL(b)})}
 function fromB64(data,mime){var raw=atob(data),chunks=[];for(var i=0;i<raw.length;i+=8192){var bit=raw.slice(i,i+8192),a=new Uint8Array(bit.length);for(var j=0;j<bit.length;j++)a[j]=bit.charCodeAt(j);chunks.push(a)}return new Blob(chunks,{type:mime||"application/octet-stream"})}
-async function exportAll(){try{var out={format:"shelf-v013",savedAt:new Date().toISOString(),data:state,files:[]};
+async function exportAll(){try{var out={format:"shelf-v014",savedAt:new Date().toISOString(),data:state,files:[]};
  var ids=Array.from(new Set(state.entities.map(function(e){return e.blobId}).filter(Boolean)));
  for(var id of ids){var b=await loadBlob(id);if(b)out.files.push({id:id,mime:b.type,data:await toB64(b)})}
- var url=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download="shelf-v013-backup-"+today()+".json";a.click();setTimeout(function(){URL.revokeObjectURL(url)},10000);toast("Backup exported")
+ var url=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download="shelf-v014-backup-"+today()+".json";a.click();setTimeout(function(){URL.revokeObjectURL(url)},10000);toast("Backup exported")
  }catch(err){toast("Export failed: "+err.message)}}
-async function importAll(file){try{var d=JSON.parse(await file.text());if(!d||!["shelf-v013","shelf-v012","shelf-v011"].includes(d.format)||!d.data||!Array.isArray(d.data.entities))throw Error("Invalid Shelf backup");if(!confirm("Replace current v0.13 content with this backup?"))return;for(var f of d.files||[]){await storeBlob(f.id,fromB64(f.data,f.mime))}state=d.data;ensureAreas();state.ui=state.ui||seed().ui;ensureV13();ensureCategories();ensureJournals();state.ui.detailId=null;save();paint();toast("Backup restored")}catch(err){toast("Import failed: "+err.message)}}
+async function importAll(file){try{var d=JSON.parse(await file.text());if(!d||!["shelf-v014","shelf-v013","shelf-v012","shelf-v011"].includes(d.format)||!d.data||!Array.isArray(d.data.entities))throw Error("Invalid Shelf backup");if(!confirm("Replace current v0.14 content with this backup?"))return;for(var f of d.files||[]){await storeBlob(f.id,fromB64(f.data,f.mime))}state=d.data;ensureAreas();state.ui=state.ui||seed().ui;ensureV13();ensureCategories();ensureJournals();ensureV14();state.ui.detailId=null;save();paint();toast("Backup restored")}catch(err){toast("Import failed: "+err.message)}}
 function assignArea(e,id){
  if(!e||!["task","project"].includes(e.type))return false;
  var next=id?get(id):null;if(id&&(!next||next.type!=="area"||next.trashed))return false;
