@@ -348,7 +348,7 @@ function pageHeader(title,subtitle,actions,eyebrow){return '<div class="page-hea
 function btn(label,action,iconName,type){return '<button class="button'+(type==="primary"?" primary":type==="subtle"?" subtle":"")+'" data-act="'+esc(action)+'">'+(iconName?ic(iconName,15):"")+esc(label)+'</button>'}
 function empty(iconName,title,subtitle,action,type){return '<div class="empty"><div class="empty-icon">'+ic(iconName,27)+'</div><h3>'+esc(title)+'</h3><p>'+esc(subtitle)+'</p>'+(action?'<button class="button" data-act="create" data-type="'+esc(type)+'">'+ic("plus",14)+' '+esc(action)+'</button>':"")+'</div>'}
 function shortContext(e){var names=sources(e).map(function(x){return objTitle(x)});return names.length?names.slice(0,2).join(" · "):""}
-function taskRow(e){return '<div class="task-row'+(e.completed?" done":"")+'" draggable="true" data-area-drag="'+esc(e.id)+'"><button class="task-check'+(e.completed?" checked":"")+'" data-act="toggle-task" data-id="'+e.id+'" title="'+(e.completed?"Mark incomplete":"Complete task")+'" aria-label="'+(e.completed?"Mark incomplete":"Complete task")+'">'+(e.completed?ic("check",13):"")+'</button><button class="item-open" data-act="open" data-id="'+e.id+'"><div class="row-title">'+esc(objTitle(e))+'</div><div class="row-sub">'+esc(shortContext(e)|| (e.dueDate?humanDay(e.dueDate):"No due date"))+'</div></button>'+(outOfDate(e)?'<span class="row-right" style="color:#bb7266">Overdue</span>':"")+'</div>'}
+function taskRow(e){return '<div class="task-row'+(e.completed?" done":"")+'" draggable="true" data-area-drag="'+esc(e.id)+'"><button class="task-check'+(e.completed?" checked":"")+'" data-act="toggle-task" data-id="'+e.id+'" title="'+(e.completed?"Mark incomplete":"Complete task")+'" aria-label="'+(e.completed?"Mark incomplete":"Complete task")+'">'+(e.completed?ic("check",13):"")+'</button><button class="item-open" data-act="open" data-id="'+e.id+'"><div class="row-title">'+esc(objTitle(e))+'</div><div class="row-sub">'+esc(shortContext(e)||(areaOf(e)?objTitle(areaOf(e)):e.dueDate?humanDay(e.dueDate):"No due date"))+'</div></button>'+(inInbox(e)?'<button class="button task-inbox-clear" data-act="clear-inbox" data-id="'+e.id+'" title="Keep this as a standalone task and remove it from Inbox">Keep</button>':"")+(outOfDate(e)?'<span class="row-right" style="color:#bb7266">Overdue</span>':"")+'</div>'}
 function eventRow(e){return '<div class="event-row"><span class="row-time">'+esc(e.time||"All day")+'</span><div class="row-icon">'+ic("calendar",16)+'</div><button class="item-open" data-act="open" data-id="'+e.id+'"><div class="row-title">'+esc(objTitle(e))+'</div><div class="row-sub">'+esc(e.location||humanDay(e.date))+'</div></button><span class="row-right">'+rels(e).length?rels(e).length+" related":""+'</span></div>'}
 function noteRow(e){return '<div class="note-row"><span class="row-icon">'+ic("note",16)+'</span><button class="item-open" data-act="open" data-id="'+e.id+'"><div class="row-title">'+esc(objTitle(e))+'</div><div class="row-sub">'+esc(shortContext(e)||trim(stripHtml(e.html)||e.body,100))+'</div></button></div>'}
 function resourceRow(e){return '<div class="file-row"><span class="row-icon">'+ic(typeIcon(e),16)+'</span><button class="item-open" data-act="open" data-id="'+e.id+'"><div class="row-title">'+esc(objTitle(e))+'</div><div class="row-sub">'+esc(shortContext(e)||hostname(e.url)||e.fileName||"Saved resource")+'</div></button>'+(e.blobId?'<button class="icon-button" data-act="download-resource" data-id="'+e.id+'" title="Download file">'+ic("download",15)+'</button>':"")+'</div>'}
@@ -564,7 +564,10 @@ function detailMain(e){
 function detailMeta(e){
  var out="";
  if(e.type==="event")out+='<div class="meta-pill">'+ic("calendar",15)+'<input type="date" data-edit="date" value="'+esc(e.date)+'" aria-label="Event date"></div><div class="meta-pill">'+ic("clock",15)+'<input type="time" data-edit="time" value="'+esc(e.time)+'" aria-label="Event time"></div><div class="meta-pill">'+ic("map-pin",15)+'<input type="text" data-edit="location" value="'+esc(e.location)+'" placeholder="Location" aria-label="Location"></div>';
- if(e.type==="task")out+='<div class="meta-pill">'+ic("calendar",15)+'<input type="date" data-edit="dueDate" value="'+esc(e.dueDate)+'" aria-label="Due date"></div>';
+ if(e.type==="task"){
+  out+='<div class="meta-pill">'+ic("calendar",15)+'<input type="date" data-edit="dueDate" value="'+esc(e.dueDate)+'" aria-label="Due date"></div>';
+  if(inInbox(e))out+='<button class="button" data-act="clear-inbox" data-id="'+e.id+'">'+ic("check",14)+' Keep outside Inbox</button>';
+ }
  if(e.type==="journal")out+='<div class="meta-pill">'+ic("calendar",15)+'<input type="date" data-edit="date" value="'+esc(e.date)+'" aria-label="Journal date"></div>';
  if(e.type==="project")out+='<div class="meta-pill">'+ic("layers",15)+'<select data-edit="projectStatus" aria-label="Project status"><option value="active"'+(e.projectStatus==="active"?" selected":"")+'>Active</option><option value="waiting"'+(e.projectStatus==="waiting"?" selected":"")+'>Waiting</option><option value="completed"'+(e.projectStatus==="completed"?" selected":"")+'>Completed</option></select></div>';
  if(e.type==="task"||e.type==="project"){
@@ -672,6 +675,7 @@ function captureObject(value,contextId,mode){
  else{type="note";title=t.split(/\n/)[0].slice(0,85);extra.html="<p>"+esc(t).replace(/\n/g,"</p><p>")+"</p>"}
  var context=get(contextId),id=context?context.id:null;
  if(id)extra.sourceId=id;
+ if(type==="task")extra.inbox=!context;
  if(context&&context.type==="notebook"&&type==="note")extra.notebookId=id;
  else if(context&&context.type==="folder"&&type==="resource")extra.folderId=id;
  else if(context&&context.type==="area"&&["task","project"].includes(type))extra.areaId=id;
@@ -711,7 +715,7 @@ function submitCreate(){
  var extra={};
  if(type==="resource"){extra.url=url;extra.resourceKind=classifyUrl(url)}
  if(type==="event"){extra.date=$("new-date").value||today();extra.time=$("new-time").value;extra.location=$("new-location").value.trim()}
- if(type==="task")extra.dueDate=$("new-due").value||"";
+ if(type==="task"){extra.dueDate=$("new-due").value||"";extra.inbox=!!(modalState.opts&&modalState.opts.inbox&&!context)}
  if((type==="note"||type==="project")&&$("new-body")){extra.body=$("new-body").value.trim();if(type==="note")extra.html=extra.body?"<p>"+esc(extra.body).replace(/\n/g,"</p><p>")+"</p>":""}
  if(context)extra.sourceId=context.id;
  if(context&&context.type==="notebook"&&type==="note")extra.notebookId=context.id;
@@ -818,6 +822,7 @@ function detailsMenu(e){
  openModal('<div class="modal-header"><h2>'+esc(objTitle(e))+'</h2><button class="icon-button" data-act="modal-close">'+ic("x",19)+'</button></div><div class="modal-scroll"><div class="menu-list">'+
  '<button class="menu-choice" data-act="toggle-star" data-id="'+e.id+'">'+ic("star",19)+'<span>'+(e.starred?"Remove star":"Star this item")+'</span></button>'+
  '<button class="menu-choice" data-act="quick-toggle-entity" data-id="'+e.id+'">'+ic("pin",19)+'<span>'+(quickHas({kind:"entity",id:e.id})?"Remove from Desk Quick Access":"Pin to Desk")+'</span></button>'+
+ (e.type==="task"?'<button class="menu-choice" data-act="'+(inInbox(e)?"clear-inbox":"mark-inbox")+'" data-id="'+e.id+'">'+ic("inbox",19)+'<span>'+(inInbox(e)?"Remove from Inbox":"Send to Inbox")+'</span></button>':"")+
  '<button class="menu-choice" data-act="focus-context" data-id="'+e.id+'">'+ic("layers",19)+'<span>'+(state.ui.focusId===e.id?"Stop working here":"Work in this context")+'</span></button>'+
  '<button class="menu-choice" data-act="attach-existing" data-context="'+e.id+'">'+ic("link",19)+'<span>Link an existing item</span></button>'+
  '<button class="menu-choice" data-act="archive-item" data-id="'+e.id+'">'+ic("archive",19)+'<span>'+(e.archived?"Restore from archive":"Archive")+'</span></button>'+
@@ -825,7 +830,9 @@ function detailsMenu(e){
  (e.trashed?'<button class="menu-choice" data-act="delete-forever" data-id="'+e.id+'" style="color:#b2564b">'+ic("trash",19)+'<span>Delete permanently</span></button>':"")+
  '</div></div>');
 }
-function toggleTask(id){var e=get(id);if(!e)return;e.completed=!e.completed;touched(e);paint();toast(e.completed?"Task completed":"Task reopened")}
+function toggleTask(id){var e=get(id);if(!e)return;e.completed=!e.completed;if(e.completed)e.inbox=false;touched(e);paint();toast(e.completed?"Task completed":"Task reopened")}
+function clearInbox(id){var e=get(id);if(!e||e.type!=="task")return;e.inbox=false;touched(e);paint();toast("Kept as an independent task · removed from Inbox")}
+function markInbox(id){var e=get(id);if(!e||e.type!=="task")return;e.inbox=true;touched(e);paint();toast("Moved to Inbox for review")}
 function focusContext(id){state.ui.focusId=state.ui.focusId===id?null:id;save();closeModal();paint();toast(state.ui.focusId?"Working on "+objTitle(get(id)):"Context cleared")}
 function unlink(id,parentId){var e=get(id);if(!e)return;e.contextIds=(e.contextIds||[]).filter(function(x){return x!==parentId});if(e.folderId===parentId)e.folderId=null;if(e.notebookId===parentId)e.notebookId=null;touched(e);paint();toast("Link removed; item kept in its own tool")}
 function archiveItem(id){var e=get(id);if(!e)return;e.archived=!e.archived;touched(e);closeModal();if(state.ui.detailId===id)back();else paint();toast(e.archived?"Archived":"Restored")}
@@ -865,7 +872,7 @@ function assignArea(e,id){
   if(!confirm("This task belongs to "+objTitle(parent)+". Move it out of that project and into "+objTitle(next)+"?"))return false;
   e.contextIds=(e.contextIds||[]).filter(function(p){return p!==parent.id});
  }
- e.areaId=next?next.id:null;touched(e);return true
+ e.areaId=next?next.id:null;if(next&&e.type==="task")e.inbox=false;touched(e);return true
 }
 function editField(target){
  var e=get(state.ui.detailId);if(!e)return;var f=target.getAttribute("data-edit");if(!f)return;
@@ -895,8 +902,8 @@ function onClick(ev){
  if(act==="back"){back();return}
  if(act==="new-menu"){newMenu();return}
  if(act==="global-capture-save"){saveGlobalCapture();return}
- if(act==="create-primary"){var t=primaryType(state.ui.tool);if(!t)newMenu();else openCreate(t,null);return}
- if(act==="create"){openCreate(type,ctx||null,{date:b.getAttribute("data-date")||null});return}
+ if(act==="create-primary"){var t=primaryType(state.ui.tool);if(!t)newMenu();else openCreate(t,null,{inbox:t==="task"&&state.ui.view==="inbox"});return}
+ if(act==="create"){var fromInbox=type==="task"&&state.ui.view==="inbox"&&["planner","home"].includes(state.ui.tool);openCreate(type,ctx||null,{date:b.getAttribute("data-date")||null,inbox:fromInbox});return}
  if(act==="rename-area"){openRenameArea(id);return}
  if(act==="journal-today"){journalToday();return}
  if(act==="search"){searchModal();return}
@@ -905,6 +912,8 @@ function onClick(ev){
  if(act==="month-next"){monthMove(1);return}
  if(act==="calendar-today"){state.ui.selectedDate=today();state.ui.month=monthKey(today());go("calendar","month");return}
  if(act==="toggle-task"){toggleTask(id);return}
+ if(act==="clear-inbox"){clearInbox(id);return}
+ if(act==="mark-inbox"){markInbox(id);return}
  if(act==="toggle-star"&&current){current.starred=!current.starred;touched(current);closeModal();paint();return}
  if(act==="detail-menu"){detailsMenu(current);return}
  if(act==="focus-context"){focusContext(id);return}
@@ -915,7 +924,9 @@ function onClick(ev){
   var target=get(modalState&&modalState.contextId);if(!current||!target)return;
   if(target.type==="notebook"&&current.type==="note")current.notebookId=target.id;
   else if(target.type==="folder"&&current.type==="resource")current.folderId=target.id;
+  else if(target.type==="area"&&["task","project"].includes(current.type)){current.areaId=target.id}
   else{if(!current.contextIds)current.contextIds=[];if(!current.contextIds.includes(target.id))current.contextIds.push(target.id)}
+  if(current.type==="task"&&["project","area"].includes(target.type))current.inbox=false;
   touched(current);closeModal();paint();toast("Linked to "+objTitle(target)+" · no duplicate created");return
  }
  if(act==="unlink"){unlink(id,b.getAttribute("data-parent"));return}
@@ -932,7 +943,7 @@ function onClick(ev){
   return
  }
  if(act==="planner-quick"){
-  var inp=$("planner-quick");if(inp&&inp.value.trim()){var task=ent("task",inp.value.trim(),{dueDate:state.ui.view==="today"?today():""});var focus=isFocusValid();if(focus)task.contextIds=[focus.id];state.entities.unshift(task);save();paint();toast("Task saved in Planner")}return
+  var inp=$("planner-quick");if(inp&&inp.value.trim()){var task=ent("task",inp.value.trim(),{dueDate:state.ui.view==="today"?today():"",inbox:state.ui.view==="inbox"});var focus=isFocusValid();if(focus){task.contextIds=[focus.id];task.inbox=false}state.entities.unshift(task);save();paint();toast("Task saved in Planner")}return
  }
  if(act==="upload"){uploadContext=ctx||state.ui.detailId||state.ui.focusId||null;$("upload-input").click();return}
  if(act==="download-resource"){if(current)resourceDownload(current);return}
