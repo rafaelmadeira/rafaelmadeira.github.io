@@ -93,7 +93,7 @@ function plain(v){return String(v||"").replace(/<[^>]*>/g," ").replace(/\s+/g," 
 function trim(v,n){return String(v||"").slice(0,n||180)}
 function ent(type,title,extra){return Object.assign({
  id:uid(),type:type,title:title||"",body:"",html:"",createdAt:now(),updatedAt:now(),contextIds:[],
- notebookId:null,folderId:null,areaId:null,categoryId:null,sourceId:null,inbox:false,starred:false,pinned:false,archived:false,trashed:false,
+ notebookId:null,folderId:null,journalBookId:null,areaId:null,categoryId:null,sourceId:null,inbox:false,starred:false,pinned:false,archived:false,trashed:false,
  date:"",time:"",endTime:"",dueDate:"",location:"",completed:false,projectStatus:"active",
  url:"",resourceKind:"link",blobId:null,fileName:"",mime:"",fileSize:0,tags:[],color:"default",demo:false
 },extra||{})}
@@ -166,6 +166,23 @@ function ensureCategories(){
  state.ui.categoriesSeeded=true
 }
 ensureCategories();
+function ensureJournals(){
+ var books=state.entities.filter(function(e){return e.type==="journalbook"&&!e.trashed});
+ var def=books.find(function(e){return e.id===state.ui.defaultJournalId})||books.find(function(e){return e.journalDefault});
+ if(!def){
+  def=ent("journalbook","Journal",{journalDefault:true});
+  state.entities.push(def)
+ }
+ state.ui.defaultJournalId=def.id;
+ state.entities.forEach(function(e){
+  if(e.type==="journal"&&!state.entities.some(function(b){return b.id===e.journalBookId&&b.type==="journalbook"&&!b.trashed}))e.journalBookId=def.id
+ });
+ if(typeof state.ui.journalCalendarExpanded!=="boolean")state.ui.journalCalendarExpanded=true;
+ if(!state.ui.journalMonth)state.ui.journalMonth=monthKey(today());
+ if(!state.ui.journalSelectedDate)state.ui.journalSelectedDate=today();
+ if(state.ui.tool==="journal"&&(!state.ui.view||["today","timeline"].includes(state.ui.view)))state.ui.view="journalbook:"+def.id;
+}
+ensureJournals();
 if(state.ui.expandedAreaId===undefined){
  var remembered=state.ui.view&&state.ui.view.startsWith("area:")?state.ui.view.slice(5):null;
  var first=state.entities.find(function(e){return e.type==="area"&&String(e.title).toLowerCase()==="ivrnet"&&!e.trashed});
@@ -210,8 +227,8 @@ function count(type){return list(type).length}
 function inInbox(e){return e&&e.type==="task"&&!e.completed&&e.inbox===true}
 function inboxCount(){return list("task").filter(inInbox).length}
 function toast(s){toastEl.textContent=s;toastEl.classList.add("open");clearTimeout(toastTimer);toastTimer=setTimeout(function(){toastEl.classList.remove("open")},2800)}
-function typeIcon(e){if(!e)return "layers";if(e.type==="resource")return e.resourceKind==="image"?"image":e.resourceKind==="video"?"video":e.resourceKind==="link"?"link":"file";return {event:"calendar",task:"check-circle",note:"note",project:"clipboard",journal:"book-open",notebook:"notebook",folder:"folder",area:"layers",category:"folder"}[e.type]||"layers"}
-function typeName(type){return {event:"Event",task:"Task",note:"Note",resource:"Resource",project:"Project",journal:"Journal entry",notebook:"Notebook",folder:"Collection",area:"Area",category:"Category"}[type]||"Item"}
+function typeIcon(e){if(!e)return "layers";if(e.type==="resource")return e.resourceKind==="image"?"image":e.resourceKind==="video"?"video":e.resourceKind==="link"?"link":"file";return {event:"calendar",task:"check-circle",note:"note",project:"clipboard",journal:"book-open",journalbook:"book-open",notebook:"notebook",folder:"folder",area:"layers",category:"folder"}[e.type]||"layers"}
+function typeName(type){return {event:"Event",task:"Task",note:"Note",resource:"Resource",project:"Project",journal:"Journal entry",journalbook:"Journal",notebook:"Notebook",folder:"Collection",area:"Area",category:"Category"}[type]||"Item"}
 function objTitle(e){return e.title|| (e.type==="journal"?humanDay(e.date):e.fileName||hostname(e.url)||"Untitled")}
 function outOfDate(e){return !!(e.dueDate&&!e.completed&&e.dueDate<today())}
 function contextName(e){var p=sources(e);return p.length?p.map(function(x){return objTitle(x)}).join(" · "):""}
@@ -768,11 +785,11 @@ function renderWorkspace(){
  fillPreviews()
 }
 function paint(){renderRail();renderSidebar();renderWorkspace()}
-function go(tool,view,stay){if(!stay&&state.ui.detailId){state.ui.detailId=null}state.ui.detailTrail=[];state.ui.tool=tool;state.ui.view=view||({home:"today",journal:"today",calendar:"month",planner:"today",notebooks:"all",library:"all"}[tool]||"today");
+function go(tool,view,stay){if(!stay&&state.ui.detailId){state.ui.detailId=null}state.ui.detailTrail=[];state.ui.tool=tool;state.ui.view=view||(tool==="journal"?"journalbook:"+state.ui.defaultJournalId:({home:"today",calendar:"month",planner:"today",notebooks:"all",library:"all"}[tool]||"today"));
  if(tool==="planner"&&state.ui.view.startsWith("area:"))state.ui.expandedAreaId=state.ui.view.slice(5);
  if(tool==="planner"&&state.ui.view.startsWith("category:")){var c=get(state.ui.view.slice(9));if(c)state.ui.expandedAreaId=c.areaId}
  save();paint();workspace.scrollTop=0}
-function openEntity(id){var e=get(id);if(!e)return;if(e.type==="area"){go("planner","area:"+e.id);return}if(e.type==="category"){go("planner","category:"+e.id);return}if(state.ui.detailId&&state.ui.detailId!==id){state.ui.detailTrail=(state.ui.detailTrail||[]).concat(state.ui.detailId).slice(-15)}else if(!state.ui.detailId){state.ui.detailTrail=[];state.ui.lastTool=state.ui.tool;state.ui.lastView=state.ui.view}state.ui.detailId=id;addRecent(id);save();paint();workspace.scrollTop=0}
+function openEntity(id){var e=get(id);if(!e)return;if(e.type==="area"){go("planner","area:"+e.id);return}if(e.type==="category"){go("planner","category:"+e.id);return}if(e.type==="journalbook"){go("journal","journalbook:"+e.id);return}if(state.ui.detailId&&state.ui.detailId!==id){state.ui.detailTrail=(state.ui.detailTrail||[]).concat(state.ui.detailId).slice(-15)}else if(!state.ui.detailId){state.ui.detailTrail=[];state.ui.lastTool=state.ui.tool;state.ui.lastView=state.ui.view}state.ui.detailId=id;addRecent(id);save();paint();workspace.scrollTop=0}
 function back(){if(state.ui.detailTrail&&state.ui.detailTrail.length){state.ui.detailId=state.ui.detailTrail.pop();save();paint();workspace.scrollTop=0;return}state.ui.detailId=null;state.ui.tool=state.ui.lastTool||state.ui.tool;state.ui.view=state.ui.lastView||state.ui.view;save();paint();workspace.scrollTop=0}
 function journalToday(){var j=list("journal").find(function(e){return e.date===today()});if(!j){j=ent("journal","",{date:today()});state.entities.unshift(j);save()}openEntity(j.id)}
 function classifyUrl(url){
@@ -821,7 +838,7 @@ function openCreate(type,contextId,opts){
  if(!contextId&&["task","project"].includes(type)&&state.ui.tool==="planner"&&state.ui.view.startsWith("area:"))contextId=state.ui.view.slice(5);
  if(!contextId&&type==="note"&&state.ui.tool==="notebooks"&&state.ui.view.startsWith("book:"))contextId=state.ui.view.slice(5);
  if(!contextId&&type==="resource"&&state.ui.tool==="library"&&state.ui.view.startsWith("folder:"))contextId=state.ui.view.slice(7);
- modalState={mode:"create",type:type,contextId:type==="area"?null:(contextId||state.ui.focusId||null),opts:opts};
+ modalState={mode:"create",type:type,contextId:["area","journalbook"].includes(type)?null:(contextId||state.ui.focusId||null),opts:opts};
  var e=get(modalState.contextId),hint=e?"This will be connected to "+objTitle(e)+".":"No setup needed. You can always organize it later.";
  var title="New "+typeName(type).toLowerCase(),field='<div class="field"><label for="new-title">Title</label><input id="new-title" placeholder="'+(type==="event"?"e.g. Dentist, 2 PM":type==="project"?"e.g. Alpine Park HOA":"Give it a name")+'" required></div>';
  if(type==="note")field='<div class="field"><label for="new-title">Title (optional)</label><input id="new-title" placeholder="Start with an idea…"></div>';
@@ -1032,7 +1049,7 @@ async function exportAll(){try{var out={format:"shelf-v013",savedAt:new Date().t
  for(var id of ids){var b=await loadBlob(id);if(b)out.files.push({id:id,mime:b.type,data:await toB64(b)})}
  var url=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download="shelf-v013-backup-"+today()+".json";a.click();setTimeout(function(){URL.revokeObjectURL(url)},10000);toast("Backup exported")
  }catch(err){toast("Export failed: "+err.message)}}
-async function importAll(file){try{var d=JSON.parse(await file.text());if(!d||!["shelf-v013","shelf-v012","shelf-v011"].includes(d.format)||!d.data||!Array.isArray(d.data.entities))throw Error("Invalid Shelf backup");if(!confirm("Replace current v0.13 content with this backup?"))return;for(var f of d.files||[]){await storeBlob(f.id,fromB64(f.data,f.mime))}state=d.data;ensureAreas();state.ui=state.ui||seed().ui;ensureV13();ensureCategories();state.ui.detailId=null;save();paint();toast("Backup restored")}catch(err){toast("Import failed: "+err.message)}}
+async function importAll(file){try{var d=JSON.parse(await file.text());if(!d||!["shelf-v013","shelf-v012","shelf-v011"].includes(d.format)||!d.data||!Array.isArray(d.data.entities))throw Error("Invalid Shelf backup");if(!confirm("Replace current v0.13 content with this backup?"))return;for(var f of d.files||[]){await storeBlob(f.id,fromB64(f.data,f.mime))}state=d.data;ensureAreas();state.ui=state.ui||seed().ui;ensureV13();ensureCategories();ensureJournals();state.ui.detailId=null;save();paint();toast("Backup restored")}catch(err){toast("Import failed: "+err.message)}}
 function assignArea(e,id){
  if(!e||!["task","project"].includes(e.type))return false;
  var next=id?get(id):null;if(id&&(!next||next.type!=="area"||next.trashed))return false;
