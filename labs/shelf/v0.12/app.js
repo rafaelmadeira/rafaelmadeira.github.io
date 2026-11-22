@@ -273,9 +273,9 @@ function resourceCard(e){
 function contextBreadcrumb(e){var p=sources(e);return p.map(function(x){return '<button data-act="open" data-id="'+x.id+'">'+esc(objTitle(x))+'</button>'}).join(' <span style="color:#acb7ba"> / </span> ')}
 function renderHome(){
  var view=state.ui.view,tasks=list("task"),events=list("event");
- if(view==="inbox"){var inbox=tasks.filter(function(e){return !e.completed&&!e.dueDate});return pageHeader("Inbox","Tasks without a scheduled date.",'<button class="button primary" data-act="create" data-type="task">'+ic("plus",15)+' New task</button>',"HOME")+ (inbox.length?rows(inbox,taskRow):empty("inbox","Your inbox is clear","New tasks without a date will appear here."))}
- if(view==="recent"){var all=(state.ui.recent||[]).map(get).filter(function(e){return e&&!e.trashed&&!e.archived});return pageHeader("Recently opened","Jump back into the things you've been working on.","","HOME")+(all.length?rows(all,contextRow):empty("clock","Nothing opened yet","Open an event, note, or project to see it here."))}
- if(view==="starred"){var stars=list().filter(function(e){return e.starred});return pageHeader("Starred","Things you keep close.","","HOME")+(stars.length?'<div class="card-grid">'+stars.map(entityCard).join("")+'</div>':empty("star","Nothing starred yet","Star items from their detail pages."))}
+ if(view==="inbox"){var inbox=tasks.filter(function(e){return !e.completed&&!e.dueDate});return pageHeader("Inbox","Tasks without a scheduled date.",'<button class="button primary" data-act="create" data-type="task">'+ic("plus",15)+' New task</button>',"DESK")+ (inbox.length?rows(inbox,taskRow):empty("inbox","Your inbox is clear","New tasks without a date will appear here."))}
+ if(view==="recent"){var all=(state.ui.recent||[]).map(get).filter(function(e){return e&&!e.trashed&&!e.archived});return pageHeader("Recently opened","Jump back into the things you've been working on.","","DESK")+(all.length?rows(all,contextRow):empty("clock","Nothing opened yet","Open an event, note, or project to see it here."))}
+ if(view==="starred"){var stars=list().filter(function(e){return e.starred});return pageHeader("Starred","Things you keep close.","","DESK")+(stars.length?'<div class="card-grid">'+stars.map(entityCard).join("")+'</div>':empty("star","Nothing starred yet","Star items from their detail pages."))}
  var d=today(),due=tasks.filter(function(e){return !e.completed&&e.dueDate&&e.dueDate<=d}).sort(byDue);
  var todaysEvents=events.filter(function(e){return e.date===d}).sort(function(a,b){return a.time.localeCompare(b.time)});
  var upcoming=events.filter(function(e){return e.date>d}).sort(function(a,b){return (a.date+a.time).localeCompare(b.date+b.time)}).slice(0,3);
@@ -796,7 +796,7 @@ document.addEventListener("input",function(ev){
  if(el.id==="global-search"){updateSearchResults(el.value);return}
  if(el.id==="attach-search"){updateAttachResults(el.value);return}
  if(el.id==="rich-content"){applyRichEdit();return}
- if(el.hasAttribute("data-edit")){editField(el);return}
+ if(el.hasAttribute("data-edit")){if(el.getAttribute("data-edit")==="areaId")return;editField(el);return}
 });
 document.addEventListener("change",function(ev){if(ev.target.hasAttribute("data-edit")){editField(ev.target);paint()}});
 document.addEventListener("keydown",function(ev){
