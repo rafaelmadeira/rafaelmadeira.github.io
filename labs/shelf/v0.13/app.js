@@ -562,7 +562,27 @@ function resourceCard(e){
  return '<article class="item-card"><button class="card-open" data-act="open" data-id="'+e.id+'" style="padding:0;min-height:0">'+thumb+'<div class="resource-body"><div class="card-title">'+esc(objTitle(e))+'</div><div class="card-footer" style="margin-top:4px">'+ic(typeIcon(e),12)+'<span>'+esc(shortContext(e)||hostname(e.url)||e.fileName||kind)+'</span></div></div></button></article>'
 }
 function contextBreadcrumb(e){var p=sources(e);return p.map(function(x){return '<button data-act="open" data-id="'+x.id+'">'+esc(objTitle(x))+'</button>'}).join(' <span style="color:#acb7ba"> / </span> ')}
+function renderDeskForDate(date){
+ var events=list("event").filter(function(e){return e.date===date}).sort(function(a,b){return (a.time||"").localeCompare(b.time||"")});
+ var due=list("task").filter(function(e){return e.dueDate===date}).sort(byDue);
+ var journal=list("journal").filter(function(e){return e.date===date}).sort(byRecent);
+ var created=list().filter(function(e){
+  return createdDate(e)===date&&["task","project","event","journal","note","resource","notebook","folder"].includes(e.type)&&
+   !due.some(function(t){return t.id===e.id})&&!events.some(function(t){return t.id===e.id})&&!journal.some(function(t){return t.id===e.id})
+ }).sort(byRecent);
+ var result=calendarDateHeader("Desk",date,"Everything connected to this day.","");
+ var total=events.length+due.length+journal.length+created.length;
+ if(!total)return result+empty("calendar","Nothing recorded for this day","Use the calendar to explore another date, or capture something new.");
+ if(events.length)result+=section("Events",rows(events,eventRow),events.length);
+ if(due.length)result+=section("Tasks due",rows(due,taskRow),due.length);
+ if(journal.length)result+=section("Journal",rows(journal,contextRow),journal.length);
+ if(created.length)result+=section("Created on this day",rows(created,contextRow),created.length);
+ return result
+}
+
 function renderHome(){
+ var filter=miniDateForTool("home");
+ if(filter)return renderDeskForDate(filter);
  var view=state.ui.view,tasks=list("task"),events=list("event");
  if(view==="inbox"){var inbox=tasks.filter(inInbox);return pageHeader("Inbox","Tasks waiting to be processed.",'<button class="button primary" data-act="create" data-type="task">'+ic("plus",15)+' New task</button>',"DESK")+ (inbox.length?rows(inbox,taskRow):empty("inbox","Your inbox is clear","Captured tasks waiting for a decision will appear here."))}
  if(view==="recent"){var all=(state.ui.recent||[]).map(get).filter(function(e){return e&&!e.trashed&&!e.archived});return pageHeader("Recently opened","Jump back into the things you've been working on.","","DESK")+(all.length?rows(all,contextRow):empty("clock","Nothing opened yet","Open an event, note, or project to see it here."))}
@@ -714,7 +734,26 @@ function renderAllProjects(){
  if(!projects.length)out+=empty("folder","No projects yet","A project can begin as just a title.","New project","project");
  return out;
 }
+function renderPlannerDate(date){
+ var v=state.ui.view,tasks=list("task"),projects=list("project"),context="Planner";
+ if(v.startsWith("area:")){
+  var a=get(v.slice(5));if(a){context=objTitle(a);tasks=tasks.filter(function(t){return inArea(t,a)});projects=projects.filter(function(p){return inArea(p,a)})}
+ }else if(v.startsWith("category:")){
+  var c=get(v.slice(9));if(c){context=objTitle(c);tasks=tasks.filter(function(t){return inCategory(t,c)});projects=projects.filter(function(p){return inCategory(p,c)})}
+ }else if(v==="projects")context="Projects";
+ var due=v==="projects"?[]:tasks.filter(function(t){return t.dueDate===date}).sort(byDue);
+ var createdTasks=v==="projects"?[]:tasks.filter(function(t){return createdDate(t)===date&&!due.some(function(x){return x.id===t.id})}).sort(byRecent);
+ var createdProjects=projects.filter(function(p){return createdDate(p)===date}).sort(byRecent);
+ var out=calendarDateHeader("Planner",date,"Tasks due or created on this date · "+context,"");
+ if(due.length)out+=section("Due on this day",rows(due,taskRow),due.length);
+ if(createdTasks.length)out+=section("Tasks created on this day",rows(createdTasks,taskRow),createdTasks.length);
+ if(createdProjects.length)out+=section("Projects created on this day",'<div class="card-grid">'+createdProjects.map(entityCard).join("")+'</div>',createdProjects.length);
+ if(!due.length&&!createdTasks.length&&!createdProjects.length)out+=empty("calendar","No work recorded for this date","Select another day or clear the date to return to your planner.");
+ return out
+}
+
 function renderPlanner(){
+ var filter=miniDateForTool("planner");if(filter)return renderPlannerDate(filter);
  var view=state.ui.view,all=list("task"),items;
  if(view.startsWith("category:"))return renderCategory(get(view.slice(9)));
  if(view.startsWith("area:"))return renderArea(get(view.slice(5)));
@@ -742,6 +781,15 @@ function notesForView(){
  return arr
 }
 function renderNotebook(){
+ var filter=miniDateForTool("notebooks");
+ if(filter){
+  var notes=notesForView().filter(function(n){return createdDate(n)===filter}).sort(byRecent);
+  var books=state.ui.view==="all"?list("notebook").filter(function(n){return createdDate(n)===filter}):[];
+  var out=calendarDateHeader("Notebook",filter,"Notes created on this date · "+(state.ui.view.startsWith("book:")?objTitle(get(state.ui.view.slice(5))||{title:"Notebook"}):"Current notebook view"),"");
+  if(notes.length)out+=section("Notes",'<div class="card-grid">'+notes.map(entityCard).join("")+'</div>',notes.length);
+  if(books.length)out+=section("Notebooks created",'<div class="card-grid">'+books.map(entityCard).join("")+'</div>',books.length);
+  return notes.length||books.length?out:out+empty("note","No notes created on this day","Choose another date or clear the selection.");
+ }
  var v=state.ui.view,notebooks=list("notebook"),notes=notesForView().sort(byRecent),heading="All notes",sub="Every note is findable, wherever it was written.";
  if(v==="starred")heading="Starred notes";
  if(v==="from-events"){heading="Notes from Calendar";sub="Notes created while looking at an event."}
@@ -765,6 +813,15 @@ function resourcesForView(){var v=state.ui.view,arr=list("resource");
  return arr
 }
 function renderLibrary(){
+ var filter=miniDateForTool("library");
+ if(filter){
+  var saved=resourcesForView().filter(function(x){return createdDate(x)===filter}).sort(byRecent);
+  var collections=state.ui.view==="all"?list("folder").filter(function(x){return createdDate(x)===filter}):[];
+  var out=calendarDateHeader("Library",filter,"Resources saved or created on this date · Current Library view","");
+  if(saved.length)out+=section("Saved items",'<div class="card-grid">'+saved.map(function(e){return e.type==="resource"?resourceCard(e):entityCard(e)}).join("")+'</div>',saved.length);
+  if(collections.length)out+=section("Collections created",'<div class="card-grid">'+collections.map(entityCard).join("")+'</div>',collections.length);
+  return saved.length||collections.length?out:out+empty("library","Nothing saved on this day","Choose another date or clear the selection.");
+ }
  var v=state.ui.view,all=resourcesForView().sort(byRecent),title="All items",sub="Keep resources, not the work of maintaining a library.";
  if(v==="unsorted"){title="Unsorted";sub="Only things without a meaningful context appear here."}
  if(v==="bookmarks"){title="Bookmarks";sub="Links you saved, whether or not they belong to a project or folder."}
