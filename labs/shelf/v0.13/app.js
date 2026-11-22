@@ -190,7 +190,7 @@ if(state.ui.expandedAreaId===undefined){
 }
 var $=function(id){return document.getElementById(id)};
 var rail=$("toolrail"),sidebar=$("sidebar"),workspace=$("workspace"),modalRoot=$("modal-root"),toastEl=$("toast");
-var activeComposer="auto",composerFor=null,composerText="",modalState=null,uploadContext=null,mediaUrls=[],toastTimer=null;
+var activeComposer="auto",composerFor=null,composerText="",modalState=null,uploadContext=null,universalUpload=false,mediaUrls=[],toastTimer=null;
 var lastToolView=null,workingSearch="",draggingAreaItem=null,draggingQuickKey=null;
 function get(id){return state.entities.find(function(x){return x.id===id})}
 function list(type,includeHidden){return state.entities.filter(function(x){return (!type||x.type===type)&&(includeHidden||(!x.archived&&!x.trashed))})}
@@ -1159,13 +1159,19 @@ function searchCreateOptions(query){
 
 function searchModal(){
  modalState={mode:"search"};
- openModal('<div class="modal-header"><h2>Find anything</h2><button class="icon-button" data-act="modal-close">'+ic("x",19)+'</button></div><div class="modal-scroll"><input id="global-search" class="search-input" type="search" placeholder="Find a note, event, file, task, project…" autocomplete="off" aria-label="Search all items"><div id="search-results" class="search-results"></div></div>');
- setTimeout(function(){var s=$("global-search");if(s)s.focus()},10);updateSearchResults("")
+ openModal('<div class="modal-header"><h2>Search or create</h2><button class="icon-button" data-act="modal-close" aria-label="Close">'+ic("x",19)+'</button></div>'+
+ '<div class="modal-scroll"><input id="global-search" class="search-input" type="search" placeholder="Find something or type what you want to save…" autocomplete="off" aria-label="Search existing items or create a new one">'+
+ '<div id="search-results" class="search-results"></div>'+
+ '<div class="omni-bottom-bar"><span>Search results below · Enter saves a new item · Q opens Quick capture</span>'+
+ '<button class="button" data-act="universal-file">'+ic("attach",14)+' Add file</button></div></div>');
+ updateSearchResults("");var input=$("global-search");if(input)input.focus()
 }
 function updateSearchResults(q){
  var el=$("search-results");if(!el)return;
  var all=getAllSearchable().filter(function(e){return searchMatch(e,q)}).sort(byRecent).slice(0,35);
- el.innerHTML=all.length?all.map(function(e){return '<button class="search-result" data-act="open" data-id="'+e.id+'"><span class="row-icon">'+ic(typeIcon(e),16)+'</span><span><strong>'+esc(objTitle(e))+'</strong><small>'+esc(typeName(e.type))+(shortContext(e)?" · "+esc(shortContext(e)):"")+'</small></span>'+ic("chevron-right",15)+'</button>'}).join(""):'<div class="modal-empty">No matching items.</div>';
+ var existing=all.length?all.map(function(e){return '<button class="search-result" data-act="open" data-id="'+e.id+'"><span class="row-icon">'+ic(typeIcon(e),16)+'</span><span><strong>'+esc(objTitle(e))+'</strong><small>'+esc(typeName(e.type))+(shortContext(e)?" · "+esc(shortContext(e)):"")+'</small></span>'+ic("chevron-right",15)+'</button>'}).join(""):'<div class="modal-empty">No matching items.</div>';
+ el.innerHTML=(String(q||"").trim()?searchCreateOptions(q):'<div class="omni-intro">Type to find an existing item or capture something new. Links and <code>todo:</code> are recognized automatically.</div>')+
+  '<div class="omni-section-label omni-existing-heading">EXISTING ITEMS</div>'+existing
 }
 function attachModal(contextId){
  var context=get(contextId);if(!context)return;
@@ -1214,7 +1220,7 @@ async function fillPreviews(){
  for(var img of elems){try{var blob=await loadBlob(img.getAttribute("data-preview"));if(blob&&img.isConnected){var u=URL.createObjectURL(blob);mediaUrls.push(u);img.src=u}}catch(e){}}
 }
 async function handleUpload(files){
- files=Array.from(files||[]);if(!files.length)return;var context=get(uploadContext||(state.ui.tool==="library"&&state.ui.view.startsWith("folder:")?state.ui.view.slice(7):null));uploadContext=null;var saved=0;
+ files=Array.from(files||[]);if(!files.length)return;var context=universalUpload?null:get(uploadContext||(state.ui.tool==="library"&&state.ui.view.startsWith("folder:")?state.ui.view.slice(7):null));uploadContext=null;universalUpload=false;var saved=0;
  for(var file of files){try{
   var kind=file.type.startsWith("image/")?"image":file.type.startsWith("video/")?"video":file.type.startsWith("audio/")?"music": "document";
   var e=ent("resource",file.name.replace(/\.[^/.]+$/,""),{resourceKind:kind,fileName:file.name,mime:file.type,fileSize:file.size,blobId:uid()});
