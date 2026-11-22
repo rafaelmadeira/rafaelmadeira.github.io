@@ -1196,12 +1196,28 @@ document.addEventListener("drop",function(ev){
  ev.preventDefault();quickReorder(draggingQuickKey,target.getAttribute("data-quick-drop"));
  draggingQuickKey=null;paint()
 });
+document.addEventListener("dragover",function(ev){
+ var target=ev.target.closest("[data-category-drop]");
+ if(target&&draggingAreaItem){ev.preventDefault();if(ev.dataTransfer)ev.dataTransfer.dropEffect="move";target.classList.add("category-drop-hover")}
+});
+document.addEventListener("dragleave",function(ev){
+ var target=ev.target.closest("[data-category-drop]");
+ if(target&&!target.contains(ev.relatedTarget))target.classList.remove("category-drop-hover")
+});
+document.addEventListener("drop",function(ev){
+ var target=ev.target.closest("[data-category-drop]");
+ if(!target||!draggingAreaItem)return;
+ ev.preventDefault();ev.stopPropagation();
+ var item=get(draggingAreaItem),category=get(target.getAttribute("data-category-drop"));draggingAreaItem=null;
+ if(item&&category&&assignCategory(item,category.id)){paint();toast(objTitle(item)+" moved to "+objTitle(category))}
+ else paint()
+});
 document.addEventListener("dragstart",function(ev){
  var item=ev.target.closest("[data-area-drag]");if(!item)return;
  draggingAreaItem=item.getAttribute("data-area-drag");
  if(ev.dataTransfer){ev.dataTransfer.effectAllowed="move";ev.dataTransfer.setData("text/plain",draggingAreaItem)}
 });
-document.addEventListener("dragend",function(){draggingAreaItem=null;document.querySelectorAll(".area-drop-hover").forEach(function(x){x.classList.remove("area-drop-hover")})});
+document.addEventListener("dragend",function(){draggingAreaItem=null;document.querySelectorAll(".area-drop-hover,.category-drop-hover").forEach(function(x){x.classList.remove("area-drop-hover");x.classList.remove("category-drop-hover")})});
 document.addEventListener("dragover",function(ev){
  var target=ev.target.closest("[data-area-drop]");
  if(target&&draggingAreaItem){ev.preventDefault();if(ev.dataTransfer)ev.dataTransfer.dropEffect="move";target.classList.add("area-drop-hover")}
