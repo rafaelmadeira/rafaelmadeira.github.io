@@ -292,28 +292,30 @@ function byDue(a,b){return (a.dueDate||"9999").localeCompare(b.dueDate||"9999")|
 function addRecent(id){if(!id)return;state.ui.recent=[id].concat((state.ui.recent||[]).filter(function(x){return x!==id})).slice(0,12)}
 
 var QUICK_PAGES=[
- {tool:"home",view:"today",label:"Desk · Today",icon:"sun"},
- {tool:"home",view:"inbox",label:"Desk · Inbox",icon:"inbox"},
+ {tool:"home",view:"today",label:"Home · Today",icon:"sun"},
+ {tool:"home",view:"inbox",label:"Home · Inbox",icon:"inbox"},
  {tool:"calendar",view:"month",label:"Calendar · Month",icon:"calendar"},
  {tool:"calendar",view:"upcoming",label:"Calendar · Upcoming",icon:"calendar-days"},
- {tool:"planner",view:"today",label:"Planner · Today",icon:"sun"},
- {tool:"planner",view:"inbox",label:"Planner · Inbox",icon:"inbox"},
- {tool:"planner",view:"upcoming",label:"Planner · Upcoming",icon:"calendar-days"},
- {tool:"planner",view:"projects",label:"All projects",icon:"clipboard"},
- {tool:"planner",view:"all",label:"All tasks",icon:"check-circle"},
- {tool:"notebooks",view:"all",label:"All notes",icon:"notebook"},
- {tool:"library",view:"bookmarks",label:"Bookmarks",icon:"bookmark"},
- {tool:"library",view:"all",label:"Library · All items",icon:"library"},
- {tool:"journal",view:"today",label:"Today's journal",icon:"book-open"},
- {tool:"journal",view:"timeline",label:"Journal timeline",icon:"clock"}
+ {tool:"todo",view:"today",label:"To do · Today",icon:"check-circle"},
+ {tool:"todo",view:"inbox",label:"To do · Inbox",icon:"inbox"},
+ {tool:"todo",view:"upcoming",label:"To do · Upcoming",icon:"calendar-days"},
+ {tool:"todo",view:"all",label:"All tasks",icon:"check-circle"},
+ {tool:"notes",view:"all",label:"All notes",icon:"note"},
+ {tool:"journals",view:"all",label:"All entries",icon:"book-open"},
+ {tool:"projects",view:"all",label:"All projects",icon:"folder-kanban"},
+ {tool:"bookmarks",view:"all",label:"Bookmarks",icon:"bookmark"},
+ {tool:"resources",view:"all",label:"Resources · All items",icon:"library"},
+ {tool:"goals",view:"all",label:"Goals",icon:"target"},
+ {tool:"habits",view:"all",label:"Habits",icon:"flame"},
+ {tool:"routines",view:"all",label:"Routines",icon:"list-checks"}
 ];
 function quickKey(q){
  if(q.kind==="entity")return "entity:"+q.id;
  if(q.kind==="view"){
-  if(q.tool==="planner"&&q.view.startsWith("area:"))return "entity:"+q.view.slice(5);
-  if(q.tool==="planner"&&q.view.startsWith("category:"))return "entity:"+q.view.slice(9);
-  if(q.tool==="notebooks"&&q.view.startsWith("book:"))return "entity:"+q.view.slice(5);
-  if(q.tool==="library"&&q.view.startsWith("folder:"))return "entity:"+q.view.slice(7)
+  if(q.tool==="todo"&&q.view.startsWith("area:"))return "entity:"+q.view.slice(5);
+  if(q.tool==="todo"&&q.view.startsWith("category:"))return "entity:"+q.view.slice(9);
+  if(q.tool==="notes"&&q.view.startsWith("book:"))return "entity:"+q.view.slice(5);
+  if(q.tool==="resources"&&q.view.startsWith("folder:"))return "entity:"+q.view.slice(7)
  }
  return "view:"+q.tool+":"+q.view
 }
@@ -329,16 +331,16 @@ function quickItem(q){
  }
  var p=QUICK_PAGES.find(function(x){return x.tool===q.tool&&x.view===q.view});
  if(p)return {key:quickKey(q),label:p.label,desc:TOOLS.find(function(x){return x.id===q.tool}).name,icon:p.icon};
- if(q.tool==="planner"&&q.view.startsWith("area:")){
+ if(q.tool==="todo"&&q.view.startsWith("area:")){
   var area=get(q.view.slice(5));if(area)return {key:quickKey(q),label:objTitle(area),desc:"Planner · Area",icon:areaIcon(area)}
  }
- if(q.tool==="planner"&&q.view.startsWith("category:")){
+ if(q.tool==="todo"&&q.view.startsWith("category:")){
   var cat=get(q.view.slice(9));if(cat)return {key:quickKey(q),label:objTitle(cat),desc:"Planner · Category",icon:"folder"}
  }
- if(q.tool==="notebooks"&&q.view.startsWith("book:")){
+ if(q.tool==="notes"&&q.view.startsWith("book:")){
   var book=get(q.view.slice(5));if(book)return {key:quickKey(q),label:objTitle(book),desc:"Notebook",icon:"notebook"}
  }
- if(q.tool==="library"&&q.view.startsWith("folder:")){
+ if(q.tool==="resources"&&q.view.startsWith("folder:")){
   var folder=get(q.view.slice(7));if(folder)return {key:quickKey(q),label:objTitle(folder),desc:"Collection",icon:"folder"}
  }
  return {key:quickKey(q),label:q.view.replace(/[-:]/g," "),desc:q.tool,icon:"layers"}
@@ -379,11 +381,15 @@ function buttonIcon(name){return ic(name,17)}
 function getAllSearchable(){return list().filter(function(x){return x.type!=="folder"&&x.type!=="notebook"})}
 function searchMatch(e,q){q=(q||"").toLowerCase().trim();if(!q)return true;var a=areaOf(e),c=categoryOf(e);var txt=[e.title,e.body,stripHtml(e.html),e.url,e.fileName,contextName(e),a&&a.title,c&&c.title,(e.tags||[]).join(" ")].join(" ").toLowerCase();return q.split(/\s+/).every(function(w){return txt.includes(w)})}
 function renderRail(){
- rail.innerHTML='<button class="rail-logo" data-act="navigate" data-tool="home" data-view="today" aria-label="Shelf Desk" title="Shelf">'+ic("layers",23)+'</button>'+
- TOOLS.map(function(t){return '<button class="rail-item'+(state.ui.tool===t.id?" active":"")+'" data-act="tool" data-tool="'+t.id+'" title="'+t.name+'" aria-label="'+t.name+'">'+ic(t.icon,21)+'<span>'+t.name+'</span></button>'}).join("")+
- '<span class="rail-spacer"></span><div class="rail-footer-tools">'+
- '<button class="rail-item rail-bottom'+(state.ui.tool==="library"&&state.ui.view==="archive"?" active":"")+'" data-act="navigate" data-tool="library" data-view="archive" title="Archive" aria-label="Archive">'+ic("archive",20)+'<span>Archive</span></button>'+
- '<button class="rail-item rail-bottom'+(state.ui.tool==="library"&&state.ui.view==="trash"?" active":"")+'" data-act="navigate" data-tool="library" data-view="trash" title="Trash" aria-label="Trash">'+ic("trash",20)+'<span>Trash</span></button>'+
+ rail.innerHTML='<div class="rail-tools-scroll" role="group" aria-label="Shelf tools">'+
+ TOOLS.map(function(t){
+  return '<button class="rail-item'+(state.ui.tool===t.id?" active":"")+
+   '" data-act="tool" data-tool="'+t.id+'" title="'+t.name+'" aria-label="'+t.name+'"'+(state.ui.tool===t.id?' aria-current="page"':"")+'>'+
+   ic(t.icon,21)+'<span>'+t.name+'</span></button>'
+ }).join("")+'</div>'+
+ '<div class="rail-footer-tools">'+
+ '<button class="rail-item rail-bottom'+(state.ui.tool==="resources"&&state.ui.view==="archive"?" active":"")+'" data-act="navigate" data-tool="resources" data-view="archive" title="Archive" aria-label="Archive">'+ic("archive",20)+'<span>Archive</span></button>'+
+ '<button class="rail-item rail-bottom'+(state.ui.tool==="resources"&&state.ui.view==="trash"?" active":"")+'" data-act="navigate" data-tool="resources" data-view="trash" title="Trash" aria-label="Trash">'+ic("trash",20)+'<span>Trash</span></button>'+
  '</div>';
 }
 function sr(label,view,icon,opts){opts=opts||{};var sel=state.ui.view===view&&state.ui.tool===(opts.tool||state.ui.tool);return '<button class="sb-row'+(sel?" active":"")+(opts.sub?" sb-sub":"")+'" data-act="navigate" data-tool="'+esc(opts.tool||state.ui.tool)+'" data-view="'+esc(view)+'"'+(opts.areaDrop?' data-area-drop="'+esc(opts.areaDrop)+'"':"")+'><span class="sb-ico">'+ic(icon,16)+'</span><span class="label">'+esc(label)+'</span>'+(opts.count==null?"":'<span class="sb-num">'+opts.count+'</span>')+'</button>'}
