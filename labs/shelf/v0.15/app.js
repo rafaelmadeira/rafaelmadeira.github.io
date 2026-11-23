@@ -1,6 +1,6 @@
 (function(){
 "use strict";
-var KEY="shelf-everyday-v014", LEGACY="shelf-everyday-v013", LEGACY_OLD="shelf-everyday-v012", LEGACY_ANCIENT="shelf-everyday-v011", DB="shelf-v011-files";
+var KEY="shelf-everyday-v015", LEGACY="shelf-everyday-v014", LEGACY_OLD="shelf-everyday-v013", LEGACY_ANCIENT="shelf-everyday-v012", DB="shelf-v011-files";
 var LIBRARY_TYPES=[
  {id:"article",name:"Articles",icon:"file"},{id:"image",name:"Images",icon:"image"},
  {id:"video",name:"Videos",icon:"video"},{id:"document",name:"Documents",icon:"file"},
@@ -126,7 +126,7 @@ function seed(){
  var r2=ent("resource","Exame anterior.pdf",{resourceKind:"document",fileName:"Exame anterior.pdf",contextIds:[visit.id],body:"Arquivo ilustrativo. Anexe seu próprio PDF para testar um arquivo real.",demo:true});
  var r3=ent("resource","MDN Web Docs",{url:"https://developer.mozilla.org/en-US/",resourceKind:"link",starred:true,demo:true});
  var journal=ent("journal","",{date:yesterday,html:"<p>Um registro de exemplo para demonstrar como o diário funciona.</p><p>As notas adicionadas a esta entrada também podem ser encontradas em Notebook.</p>",demo:true});
- return {version:14,entities:[aI,aT,aC,aP,project,visit,t1,t2,t3,t4,notebook1,notebook2,n1,n2,n3,n4,r1,r2,r3,journal],
+ return {version:15,entities:[aI,aT,aC,aP,project,visit,t1,t2,t3,t4,notebook1,notebook2,n1,n2,n3,n4,r1,r2,r3,journal],
  ui:{tool:"home",view:"today",selectedDate:d,month:monthKey(d),focusId:null,detailId:null,lastTool:"home",lastView:"today",recent:[project.id,visit.id],quickAccess:[],search:""},demo:true}
 }
 var state;
@@ -236,6 +236,17 @@ function ensureV14(){
  state.version=14
 }
 ensureV14();
+function ensureV15(){
+ var ui=state.ui||{};
+ if(!ui.navSections||typeof ui.navSections!=="object")ui.navSections={todo:true,life:true,resources:true,filters:false,tags:false,pinned:false};
+ if(!ui.navNodes||typeof ui.navNodes!=="object")ui.navNodes={tasks:true,projects:false,journals:false,notebooks:false,bookmarks:false,collections:false};
+ if(!ui.navMore||typeof ui.navMore!=="object")ui.navMore={};
+ if(!ui.miniCalendars||typeof ui.miniCalendars!=="object")ui.miniCalendars={};
+ if(!ui.miniCalendars.sidebar)ui.miniCalendars.sidebar=Object.assign({expanded:true,month:monthKey(today())},ui.miniCalendars.home||ui.miniCalendars.journals||{});
+ ui.navMenu=null;
+ state.version=15
+}
+ensureV15();
 if(state.ui.expandedAreaId===undefined){
  var remembered=state.ui.view&&state.ui.view.startsWith("area:")?state.ui.view.slice(5):null;
  var first=state.entities.find(function(e){return e.type==="area"&&String(e.title).toLowerCase()==="ivrnet"&&!e.trashed});
@@ -380,24 +391,14 @@ function quickRow(q,idx){
 function buttonIcon(name){return ic(name,17)}
 function getAllSearchable(){return list().filter(function(x){return x.type!=="folder"&&x.type!=="notebook"})}
 function searchMatch(e,q){q=(q||"").toLowerCase().trim();if(!q)return true;var a=areaOf(e),c=categoryOf(e);var txt=[e.title,e.body,stripHtml(e.html),e.url,e.fileName,contextName(e),a&&a.title,c&&c.title,(e.tags||[]).join(" ")].join(" ").toLowerCase();return q.split(/\s+/).every(function(w){return txt.includes(w)})}
-function renderRail(){
- rail.innerHTML='<div class="rail-tools-scroll" role="group" aria-label="Shelf tools">'+
- TOOLS.map(function(t){
-  return '<button class="rail-item'+(state.ui.tool===t.id?" active":"")+
-   '" data-act="tool" data-tool="'+t.id+'" title="'+t.name+'" aria-label="'+t.name+'"'+(state.ui.tool===t.id?' aria-current="page"':"")+'>'+
-   ic(t.icon,21)+'<span>'+t.name+'</span></button>'
- }).join("")+'</div>'+
- '<div class="rail-footer-tools">'+
- '<button class="rail-item rail-bottom'+(state.ui.tool==="resources"&&state.ui.view==="archive"?" active":"")+'" data-act="navigate" data-tool="resources" data-view="archive" title="Archive" aria-label="Archive">'+ic("archive",20)+'<span>Archive</span></button>'+
- '<button class="rail-item rail-bottom'+(state.ui.tool==="resources"&&state.ui.view==="trash"?" active":"")+'" data-act="navigate" data-tool="resources" data-view="trash" title="Trash" aria-label="Trash">'+ic("trash",20)+'<span>Trash</span></button>'+
- '</div>';
-}
+function renderRail(){ /* v0.15: all destinations live in the single persistent sidebar */ }
 function sr(label,view,icon,opts){opts=opts||{};var sel=state.ui.view===view&&state.ui.tool===(opts.tool||state.ui.tool);return '<button class="sb-row'+(sel?" active":"")+(opts.sub?" sb-sub":"")+'" data-act="navigate" data-tool="'+esc(opts.tool||state.ui.tool)+'" data-view="'+esc(view)+'"'+(opts.areaDrop?' data-area-drop="'+esc(opts.areaDrop)+'"':"")+'><span class="sb-ico">'+ic(icon,16)+'</span><span class="label">'+esc(label)+'</span>'+(opts.count==null?"":'<span class="sb-num">'+opts.count+'</span>')+'</button>'}
 function sh(label,createType){return '<div class="sb-section-heading"><span>'+esc(label)+'</span>'+(createType?'<button data-act="create" data-type="'+createType+'" title="New '+createType+'">'+ic("plus",14)+'</button>':"")+'</div>'}
 // One consistent minicalendar in the footer of every tool.
 function miniCalendarPreferences(tool){
  var all=state.ui.miniCalendars;
  if(!all||typeof all!=="object")all=state.ui.miniCalendars={};
+ tool="sidebar";
  if(!all[tool]){
   all[tool]={
    expanded:tool==="journals"?state.ui.journalCalendarExpanded!==false:true,
@@ -627,7 +628,7 @@ function renderSidebar(){
  }
  html+='</div>';
  html+=sidebarCalendarFooter(t);
- html+='<div class="sb-foot"><small><span>SHELF · v0.14</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></small></div>';
+ html+='<div class="sb-foot"><small><span>SHELF · v0.15</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></small></div>';
  sidebar.innerHTML=html;
 }
 function topbar(){
@@ -1779,12 +1780,12 @@ async function handleUpload(files){
  save();closeModal();paint();toast(saved+" file"+(saved===1?"":"s")+" saved"+(context?" · linked to "+objTitle(context):"")+". Also in Library")}
 function toB64(b){return new Promise(function(resolve,reject){var reader=new FileReader();reader.onload=function(){resolve(String(reader.result).split(",")[1])};reader.onerror=reject;reader.readAsDataURL(b)})}
 function fromB64(data,mime){var raw=atob(data),chunks=[];for(var i=0;i<raw.length;i+=8192){var bit=raw.slice(i,i+8192),a=new Uint8Array(bit.length);for(var j=0;j<bit.length;j++)a[j]=bit.charCodeAt(j);chunks.push(a)}return new Blob(chunks,{type:mime||"application/octet-stream"})}
-async function exportAll(){try{var out={format:"shelf-v014",savedAt:new Date().toISOString(),data:state,files:[]};
+async function exportAll(){try{var out={format:"shelf-v015",savedAt:new Date().toISOString(),data:state,files:[]};
  var ids=Array.from(new Set(state.entities.map(function(e){return e.blobId}).filter(Boolean)));
  for(var id of ids){var b=await loadBlob(id);if(b)out.files.push({id:id,mime:b.type,data:await toB64(b)})}
- var url=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download="shelf-v014-backup-"+today()+".json";a.click();setTimeout(function(){URL.revokeObjectURL(url)},10000);toast("Backup exported")
+ var url=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download="shelf-v015-backup-"+today()+".json";a.click();setTimeout(function(){URL.revokeObjectURL(url)},10000);toast("Backup exported")
  }catch(err){toast("Export failed: "+err.message)}}
-async function importAll(file){try{var d=JSON.parse(await file.text());if(!d||!["shelf-v014","shelf-v013","shelf-v012","shelf-v011"].includes(d.format)||!d.data||!Array.isArray(d.data.entities))throw Error("Invalid Shelf backup");if(!confirm("Replace current v0.14 content with this backup?"))return;for(var f of d.files||[]){await storeBlob(f.id,fromB64(f.data,f.mime))}state=d.data;ensureAreas();state.ui=state.ui||seed().ui;ensureV13();ensureCategories();ensureJournals();ensureV14();state.ui.detailId=null;save();paint();toast("Backup restored")}catch(err){toast("Import failed: "+err.message)}}
+async function importAll(file){try{var d=JSON.parse(await file.text());if(!d||!["shelf-v015","shelf-v014","shelf-v013","shelf-v012","shelf-v011"].includes(d.format)||!d.data||!Array.isArray(d.data.entities))throw Error("Invalid Shelf backup");if(!confirm("Replace current v0.15 content with this backup?"))return;for(var f of d.files||[]){await storeBlob(f.id,fromB64(f.data,f.mime))}state=d.data;ensureAreas();state.ui=state.ui||seed().ui;ensureV13();ensureCategories();ensureJournals();ensureV14();ensureV15();state.ui.detailId=null;save();paint();toast("Backup restored")}catch(err){toast("Import failed: "+err.message)}}
 function assignArea(e,id){
  if(!e||!["task","project"].includes(e.type))return false;
  var next=id?get(id):null;if(id&&(!next||next.type!=="area"||next.trashed))return false;
