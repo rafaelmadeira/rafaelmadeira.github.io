@@ -763,3 +763,7 @@ svg{flex-shrink:0;vertical-align:middle}
 .today-drag-handle{touch-action:none;-webkit-user-drag:none}.today-dragging{user-select:none}.today-dragging input{user-select:none}
 
 .task-row{border-bottom:0}
+
+.today-reorder-before,.today-reorder-after{position:relative}
+.today-reorder-before::before,.today-reorder-after::after{content:"";position:absolute;left:0;right:0;height:2px;border-radius:2px;background:#719b60;pointer-events:none;z-index:2}
+.today-reorder-before::before{top:0}.today-reorder-after::after{bottom:0}
