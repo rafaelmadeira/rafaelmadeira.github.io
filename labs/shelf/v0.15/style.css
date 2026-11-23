@@ -562,3 +562,10 @@ svg{flex-shrink:0;vertical-align:middle}
 .overview-tag-grid button:hover{background:#eef5f7}
 @media(max-width:750px){.sidebar{width:233px;flex-basis:233px}.shelf-nav-header{padding:10px 6px 5px}.shelf-nav-scroll{padding-left:5px;padding-right:5px}.shelf-nav-footer{padding-left:5px;padding-right:5px}}
 @media(max-height:620px){.shelf-nav-header{padding-top:5px;gap:1px}.shelf-nav-brand{min-height:31px}.nav-new-item{min-height:30px}.nav-top-links{padding-top:6px}.nav-top-row{min-height:30px}.shelf-nav-footer .sidebar-calendar-shell{max-height:38dvh}.nav-section{margin-top:6px;margin-bottom:8px}}
+
+/* ChatGPT-style disclosure: label, adjacent chevron, flexible space, then overflow menu. */
+.nav-section-title{flex:0 1 auto;max-width:calc(100% - 48px)}
+.nav-section-spacer{flex:1 1 auto;min-width:0}
+.nav-section-toggle{flex:0 0 16px;margin-left:0}
+.nav-node-link{flex:0 1 auto;max-width:calc(100% - 28px)}
+.nav-node-spacer{flex:1 1 auto;min-width:0}
