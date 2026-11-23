@@ -263,7 +263,7 @@ if(state.ui.expandedAreaId===undefined){
 }
 var $=function(id){return document.getElementById(id)};
 var rail=$("toolrail"),sidebar=$("sidebar"),workspace=$("workspace"),modalRoot=$("modal-root"),toastEl=$("toast");
-var activeComposer="auto",composerFor=null,composerText="",modalState=null,uploadContext=null,universalUpload=false,mediaUrls=[],toastTimer=null;
+var activeComposer="auto",composerFor=null,composerText="",modalState=null,uploadContext=null,universalUpload=false,uploadCaptureOptions=null,mediaUrls=[],toastTimer=null;
 var lastToolView=null,workingSearch="",draggingAreaItem=null,draggingQuickKey=null;
 function get(id){return state.entities.find(function(x){return x.id===id})}
 function list(type,includeHidden){return state.entities.filter(function(x){return (!type||x.type===type)&&(includeHidden||(!x.archived&&!x.trashed))})}
@@ -586,14 +586,27 @@ function navTop(label,tool,view,icon,count){
  ic(icon,17)+'<span class="nav-row-label">'+esc(label)+'</span>'+
  (count?'<span class="nav-subtle-count">'+count+'</span>':"")+'</button>'
 }
+var NAV_CAPTURE_TYPES={todo:"task",notes:"note",journals:"journal",projects:"project",goals:"goal",habits:"habit",bookmarks:"resource",resources:"resource"};
+function sidebarAdd(type,contextId,label,section){
+ return '<button class="nav-add" data-act="sidebar-capture" data-type="'+esc(type)+'" data-context="'+esc(contextId||"")+'" data-section="'+esc(section||"")+'" aria-label="'+esc(label)+'" title="'+esc(label)+'">'+ic("plus",14)+'</button>'
+}
+function sidebarChild(row,type,contextId,label,section){return type?'<div class="nav-child-row">'+row+sidebarAdd(type,contextId,label,section)+'</div>':row}
+function sidebarExpandable(key,row,children,type,contextId,label,section){
+ var open=navNodes()[key]===true;
+ return '<div class="nav-tree"><div class="nav-child-row nav-tree-row">'+row+
+ '<button class="nav-child-toggle" data-act="nav-node-toggle" data-key="'+esc(key)+'" aria-label="'+(open?"Collapse ":"Expand ")+esc(label)+'" aria-expanded="'+open+'" aria-controls="nav-tree-'+esc(key)+'">'+ic(open?"chevron-down":"chevron-right",13)+'</button>'+
+ '<span class="nav-tree-spacer"></span>'+(type?sidebarAdd(type,contextId,"Add "+({task:"task",note:"note",journal:"journal entry",resource:section==="resources"?"resource":"link"}[type])+" to "+label,section):"")+'</div>'+
+ '<div class="nav-tree-children" id="nav-tree-'+esc(key)+'"'+(open?'':' hidden')+'>'+(open?children:"")+'</div></div>'
+}
 function navLeaf(label,tool,view,icon,depth,extra){
  extra=extra||{};var active=navSelected(tool,view);
- return '<button class="nav-leaf'+(active?" selected":"")+'" style="--nav-depth:'+(depth||1)+
+ var row='<button class="nav-leaf'+(active?" selected":"")+'" style="--nav-depth:'+(depth||1)+
  '" data-act="navigate" data-tool="'+esc(tool)+'" data-view="'+esc(view)+
  '" title="'+esc(label)+'" aria-current="'+(active?"page":"false")+'">'+
  (icon?'<span class="nav-item-icon">'+ic(icon,15)+'</span>':"")+
  '<span class="nav-row-label">'+esc(label)+'</span>'+
- (extra.count!=null?'<span class="nav-subtle-count">'+extra.count+'</span>':"")+'</button>'
+ (extra.count!=null?'<span class="nav-subtle-count">'+extra.count+'</span>':"")+'</button>';
+ return extra.expandKey?sidebarExpandable(extra.expandKey,row,extra.children,extra.addType,extra.contextId,label,extra.section):sidebarChild(row,extra.addType,extra.contextId,extra.addLabel,extra.section)
 }
 function navShowMore(key,array,render){
  var n=array.length,more=state.ui.navMore||(state.ui.navMore={});
@@ -628,6 +641,7 @@ function navSection(key,label,content,extraActions){
  '<button class="nav-section-title'+(active?" selected":"")+'" data-act="nav-section-toggle" data-key="'+esc(key)+
  '" aria-expanded="'+open+'" aria-controls="nav-content-'+esc(key)+'">'+
  '<span>'+esc(label)+'</span><span class="nav-card-chevron">'+ic(open?"chevron-down":"chevron-right",14)+'</span></button>'+
+ (NAV_CAPTURE_TYPES[key]?sidebarAdd(NAV_CAPTURE_TYPES[key],null,"Add "+({task:"task",note:"note",journal:"journal entry",project:"project",goal:"goal",habit:"habit",resource:key==="resources"?"resource":"link"}[NAV_CAPTURE_TYPES[key]]),key):"")+
  '<button class="nav-section-options" data-act="nav-section-menu" title="'+esc(label)+' options" aria-label="Options for '+esc(label)+'" aria-haspopup="menu" aria-expanded="false">'+ic("more",16)+'</button>'+
  menu+'</div>'+
  '<div id="nav-content-'+esc(key)+'" class="nav-section-content"'+(open?'':' hidden')+'>'+(open?content:"")+'</div></section>'
@@ -654,21 +668,34 @@ function renderSidebar(){
  var topLinks='<div class="nav-top-links">'+navTop("Today","home","today","sun")+
   navTop("Inbox","home","inbox","inbox",inboxCount())+navTop("Calendar","calendar","month","calendar-days")+
   '</div>';
- function objectLink(e){return '<button class="nav-leaf nav-object-link" style="--nav-depth:1" data-act="open" data-id="'+esc(e.id)+'" title="'+esc(objTitle(e))+'">'+
-  '<span class="nav-item-icon">'+ic(typeIcon(e),15)+'</span><span class="nav-row-label">'+esc(objTitle(e))+'</span></button>'}
- function objectChildren(key,items,message){return items.length?navShowMore(key,items.sort(byRecent),objectLink):'<div class="nav-muted-item">'+esc(message)+'</div>'}
+ function objectLink(e,expandable){var row='<button class="nav-leaf nav-object-link" style="--nav-depth:1" data-act="open" data-id="'+esc(e.id)+'" title="'+esc(objTitle(e))+'">'+
+  '<span class="nav-item-icon">'+ic(typeIcon(e),15)+'</span><span class="nav-row-label">'+esc(objTitle(e))+'</span></button>';
+  var addType={project:"task",goal:"task",area:"task",notebook:"note",folder:"resource",journalbook:"journal"}[e.type];
+  var noun={task:"task",note:"note",resource:"link",journal:"journal entry"}[addType];
+  if(expandable&&["project","goal"].includes(e.type)){
+   var children=objectChildren("tasks:"+e.id,list("task").filter(function(t){return (t.contextIds||[]).includes(e.id)||t.sourceId===e.id}),"No tasks yet");
+   return sidebarExpandable(e.type+":"+e.id,row,children,addType,e.id,objTitle(e),"")
+  }
+  return sidebarChild(row,addType,e.id,"Add "+noun+" to "+objTitle(e),e.type==="folder"?"resources":"")
+ }
+
+ function objectChildren(key,items,message,expandable){return items.length?navShowMore(key,items.sort(byRecent),function(e){return objectLink(e,expandable)}):'<div class="nav-muted-item">'+esc(message)+'</div>'}
  var content={};
  content.starred=objectChildren("starred",list().filter(function(e){return e.starred}),"No starred items yet");
- content.todo=navShowMore("task-areas",taskAreas,function(a){return navLeaf(objTitle(a),"todo","area:"+a.id,areaIcon(a),1)});
+ content.todo=navShowMore("task-areas",taskAreas,function(a){
+  var categories=list("category").filter(function(c){return c.areaId===a.id});
+  var children=categories.length?navShowMore("categories:"+a.id,categories,function(c){return navLeaf(objTitle(c),"todo","category:"+c.id,"folder",1,{addType:"task",contextId:c.id,addLabel:"Add task to "+objTitle(c),section:"todo"})}):'<div class="nav-muted-item">No categories yet</div>';
+  return navLeaf(objTitle(a),"todo","area:"+a.id,areaIcon(a),1,{addType:"task",contextId:a.id,section:"todo",expandKey:"area:"+a.id,children:children})
+ });
  if(!taskAreas.length)content.todo='<div class="nav-muted-item">No areas yet</div>';
- content.projects=objectChildren("projects",projects,"No projects yet");
+ content.projects=objectChildren("projects",projects,"No projects yet",true);
  journals.sort(function(a,b){return (a.id===state.ui.defaultJournalId?-1:b.id===state.ui.defaultJournalId?1:0)||a.createdAt-b.createdAt});
- content.journals=navShowMore("journalbooks",journals,function(j){return navLeaf(objTitle(j),"journals","journalbook:"+j.id,"book-open",1,{count:list("journal").filter(function(e){return e.journalBookId===j.id}).length})});
- content.goals=objectChildren("goals",list("goal"),"No goals yet");
+ content.journals=navShowMore("journalbooks",journals,function(j){return navLeaf(objTitle(j),"journals","journalbook:"+j.id,"book-open",1,{count:list("journal").filter(function(e){return e.journalBookId===j.id}).length,addType:"journal",contextId:j.id,addLabel:"Add journal entry to "+objTitle(j),section:"journals",expandKey:"journal:"+j.id,children:objectChildren("entries:"+j.id,list("journal").filter(function(e){return e.journalBookId===j.id}),"No entries yet")})});
+ content.goals=objectChildren("goals",list("goal"),"No goals yet",true);
  content.habits=objectChildren("habits",list("habit"),"No habits yet");
- content.notes=books.length?navShowMore("notebooks",books.sort(byRecent),function(n){return navLeaf(objTitle(n),"notes","book:"+n.id,"notebook",1)}):'<div class="nav-muted-item">No notebooks yet</div>';
- content.bookmarks=folders.length?navShowMore("bookmark-folders",folders,function(f){return navLeaf(objTitle(f),"bookmarks","folder:"+f.id,"folder",1)}):'<div class="nav-muted-item">No collections yet</div>';
- content.resources=folders.length?navShowMore("collections",folders,function(f){return navLeaf(objTitle(f),"resources","folder:"+f.id,"folder",1)}):'<div class="nav-muted-item">No collections yet</div>';
+ content.notes=books.length?navShowMore("notebooks",books.sort(byRecent),function(n){return navLeaf(objTitle(n),"notes","book:"+n.id,"notebook",1,{addType:"note",contextId:n.id,addLabel:"Add note to "+objTitle(n),section:"notes",expandKey:"notebook:"+n.id,children:objectChildren("notes:"+n.id,list("note").filter(function(e){return e.notebookId===n.id}),"No notes yet")})}):'<div class="nav-muted-item">No notebooks yet</div>';
+ content.bookmarks=folders.length?navShowMore("bookmark-folders",folders,function(f){return navLeaf(objTitle(f),"bookmarks","folder:"+f.id,"folder",1,{addType:"resource",contextId:f.id,addLabel:"Add link to "+objTitle(f),section:"bookmarks",expandKey:"bookmark-folder:"+f.id,children:objectChildren("bookmarks:"+f.id,list("resource").filter(function(e){return e.folderId===f.id&&isBookmark(e)}),"No bookmarks yet")})}):'<div class="nav-muted-item">No collections yet</div>';
+ content.resources=folders.length?navShowMore("collections",folders,function(f){return navLeaf(objTitle(f),"resources","folder:"+f.id,"folder",1,{addType:"resource",contextId:f.id,addLabel:"Add resource to "+objTitle(f),section:"resources",expandKey:"resource-folder:"+f.id,children:objectChildren("resources:"+f.id,list("resource").filter(function(e){return e.folderId===f.id}),"No resources yet")})}):'<div class="nav-muted-item">No collections yet</div>';
  var types=[["Links","link","link"],["Notes","note","note"],["Images","image","image"],["Videos","video","video"],
   ["Documents","document","file"],["Tasks","task","check-circle"],["Events","event","calendar-days"],["Projects","project","folder-kanban"],
   ["Journal entries","journal","book-open"],["Goals","goal","target"],["Routines","routine","list-checks"],["Habits","habit","flame"]];
@@ -1769,7 +1796,7 @@ var UNIVERSAL_TYPES=[
  {type:"event",label:"Event",icon:"calendar",where:"Calendar"},
  {type:"project",label:"Project",icon:"folder-kanban",where:"Projects"},
  {type:"resource",label:"Link",icon:"link",where:"Bookmarks"},
- {type:"journal",label:"Journal entry",icon:"book-open",where:"Journals"},
+ {type:"journal",label:"Journal entry",icon:"book-open",where:"Journal"},
  {type:"goal",label:"Goal",icon:"target",where:"Goals"},
  {type:"habit",label:"Habit",icon:"flame",where:"Habits"},
  {type:"routine",label:"Routine",icon:"list-checks",where:"Routines"}
@@ -1797,7 +1824,31 @@ function universalDateInfo(text){
  return {date:date,time:time,title:t.replace(/\s{2,}/g," ").trim().replace(/^[,@:\s-]+|[,@:\s-]+$/g,"")}
 }
 function universalHtml(text){return "<p>"+esc(String(text||"")).replace(/\r?\n/g,"</p><p>")+"</p>"}
-function universalCapture(raw,chosenType){
+function applyUniversalContext(fields,type,context){
+ if(!context)return;
+ fields.sourceId=context.id;
+ if(type==="task")fields.inbox=false;
+ if(context.type==="notebook"&&type==="note")fields.notebookId=context.id;
+ else if(context.type==="folder"&&type==="resource")fields.folderId=context.id;
+ else if(context.type==="journalbook"&&type==="journal")fields.journalBookId=context.id;
+ else if(context.type==="area"&&["task","project"].includes(type))fields.areaId=context.id;
+ else if(context.type==="category"&&["task","project"].includes(type)){fields.areaId=context.areaId;fields.categoryId=context.id}
+ else fields.contextIds=Array.from(new Set((fields.contextIds||[]).concat(context.id)))
+}
+function universalWhere(type,options){
+ options=options||{};var context=get(options.contextId),info=UNIVERSAL_TYPES.find(function(x){return x.type===type});
+ if(context){
+  var place=type==="note"?"Notes":type==="task"?"To do":type==="journal"?"Journal":type==="resource"?(options.section==="resources"?"Resources":"Bookmarks"):(info?info.where:"Shelf");
+  return place+" · "+(context.type==="category"&&get(context.areaId)?objTitle(get(context.areaId))+" · ":"")+objTitle(context)
+ }
+ if(type==="task")return "To do · Inbox · No area";
+ if(type==="note")return "Notes · No notebook";
+ if(type==="resource")return (options.section==="resources"?"Resources":"Bookmarks")+" · No collection";
+ return info?info.where:"Shelf"
+}
+function universalCapture(raw,chosenType,options){
+ options=options||{};var context=get(options.contextId);
+ if(options.contextId&&(!context||context.trashed||context.archived)){toast("This destination is no longer available");return null}
  var intent=captureIntent(raw),type=chosenType&&chosenType!=="auto"?chosenType:intent.type;
  var body=intent.body;if(!body){toast("Write something to capture");return null}
  var info=UNIVERSAL_TYPES.find(function(x){return x.type===type});if(!info)return null;
@@ -1820,30 +1871,32 @@ function universalCapture(raw,chosenType){
   var event=universalDateInfo(first);
   title=event.title||first;extra.date=event.date;extra.time=event.time;if(rest)extra.body=rest
  }else if(type==="journal"){
-  var bookId=state.ui.defaultJournalId,existing=list("journal").find(function(e){return e.date===today()&&e.journalBookId===bookId});
+  var bookId=context&&context.type==="journalbook"?context.id:state.ui.defaultJournalId,existing=list("journal").find(function(e){return e.date===today()&&e.journalBookId===bookId});
   if(existing){
-   existing.html=(existing.html||"")+universalHtml(body);touched(existing);
-   return {item:existing,label:"Added to today's Journal",where:"Journal"}
+   existing.html=(existing.html||"")+universalHtml(body);applyUniversalContext(existing,type,context);touched(existing);
+   return {item:existing,label:"Added to today's Journal",where:universalWhere(type,options)}
   }
   title="";extra.date=today();extra.journalBookId=bookId;extra.html=universalHtml(body)
  }
+ applyUniversalContext(extra,type,context);
  var item=ent(type,title,extra);
  state.entities.unshift(item);save();
- return {item:item,label:info.label+" saved",where:info.where}
+ return {item:item,label:info.label+" saved",where:universalWhere(type,options)}
 }
-function commitUniversalCapture(raw,type){
- var result=universalCapture(raw,type);
+function commitUniversalCapture(raw,type,options){
+ var result=universalCapture(raw,type,options);
  if(!result)return false;
  closeModal();paint();toast(result.label+" · "+result.where);return true
 }
 function universalTypeOption(x,active){
  return '<button class="universal-type'+(active?" active":"")+'" type="button" data-act="universal-type" data-type="'+x.type+'" aria-pressed="'+(active?"true":"false")+'">'+ic(x.icon,15)+' '+esc(x.label)+'</button>'
 }
-function openUniversalCapture(prefill){
- modalState={mode:"universal",captureType:"auto"};
+function openUniversalCapture(prefill,options){
+ options=options||{};
+ modalState={mode:"universal",captureType:options.captureType||"auto",captureOptions:options};
  openModal('<div class="modal-header"><h2>Quick capture</h2><button class="icon-button" data-act="modal-close" aria-label="Close">'+ic("x",19)+'</button></div>'+
  '<div class="modal-scroll"><div class="universal-capture-box"><textarea id="universal-capture" rows="4" placeholder="A thought, a link, todo: a task, event: an appointment…" aria-label="Capture anything">'+esc(prefill||"")+'</textarea>'+
- '<div class="universal-capture-hint">Automatically organized by type. No area or folder required.</div>'+
+ '<div class="universal-capture-hint">The destination below shows where this item will be saved.</div>'+
  '<div class="universal-types"><button class="universal-type active" type="button" data-act="universal-type" data-type="auto" aria-pressed="true">'+ic("sparkle",15)+' Auto</button>'+
  UNIVERSAL_TYPES.map(function(x){return universalTypeOption(x,false)}).join("")+'</div>'+
  '<div id="universal-prediction" class="universal-prediction"></div>'+
@@ -1858,7 +1911,7 @@ function updateUniversalPreview(){
  var type=choice==="auto"?intent.type:choice,info=UNIVERSAL_TYPES.find(function(x){return x.type===type})||UNIVERSAL_TYPES[0];
  var canSave=!!intent.body&&(type!=="resource"||!!intent.url);
  var preview=$("universal-prediction"),saveButton=$("universal-save-button");
- if(preview)preview.innerHTML=ic(info.icon,15)+' <strong>'+esc(info.label)+'</strong><span>Saved to '+esc(info.where)+(type==="resource"&&!intent.url?" · Paste a URL":"")+'</span>';
+ if(preview)preview.innerHTML=ic(info.icon,15)+' <strong>'+esc(info.label)+'</strong><span>Saved to '+esc(universalWhere(type,modalState.captureOptions))+(type==="resource"&&!intent.url?" · Paste a URL":"")+'</span>';
  if(saveButton)saveButton.disabled=!canSave;
  document.querySelectorAll('[data-act="universal-type"]').forEach(function(b){
   var active=b.getAttribute("data-type")===choice;
@@ -1868,7 +1921,7 @@ function updateUniversalPreview(){
 function universalCaptureFromModal(){
  if(!modalState||modalState.mode!=="universal")return;
  var input=$("universal-capture");
- if(input)commitUniversalCapture(input.value,modalState.captureType)
+ if(input)commitUniversalCapture(input.value,modalState.captureType,modalState.captureOptions)
 }
 function universalSearchCreate(type){
  var input=$("global-search");if(input)commitUniversalCapture(input.value,type||"auto")
@@ -1979,7 +2032,8 @@ async function fillPreviews(){
  for(var img of elems){try{var blob=await loadBlob(img.getAttribute("data-preview"));if(blob&&img.isConnected){var u=URL.createObjectURL(blob);mediaUrls.push(u);img.src=u}}catch(e){}}
 }
 async function handleUpload(files){
- files=Array.from(files||[]);if(!files.length)return;var context=universalUpload?null:get(uploadContext||(state.ui.tool==="resources"&&state.ui.view.startsWith("folder:")?state.ui.view.slice(7):null));uploadContext=null;universalUpload=false;var saved=0;
+ files=Array.from(files||[]);if(!files.length)return;var captureOptions=universalUpload?uploadCaptureOptions||{}:null;var context=universalUpload?get(captureOptions.contextId):get(uploadContext||(state.ui.tool==="resources"&&state.ui.view.startsWith("folder:")?state.ui.view.slice(7):null));uploadContext=null;universalUpload=false;uploadCaptureOptions=null;var saved=0;
+ if(captureOptions&&captureOptions.contextId&&(!context||context.trashed||context.archived)){toast("This destination is no longer available");return}
  for(var file of files){try{
   var kind=file.type.startsWith("image/")?"image":file.type.startsWith("video/")?"video":file.type.startsWith("audio/")?"music": "document";
   var e=ent("resource",file.name.replace(/\.[^/.]+$/,""),{resourceKind:kind,fileName:file.name,mime:file.type,fileSize:file.size,blobId:uid()});
@@ -2100,6 +2154,9 @@ function toggleSectionMenu(trigger){
 function onClick(ev){
  var b=ev.target.closest("[data-act]");if(!b)return;
  var act=b.getAttribute("data-act"),id=b.getAttribute("data-id"),type=b.getAttribute("data-type"),ctx=b.getAttribute("data-context"),view=b.getAttribute("data-view"),tool=b.getAttribute("data-tool"),current=get(id);
+ if(act==="sidebar-capture"){
+  closeSectionMenu(false);openUniversalCapture("",{captureType:type,contextId:ctx||null,section:b.getAttribute("data-section")||""});return
+ }
  if(act==="sidebar-show-all"){
   state.ui.hiddenSidebarSections=[];save();renderSidebar();renderWorkspace();
   var restore=document.querySelector('[data-act="sidebar-show-all"]');if(restore)restore.focus({preventScroll:true});return
@@ -2163,7 +2220,7 @@ function onClick(ev){
  }
  if(act==="universal-save"){universalCaptureFromModal();return}
  if(act==="search-create"){universalSearchCreate(b.getAttribute("data-type"));return}
- if(act==="universal-file"){universalUpload=true;uploadContext=null;$("upload-input").click();return}
+ if(act==="universal-file"){universalUpload=true;uploadCaptureOptions=modalState&&modalState.mode==="universal"?modalState.captureOptions||{}:{};uploadContext=null;$("upload-input").click();return}
  if(act==="date"){state.ui.selectedDate=b.getAttribute("data-date");state.ui.month=monthKey(state.ui.selectedDate);miniCalendarPreferences("calendar").month=state.ui.month;go("calendar","month");return}
  if(act==="month-prev"){monthMove(-1);return}
  if(act==="month-next"){monthMove(1);return}
@@ -2275,7 +2332,7 @@ document.addEventListener("keydown",function(ev){
 });
 document.addEventListener("paste",function(ev){
  if(ev.target&&ev.target.id==="universal-capture"&&ev.clipboardData&&ev.clipboardData.files&&ev.clipboardData.files.length){
-  ev.preventDefault();universalUpload=true;uploadContext=null;handleUpload(ev.clipboardData.files);return
+  ev.preventDefault();universalUpload=true;uploadCaptureOptions=modalState&&modalState.mode==="universal"?modalState.captureOptions||{}:{};uploadContext=null;handleUpload(ev.clipboardData.files);return
  }
  if(!ev.target||ev.target.id!=="rich-content")return;
  ev.preventDefault();
