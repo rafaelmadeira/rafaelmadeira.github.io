@@ -595,7 +595,7 @@ function navNode(key,label,icon,tool,view,children){
  '<span class="nav-item-icon">'+ic(icon,15)+'</span><span class="nav-row-label">'+esc(label)+'</span></button>'+
  '<button class="nav-node-toggle'+(expanded?" open":"")+'" data-act="nav-node-toggle" data-key="'+esc(key)+
  '" aria-label="'+(expanded?"Collapse ":"Expand ")+esc(label)+'" aria-expanded="'+expanded+'">'+
- ic(expanded?"chevron-down":"chevron-right",14)+'</button></div>'+
+ ic(expanded?"chevron-down":"chevron-right",14)+'</button><span class="nav-node-spacer"></span></div>'+
  (expanded?'<div class="nav-node-children">'+children+'</div>':"")+'</div>'
 }
 function navSection(key,label,content,extraActions){
@@ -608,10 +608,11 @@ function navSection(key,label,content,extraActions){
  (key==="pinned"?'<button role="menuitem" data-act="quick-add">'+ic("plus",15)+' Add shortcut</button>':"")+'</div>';
  return '<section class="nav-section'+(open?" expanded":" collapsed")+'">'+
  '<div class="nav-section-row">'+
+ '<button class="nav-section-title'+(active?" selected":"")+'" data-act="nav-section-open" data-key="'+esc(key)+'">'+esc(label)+'</button>'+
  '<button class="nav-section-toggle" data-act="nav-section-toggle" data-key="'+esc(key)+
  '" aria-expanded="'+open+'" aria-label="'+(open?"Collapse ":"Expand ")+esc(label)+'">'+
  ic(open?"chevron-down":"chevron-right",14)+'</button>'+
- '<button class="nav-section-title'+(active?" selected":"")+'" data-act="nav-section-open" data-key="'+esc(key)+'">'+esc(label)+'</button>'+
+ '<span class="nav-section-spacer"></span>'+
  '<button class="nav-section-options" data-act="nav-section-menu" title="'+esc(label)+' options" aria-label="Options for '+esc(label)+'" aria-haspopup="menu" aria-expanded="false">'+ic("more",16)+'</button>'+
  menu+'</div>'+
  (open?'<div class="nav-section-content">'+content+'</div>':"")+'</section>'
