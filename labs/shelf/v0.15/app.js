@@ -333,7 +333,7 @@ function quickKey(q){
 function quickHas(q){return (state.ui.quickAccess||[]).some(function(x){return quickKey(x)===quickKey(q)})}
 function quickVisible(q){
  if(q.kind==="entity"){var e=get(q.id);return !!(e&&!e.trashed&&!e.archived)}
- return q.kind==="view"&&TOOLS.some(function(t){return t.id===q.tool})&&typeof q.view==="string"&&q.view.length>0
+ return q.kind==="view"&&(TOOLS.some(function(t){return t.id===q.tool})||["overview","browse","tag"].includes(q.tool))&&typeof q.view==="string"&&q.view.length>0
 }
 function quickItem(q){
  if(q.kind==="entity"){
@@ -353,6 +353,15 @@ function quickItem(q){
  }
  if(q.tool==="resources"&&q.view.startsWith("folder:")){
   var folder=get(q.view.slice(7));if(folder)return {key:quickKey(q),label:objTitle(folder),desc:"Collection",icon:"folder"}
+ }
+ if(q.tool==="overview"){
+  var labels={todo:"To Do",life:"My Life",resources:"Resources",filters:"Filters",tags:"Tags",pinned:"Pinned"};
+  return {key:quickKey(q),label:labels[q.view]||"Shelf",desc:"Section",icon:"folder"}
+ }
+ if(q.tool==="tag")return {key:quickKey(q),label:"#"+q.view,desc:"Tag",icon:"hash"};
+ if(q.tool==="browse"){
+  var kinds={link:"Links",note:"Notes",image:"Images",video:"Videos",document:"Documents",task:"Tasks",event:"Events",project:"Projects",journal:"Journal entries"};
+  return {key:quickKey(q),label:kinds[q.view]||q.view,desc:"Filter",icon:"filter"}
  }
  return {key:quickKey(q),label:q.view.replace(/[-:]/g," "),desc:q.tool,icon:"layers"}
 }
@@ -653,7 +662,7 @@ function renderSidebar(){
  var resourcesContent=
   navNode("notebooks","Notebook","notebook","notes","all",notebookChildren)+
   navNode("bookmarks","Bookmarks","bookmark","bookmarks","all",bookmarkChildren)+
-  navLeaf("Files & documents","resources","kind:documents","file",1)+
+  navLeaf("Files & documents","resources","files","file",1)+
   navNode("collections","Collections","folder","resources","all",collectionChildren);
  var filters=[
   ["Links","link","link"],["Notes","note","note"],["Images","image","image"],
@@ -967,6 +976,7 @@ function resourcesForView(){var v=state.ui.view,arr=list("resource");
  if(v==="trash")return state.entities.filter(function(e){return e.trashed&&!(e.type==="journal"&&e.trashedWithJournal&&get(e.trashedWithJournal)&&get(e.trashedWithJournal).trashed)});
  if(v==="unsorted")return arr.filter(function(e){return !e.folderId&&!meaningfulContext(e)&&!isBookmark(e)});
  if(v==="bookmarks")return arr.filter(isBookmark);
+ if(v==="files")return arr.filter(function(e){return !!e.blobId||!!e.fileName||e.resourceKind==="document"});
  if(v==="starred")return arr.filter(function(e){return e.starred});
  if(v==="from-events")return arr.filter(function(e){return sources(e).some(function(p){return p.type==="event"})});
  if(v==="from-projects")return arr.filter(function(e){return sources(e).some(function(p){return p.type==="project"||p.type==="task"})});
@@ -987,6 +997,7 @@ function renderLibrary(){
  var v=state.ui.view,all=resourcesForView().sort(byRecent),title="All items",sub="Keep resources, not the work of maintaining a library.";
  if(v==="unsorted"){title="Unsorted";sub="Only things without a meaningful context appear here."}
  if(v==="bookmarks"){title="Bookmarks";sub="Links you saved, whether or not they belong to a project or folder."}
+ if(v==="files"){title="Files & documents";sub="All your files and attached documents, regardless of where they belong."}
  if(v==="starred")title="Starred";
  if(v==="from-events"){title="From Calendar";sub="Files and references attached to calendar events."}
  if(v==="from-projects"){title="From To do and Projects";sub="Resources supporting your work."}
@@ -1357,7 +1368,7 @@ function renderOverview(){
   out+='<div class="overview-quick-grid">'+
    overviewShortcut("Notebook","notebook","notes","all","Every note, anywhere")+
    overviewShortcut("Bookmarks","bookmark","bookmarks","all","Saved links")+
-   overviewShortcut("Files & documents","file","resources","kind:documents","Attached and saved files")+
+   overviewShortcut("Files & documents","file","resources","files","Attached and saved files")+
    overviewShortcut("Collections","folder","resources","all","Your organized resources")+'</div>';
   out+=overviewItemSection("Recent resources",dated(list("resource")).sort(byRecent).slice(0,8),"","Nothing saved yet.");
   return out
