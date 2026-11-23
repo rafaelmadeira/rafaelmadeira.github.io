@@ -557,13 +557,13 @@ function calendarDateHeader(tool,date,subtitle,actions){
 var NAV_SECTIONS=[
  {key:"starred",title:"Starred",tool:"home",view:"starred",actions:[]},
  {key:"todo",title:"To do",tool:"todo",view:"all",actions:[["task","New task"],["area","New area"]]},
+ {key:"notes",title:"Notes",tool:"notes",view:"all",actions:[["note","New note"],["notebook","New notebook"]]},
+ {key:"journals",title:"Journal",tool:"journals",view:"all",actions:[["journalbook","New journal"]]},
  {key:"projects",title:"Projects",tool:"projects",view:"all",actions:[["project","New project"]]},
- {key:"journals",title:"Journals",tool:"journals",view:"all",actions:[["journalbook","New journal"]]},
  {key:"goals",title:"Goals",tool:"goals",view:"all",actions:[["goal","New goal"]]},
- {key:"routines",title:"Routines",tool:"routines",view:"today",actions:[["routine","New routine"]]},
  {key:"habits",title:"Habits",tool:"habits",view:"today",actions:[["habit","New habit"]]},
- {key:"bookmarks",title:"Bookmarks",tool:"bookmarks",view:"all",actions:[["resource","Save link"]]},
- {key:"resources",title:"Resources",tool:"overview",view:"resources",actions:[["note","New note"],["resource","Save link or file"],["folder","New collection"]]},
+ {key:"bookmarks",title:"Bookmarks",tool:"bookmarks",view:"all",actions:[["resource","Save link"],["folder","New collection"]]},
+ {key:"resources",title:"Resources",tool:"resources",view:"all",actions:[["resource","Save link or file"],["folder","New collection"]]},
  {key:"types",title:"Types",tool:"overview",view:"types",actions:[]},
  {key:"tags",title:"Tags",tool:"overview",view:"tags",actions:[]}
 ];
@@ -647,7 +647,7 @@ function renderSidebar(){
   })
  }
  var taskAreas=list("area"),projects=list("project"),journals=list("journalbook"),books=list("notebook"),
-  folders=list("folder"),links=list("resource").filter(isBookmark);
+  folders=list("folder");
  var top='<div class="shelf-nav-header"><div class="shelf-nav-brand"><span>Shelf</span>'+
   '<span class="shelf-nav-head-spacer"></span><button data-act="universal-open" class="nav-brand-new" title="New item (Q)">'+ic("plus",15)+' New</button></div></div>';
  var topLinks='<div class="nav-top-links">'+navTop("Today","home","today","sun")+
@@ -660,25 +660,20 @@ function renderSidebar(){
  content.starred=objectChildren("starred",list().filter(function(e){return e.starred}),"No starred items yet");
  content.todo=navShowMore("task-areas",taskAreas,function(a){return navLeaf(objTitle(a),"todo","area:"+a.id,areaIcon(a),1)});
  if(!taskAreas.length)content.todo='<div class="nav-muted-item">No areas yet</div>';
- content.projects=objectChildren("active-projects",projects.filter(function(e){return e.projectStatus==="active"}),"No active projects");
+ content.projects=objectChildren("projects",projects,"No projects yet");
  journals.sort(function(a,b){return (a.id===state.ui.defaultJournalId?-1:b.id===state.ui.defaultJournalId?1:0)||a.createdAt-b.createdAt});
  content.journals=navShowMore("journalbooks",journals,function(j){return navLeaf(objTitle(j),"journals","journalbook:"+j.id,"book-open",1,{count:list("journal").filter(function(e){return e.journalBookId===j.id}).length})});
- content.goals=objectChildren("goals",list("goal").filter(function(e){return e.goalStatus==="active"}),"No active goals");
- content.routines=objectChildren("routines",list("routine"),"No routines yet");
+ content.goals=objectChildren("goals",list("goal"),"No goals yet");
  content.habits=objectChildren("habits",list("habit"),"No habits yet");
- var bookmarkCollections=folders.filter(function(f){return links.some(function(e){return e.folderId===f.id})});
- content.bookmarks=navShowMore("bookmark-folders",bookmarkCollections,function(f){return navLeaf(objTitle(f),"bookmarks","folder:"+f.id,"folder",1)});
- content.bookmarks+=navLeaf("Unsorted","bookmarks","unsorted","inbox",1);
- var notebookChildren=navShowMore("notebooks",books.sort(byRecent),function(n){return navLeaf(objTitle(n),"notes","book:"+n.id,"notebook",2)});
- var collectionChildren=navShowMore("collections",folders,function(f){return navLeaf(objTitle(f),"resources","folder:"+f.id,"folder",2)});
- content.resources=navNode("notebooks","Notebook","notebook","notes","all",notebookChildren)+
-  navLeaf("Files & documents","resources","files","file",1)+navNode("collections","Collections","folder","resources","all",collectionChildren);
+ content.notes=books.length?navShowMore("notebooks",books.sort(byRecent),function(n){return navLeaf(objTitle(n),"notes","book:"+n.id,"notebook",1)}):'<div class="nav-muted-item">No notebooks yet</div>';
+ content.bookmarks=folders.length?navShowMore("bookmark-folders",folders,function(f){return navLeaf(objTitle(f),"bookmarks","folder:"+f.id,"folder",1)}):'<div class="nav-muted-item">No collections yet</div>';
+ content.resources=folders.length?navShowMore("collections",folders,function(f){return navLeaf(objTitle(f),"resources","folder:"+f.id,"folder",1)}):'<div class="nav-muted-item">No collections yet</div>';
  var types=[["Links","link","link"],["Notes","note","note"],["Images","image","image"],["Videos","video","video"],
   ["Documents","document","file"],["Tasks","task","check-circle"],["Events","event","calendar-days"],["Projects","project","folder-kanban"],
   ["Journal entries","journal","book-open"],["Goals","goal","target"],["Routines","routine","list-checks"],["Habits","habit","flame"]];
- content.types=navShowMore("types",types,function(x){return navLeaf(x[0],"browse",x[1],x[2],1)});
+ content.types=types.map(function(x){return navLeaf(x[0],"browse",x[1],x[2],1)}).join("");
  var tags=navTags();
- content.tags=tags.length?navShowMore("tags",tags,function(tag){return navLeaf("#"+tag.label,"tag",tag.label,"hash",1,{count:tag.count})}):'<div class="nav-muted-item">No tags yet</div>';
+ content.tags=tags.length?tags.map(function(tag){return navLeaf("#"+tag.label,"tag",tag.label,"hash",1,{count:tag.count})}).join(""):'<div class="nav-muted-item">No tags yet</div>';
  var navigation=NAV_SECTIONS.map(function(section){return navSection(section.key,section.title,content[section.key])}).join("");
  var footer='<div class="shelf-nav-footer">'+sidebarCalendarFooter(state.ui.tool)+
   '<div class="nav-bottom-links">'+navLeaf("Archive","resources","archive","archive",0)+navLeaf("Trash","resources","trash","trash",0)+'</div>'+
