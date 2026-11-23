@@ -243,6 +243,13 @@ function ensureV15(){
  if(!ui.navMore||typeof ui.navMore!=="object")ui.navMore={};
  if(!ui.miniCalendars||typeof ui.miniCalendars!=="object")ui.miniCalendars={};
  if(!ui.miniCalendars.sidebar)ui.miniCalendars.sidebar={expanded:false,month:monthKey(today())};
+ if(ui.navLayout!=="flat-sections"){
+  ui.navSections={starred:true,todo:true,projects:false,journals:false,goals:false,routines:false,habits:false,bookmarks:false,resources:false,types:false,tags:false};
+  ui.navLayout="flat-sections";
+ }
+ if(!Array.isArray(ui.history))ui.history=(ui.recent||[]).map(function(id){return {id:id,openedAt:null}});
+ if(!Number.isInteger(ui.historyPage)||ui.historyPage<0)ui.historyPage=0;
+ if(ui.tool==="home"&&ui.view==="recent")ui.view="history";
  ui.navMenu=null;
  state.version=15
 }
@@ -300,7 +307,12 @@ function isFocusValid(){var f=get(state.ui.focusId);return f&&!f.trashed&&!f.arc
 function prettyMonth(k){return new Date(k+"-15T12:00:00").toLocaleDateString("en-US",{month:"long",year:"numeric"})}
 function byRecent(a,b){return b.updatedAt-a.updatedAt}
 function byDue(a,b){return (a.dueDate||"9999").localeCompare(b.dueDate||"9999")||a.createdAt-b.createdAt}
-function addRecent(id){if(!id)return;state.ui.recent=[id].concat((state.ui.recent||[]).filter(function(x){return x!==id})).slice(0,12)}
+function addRecent(id){
+ if(!id)return;
+ state.ui.recent=[id].concat((state.ui.recent||[]).filter(function(x){return x!==id})).slice(0,12);
+ state.ui.history=state.ui.history||[];
+ state.ui.history.unshift({id:id,openedAt:Date.now()})
+}
 
 var QUICK_PAGES=[
  {tool:"home",view:"today",label:"Home · Today",icon:"sun"},
@@ -543,22 +555,24 @@ function calendarDateHeader(tool,date,subtitle,actions){
 }
 // Persistent navigation: section names open aggregators; chevrons only expand.
 var NAV_SECTIONS=[
- {key:"todo",title:"To Do",actions:[["task","New task"],["project","New project"],["routine","New routine"]]},
- {key:"life",title:"My Life",actions:[["journalbook","New journal"],["goal","New goal"],["habit","New habit"]]},
- {key:"resources",title:"Resources",actions:[["note","New note"],["resource","Save link or file"],["folder","New collection"]]},
- {key:"filters",title:"Filters",actions:[]},
- {key:"tags",title:"Tags",actions:[]}
+ {key:"starred",title:"Starred",tool:"home",view:"starred",actions:[]},
+ {key:"todo",title:"To do",tool:"todo",view:"all",actions:[["task","New task"],["area","New area"]]},
+ {key:"projects",title:"Projects",tool:"projects",view:"all",actions:[["project","New project"]]},
+ {key:"journals",title:"Journals",tool:"journals",view:"all",actions:[["journalbook","New journal"]]},
+ {key:"goals",title:"Goals",tool:"goals",view:"all",actions:[["goal","New goal"]]},
+ {key:"routines",title:"Routines",tool:"routines",view:"today",actions:[["routine","New routine"]]},
+ {key:"habits",title:"Habits",tool:"habits",view:"today",actions:[["habit","New habit"]]},
+ {key:"bookmarks",title:"Bookmarks",tool:"bookmarks",view:"all",actions:[["resource","Save link"]]},
+ {key:"resources",title:"Resources",tool:"overview",view:"resources",actions:[["note","New note"],["resource","Save link or file"],["folder","New collection"]]},
+ {key:"types",title:"Types",tool:"overview",view:"types",actions:[]},
+ {key:"tags",title:"Tags",tool:"overview",view:"tags",actions:[]}
 ];
 function navSections(){return state.ui.navSections||(state.ui.navSections={})}
 function navNodes(){return state.ui.navNodes||(state.ui.navNodes={})}
-function navExpanded(key){return navSections()[key]!==false}
+function navExpanded(key){return navSections()[key]===true}
 function navOpenDestination(key){
- if(key==="todo")go("overview","todo");
- else if(key==="life")go("overview","life");
- else if(key==="resources")go("overview","resources");
- else if(key==="filters")go("overview","filters");
- else if(key==="tags")go("overview","tags");
- else if(key==="pinned")go("overview","pinned")
+ var section=NAV_SECTIONS.find(function(s){return s.key===key});
+ if(section)go(section.tool,section.view)
 }
 function navSelected(tool,view){
  return !state.ui.detailId&&state.ui.tool===tool&&state.ui.view===(view||"all")
@@ -599,8 +613,9 @@ function navNode(key,label,icon,tool,view,children){
  (expanded?'<div class="nav-node-children">'+children+'</div>':"")+'</div>'
 }
 function navSection(key,label,content,extraActions){
- var open=navExpanded(key),active=navSelected("overview",key);
+ var open=navExpanded(key);
  var config=NAV_SECTIONS.find(function(s){return s.key===key}),actions=extraActions||(config?config.actions:[]);
+ var active=config?navSelected(config.tool,config.view):false;
  var menu='<div class="nav-section-popover" role="menu" aria-label="'+esc(label)+' options" hidden>'+
  '<button role="menuitem" data-act="nav-section-open" data-key="'+esc(key)+'">'+ic("folder",15)+' Open '+esc(label)+'</button>'+
  '<button role="menuitem" data-act="nav-section-toggle" data-key="'+esc(key)+'">'+ic(open?"chevron-up":"chevron-down",15)+(open?" Collapse":" Expand")+'</button>'+
@@ -632,85 +647,43 @@ function renderSidebar(){
   })
  }
  var taskAreas=list("area"),projects=list("project"),journals=list("journalbook"),books=list("notebook"),
-  folders=list("folder"),links=list("resource").filter(isBookmark),more=state.ui.navMore||{};
- var top='<div class="shelf-nav-header">'+
- '<div class="shelf-nav-brand"><span>Shelf</span>'+
- '<span class="shelf-nav-head-spacer"></span>'+
- '<button data-act="search" class="shelf-nav-icon" title="Search everything" aria-label="Search">'+ic("search",17)+'</button>'+
- '</div>'+
- '<button class="nav-new-item" data-act="universal-open">'+ic("pen",16)+' <span>New item</span><kbd>Q</kbd></button>'+
- '<div class="nav-top-links">'+
- navTop("Today","home","today","sun")+
- navTop("Inbox","home","inbox","inbox",inboxCount())+
- navTop("Calendar","calendar","month","calendar-days")+
- navTop("Recent","home","recent","clock")+
- '</div></div>';
- var tasksChildren=navShowMore("task-areas",taskAreas,function(a){
-  return navLeaf(objTitle(a),"todo","area:"+a.id,areaIcon(a),3)
- });
- var activeProjects=projects.filter(function(e){return e.projectStatus==="active"}).sort(function(a,b){return (b.starred?1:0)-(a.starred?1:0)||b.updatedAt-a.updatedAt});
- var projectsChildren=navShowMore("active-projects",activeProjects,function(p){
-  return '<button class="nav-leaf nav-object-link" style="--nav-depth:3" data-act="open" data-id="'+esc(p.id)+'" title="'+esc(objTitle(p))+'">'+
-   '<span class="nav-item-icon">'+ic("folder-kanban",15)+'</span><span class="nav-row-label">'+esc(objTitle(p))+'</span></button>'
- });
- if(!activeProjects.length)projectsChildren='<div class="nav-muted-item">No active projects</div>';
- var todoContent=
-  navNode("tasks","Tasks","check-circle","todo","all",tasksChildren)+
-  navNode("projects","Projects","folder-kanban","projects","all",projectsChildren)+
-  navLeaf("Routines","routines","today","list-checks",1);
- var journalsChildren=navLeaf("All entries","journals","all","book-open",2);
+  folders=list("folder"),links=list("resource").filter(isBookmark);
+ var top='<div class="shelf-nav-header"><div class="shelf-nav-brand"><span>Shelf</span>'+
+  '<span class="shelf-nav-head-spacer"></span><button data-act="universal-open" class="nav-brand-new" title="New item (Q)">'+ic("plus",15)+' New</button></div></div>';
+ var topLinks='<div class="nav-top-links">'+navTop("Today","home","today","sun")+
+  navTop("Inbox","home","inbox","inbox",inboxCount())+navTop("Calendar","calendar","month","calendar-days")+
+  navTop("History","home","history","clock")+'</div>';
+ function objectLink(e){return '<button class="nav-leaf nav-object-link" style="--nav-depth:1" data-act="open" data-id="'+esc(e.id)+'" title="'+esc(objTitle(e))+'">'+
+  '<span class="nav-item-icon">'+ic(typeIcon(e),15)+'</span><span class="nav-row-label">'+esc(objTitle(e))+'</span></button>'}
+ function objectChildren(key,items,message){return items.length?navShowMore(key,items.sort(byRecent),objectLink):'<div class="nav-muted-item">'+esc(message)+'</div>'}
+ var content={};
+ content.starred=objectChildren("starred",list().filter(function(e){return e.starred}),"No starred items yet");
+ content.todo=navShowMore("task-areas",taskAreas,function(a){return navLeaf(objTitle(a),"todo","area:"+a.id,areaIcon(a),1)});
+ if(!taskAreas.length)content.todo='<div class="nav-muted-item">No areas yet</div>';
+ content.projects=objectChildren("active-projects",projects.filter(function(e){return e.projectStatus==="active"}),"No active projects");
  journals.sort(function(a,b){return (a.id===state.ui.defaultJournalId?-1:b.id===state.ui.defaultJournalId?1:0)||a.createdAt-b.createdAt});
- journalsChildren+=navShowMore("journalbooks",journals,function(j){
-  return navLeaf(objTitle(j),"journals","journalbook:"+j.id,"book-open",2,{count:list("journal").filter(function(e){return e.journalBookId===j.id}).length})
- });
- var lifeContent=navNode("journals","Journal","book-open","journals","journalbook:"+state.ui.defaultJournalId,journalsChildren)+
-  navLeaf("Goals","goals","active","target",1)+navLeaf("Habits","habits","today","flame",1);
- var notebookChildren=navShowMore("notebooks",books.sort(byRecent),function(n){
-  return navLeaf(objTitle(n),"notes","book:"+n.id,"notebook",2)
- });
+ content.journals=navShowMore("journalbooks",journals,function(j){return navLeaf(objTitle(j),"journals","journalbook:"+j.id,"book-open",1,{count:list("journal").filter(function(e){return e.journalBookId===j.id}).length})});
+ content.goals=objectChildren("goals",list("goal").filter(function(e){return e.goalStatus==="active"}),"No active goals");
+ content.routines=objectChildren("routines",list("routine"),"No routines yet");
+ content.habits=objectChildren("habits",list("habit"),"No habits yet");
  var bookmarkCollections=folders.filter(function(f){return links.some(function(e){return e.folderId===f.id})});
- var bookmarkChildren=navShowMore("bookmark-folders",bookmarkCollections,function(f){
-  return navLeaf(objTitle(f),"bookmarks","folder:"+f.id,"folder",2)
- });
- var collectionChildren=navShowMore("collections",folders,function(f){
-  return navLeaf(objTitle(f),"resources","folder:"+f.id,"folder",2)
- });
- var resourcesContent=
-  navNode("notebooks","Notebook","notebook","notes","all",notebookChildren)+
-  navNode("bookmarks","Bookmarks","bookmark","bookmarks","all",bookmarkChildren)+
-  navLeaf("Files & documents","resources","files","file",1)+
-  navNode("collections","Collections","folder","resources","all",collectionChildren);
- var filters=[
-  ["Links","link","link"],["Notes","note","note"],["Images","image","image"],
-  ["Videos","video","video"],["Documents","document","file"],
-  ["Tasks","task","check-circle"],["Events","event","calendar-days"],
-  ["Projects","project","folder-kanban"],["Journal entries","journal","book-open"]
- ];
- var filterContent=filters.map(function(x){return navLeaf(x[0],"browse",x[1],x[2],1)}).join("");
- var tagData=navTags(),tagsContent=navShowMore("tags",tagData,function(tag){
-  return navLeaf("#"+tag.label,"tag",tag.label,"hash",1,{count:tag.count})
- });
- if(!tagData.length)tagsContent='<div class="nav-muted-item">No tags yet</div>';
- var shortcuts=quickList(),pinnedContent=navShowMore("pinned",shortcuts,function(item){
-  return '<button class="nav-leaf nav-pinned-item" style="--nav-depth:1" data-act="quick-open" data-key="'+esc(quickKey(item.ref))+'">'+
-   '<span class="nav-item-icon">'+ic(item.item.icon,15)+'</span><span class="nav-row-label">'+esc(item.item.label)+'</span></button>'
- });
- var navigation='<div class="shelf-nav-scroll" aria-label="Browse Shelf">'+
-  navSection("todo","To Do",todoContent)+
-  navSection("life","My Life",lifeContent)+
-  navSection("resources","Resources",resourcesContent)+
-  navSection("filters","Filters",filterContent)+
-  navSection("tags","Tags",tagsContent)+
-  (shortcuts.length?navSection("pinned","Pinned",pinnedContent):"")+
- '</div>';
+ content.bookmarks=navShowMore("bookmark-folders",bookmarkCollections,function(f){return navLeaf(objTitle(f),"bookmarks","folder:"+f.id,"folder",1)});
+ content.bookmarks+=navLeaf("Unsorted","bookmarks","unsorted","inbox",1);
+ var notebookChildren=navShowMore("notebooks",books.sort(byRecent),function(n){return navLeaf(objTitle(n),"notes","book:"+n.id,"notebook",2)});
+ var collectionChildren=navShowMore("collections",folders,function(f){return navLeaf(objTitle(f),"resources","folder:"+f.id,"folder",2)});
+ content.resources=navNode("notebooks","Notebook","notebook","notes","all",notebookChildren)+
+  navLeaf("Files & documents","resources","files","file",1)+navNode("collections","Collections","folder","resources","all",collectionChildren);
+ var types=[["Links","link","link"],["Notes","note","note"],["Images","image","image"],["Videos","video","video"],
+  ["Documents","document","file"],["Tasks","task","check-circle"],["Events","event","calendar-days"],["Projects","project","folder-kanban"],
+  ["Journal entries","journal","book-open"],["Goals","goal","target"],["Routines","routine","list-checks"],["Habits","habit","flame"]];
+ content.types=navShowMore("types",types,function(x){return navLeaf(x[0],"browse",x[1],x[2],1)});
+ var tags=navTags();
+ content.tags=tags.length?navShowMore("tags",tags,function(tag){return navLeaf("#"+tag.label,"tag",tag.label,"hash",1,{count:tag.count})}):'<div class="nav-muted-item">No tags yet</div>';
+ var navigation=NAV_SECTIONS.map(function(section){return navSection(section.key,section.title,content[section.key])}).join("");
  var footer='<div class="shelf-nav-footer">'+sidebarCalendarFooter(state.ui.tool)+
- '<div class="nav-bottom-links">'+
- navLeaf("Archive","resources","archive","archive",0)+
- navLeaf("Trash","resources","trash","trash",0)+
- '</div>'+
- '<div class="shelf-nav-meta"><span>Shelf · v0.15</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></div>'+
- '</div>';
- sidebar.innerHTML=top+navigation+footer;
+  '<div class="nav-bottom-links">'+navLeaf("Archive","resources","archive","archive",0)+navLeaf("Trash","resources","trash","trash",0)+'</div>'+
+  '<div class="shelf-nav-meta"><span>Shelf · v0.15</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></div></div>';
+ sidebar.innerHTML=top+'<div class="shelf-nav-scroll" aria-label="Browse Shelf">'+topLinks+navigation+footer+'</div>';
  var nextScroll=sidebar.querySelector(".shelf-nav-scroll");
  if(nextScroll)nextScroll.scrollTop=scrollTop;
  if(focusAttributes){
@@ -780,12 +753,26 @@ function renderDeskForDate(date){
  return result
 }
 
+function historyEntries(){return (state.ui.history||[]).filter(function(visit){var e=get(visit.id);return e&&!e.trashed})}
+function renderHistory(){
+ var entries=historyEntries(),pages=Math.max(1,Math.ceil(entries.length/25));
+ var page=Math.min(Math.max(0,state.ui.historyPage||0),pages-1),start=page*25;
+ state.ui.historyPage=page;
+ var controls='<div class="history-pagination" aria-label="History pages"><span>'+(entries.length?(start+1)+'–'+Math.min(start+25,entries.length)+' of '+entries.length:'0 items')+'</span>'+
+  '<button class="button subtle" data-act="history-page" data-page="'+(page-1)+'" '+(page===0?'disabled':'')+'>Previous</button>'+
+  '<button class="button subtle" data-act="history-page" data-page="'+(page+1)+'" '+(page>=pages-1?'disabled':'')+'>Next</button></div>';
+ return pageHeader("History","Everything you have opened, newest first.","","SHELF")+controls+
+  (entries.length?'<div class="rows history-rows">'+entries.slice(start,start+25).map(function(visit){
+   var stamp=visit.openedAt?new Date(visit.openedAt):null;
+   return '<div class="history-entry">'+contextRow(get(visit.id))+(stamp?'<time datetime="'+esc(stamp.toISOString())+'">'+esc(stamp.toLocaleString("en-US",{month:"short",day:"numeric",year:"numeric",hour:"2-digit",minute:"2-digit"}))+'</time>':'<span class="history-legacy">Earlier</span>')+'</div>'
+  }).join("")+'</div>':empty("clock","Nothing opened yet","Your history will appear as you open items."))
+}
 function renderHome(){
  var filter=miniDateForTool("home");
  if(filter)return renderDeskForDate(filter);
  var view=state.ui.view,tasks=list("task"),events=list("event");
  if(view==="inbox"){var inbox=tasks.filter(inInbox);return pageHeader("Inbox","Tasks waiting to be processed.",'<button class="button primary" data-act="create" data-type="task">'+ic("plus",15)+' New task</button>',"DESK")+ (inbox.length?rows(inbox,taskRow):empty("inbox","Your inbox is clear","Captured tasks waiting for a decision will appear here."))}
- if(view==="recent"){var all=(state.ui.recent||[]).map(get).filter(function(e){return e&&!e.trashed&&!e.archived});return pageHeader("Recently opened","Jump back into the things you've been working on.","","DESK")+(all.length?rows(all,contextRow):empty("clock","Nothing opened yet","Open an event, note, or project to see it here."))}
+ if(view==="history"||view==="recent")return renderHistory();
  if(view==="starred"){var stars=list().filter(function(e){return e.starred});return pageHeader("Starred","Things you keep close.","","DESK")+(stars.length?'<div class="card-grid">'+stars.map(entityCard).join("")+'</div>':empty("star","Nothing starred yet","Star items from their detail pages."))}
  var d=today(),due=tasks.filter(function(e){return !e.completed&&e.dueDate&&e.dueDate<=d}).sort(byDue);
  var todaysEvents=events.filter(function(e){return e.date===d}).sort(function(a,b){return a.time.localeCompare(b.time)});
@@ -1367,7 +1354,7 @@ function overviewItemSection(title,items,action,emptyText){
 function renderOverview(){
  var key=state.ui.view||"todo",date=miniDateForTool("overview"),out="";
  var chosen=key==="todo"?"To Do":key==="life"?"My Life":key==="resources"?"Resources":
-  key==="filters"?"Filters":key==="tags"?"Tags":key==="pinned"?"Pinned":"Shelf";
+  (key==="filters"||key==="types")?"Types":key==="tags"?"Tags":key==="pinned"?"Pinned":"Shelf";
  out+=date?calendarDateHeader(chosen,date,"Items related to this day",""):
   pageHeader(chosen,"Everything in this section, already organized for you.","","SHELF");
  function dated(items){return date?items.filter(function(e){return createdDate(e)===date||e.date===date||e.dueDate===date||e.targetDate===date}):items}
@@ -1402,12 +1389,12 @@ function renderOverview(){
   out+=overviewItemSection("Recent resources",dated(list("resource")).sort(byRecent).slice(0,8),"","Nothing saved yet.");
   return out
  }
- if(key==="filters"){
+ if(key==="filters"||key==="types"){
   var filters=[
    ["Links","link","link"],["Notes","note","note"],["Images","image","image"],
    ["Videos","video","video"],["Documents","document","file"],["Tasks","task","check-circle"],
    ["Events","event","calendar-days"],["Projects","project","folder-kanban"],
-   ["Journal entries","journal","book-open"]
+   ["Journal entries","journal","book-open"],["Goals","goal","target"],["Routines","routine","list-checks"],["Habits","habit","flame"]
   ];
   return out+'<div class="overview-quick-grid">'+filters.map(function(x){
    return overviewShortcut(x[0],x[2],"browse",x[1],"Find every "+x[0].toLowerCase()+" across Shelf")
@@ -1444,7 +1431,7 @@ function renderBrowseType(){
  var contents=browseEntities(k).sort(byRecent),date=miniDateForTool("browse");
  if(date)contents=contents.filter(function(e){return createdDate(e)===date||e.date===date||e.dueDate===date});
  var out=date?calendarDateHeader(labels[k]||"All items",date,"Matching items on this date",""):
-  pageHeader(labels[k]||"All items","Browse by type across the entire Shelf.","","FILTERS");
+  pageHeader(labels[k]||"All items","Browse by type across the entire Shelf.","","TYPES");
  return out+(contents.length?'<div class="card-grid">'+contents.map(function(e){return e.type==="resource"?resourceCard(e):entityCard(e)}).join("")+'</div>':
   empty("filter","Nothing found","Things you create anywhere will appear here automatically."))
 }
@@ -1484,6 +1471,7 @@ function renderWorkspace(){
 }
 function paint(){renderRail();renderSidebar();renderWorkspace()}
 function go(tool,view,stay){
+ if(tool==="home"&&(view==="history"||view==="recent")){view="history";state.ui.historyPage=0}
  var oldTool=tool;tool=canonicalTool(tool,view);
  if(oldTool==="planner"&&view==="projects"||oldTool==="library"&&view==="bookmarks")view="all";
  if(state.ui.sidebarDateFilters)delete state.ui.sidebarDateFilters[tool];
@@ -1500,7 +1488,7 @@ function go(tool,view,stay){
  }
  save();paint();workspace.scrollTop=0
 }
-function openEntity(id){var e=get(id);if(!e)return;if(e.type==="area"){go("planner","area:"+e.id);return}if(e.type==="category"){go("planner","category:"+e.id);return}if(e.type==="journalbook"){go("journal","journalbook:"+e.id);return}if(state.ui.detailId&&state.ui.detailId!==id){state.ui.detailTrail=(state.ui.detailTrail||[]).concat(state.ui.detailId).slice(-15)}else if(!state.ui.detailId){state.ui.detailTrail=[];state.ui.lastTool=state.ui.tool;state.ui.lastView=state.ui.view}state.ui.detailId=id;addRecent(id);save();paint();workspace.scrollTop=0}
+function openEntity(id){var e=get(id);if(!e)return;addRecent(id);if(e.type==="area"){go("planner","area:"+e.id);return}if(e.type==="category"){go("planner","category:"+e.id);return}if(e.type==="journalbook"){go("journal","journalbook:"+e.id);return}if(state.ui.detailId&&state.ui.detailId!==id){state.ui.detailTrail=(state.ui.detailTrail||[]).concat(state.ui.detailId).slice(-15)}else if(!state.ui.detailId){state.ui.detailTrail=[];state.ui.lastTool=state.ui.tool;state.ui.lastView=state.ui.view}state.ui.detailId=id;save();paint();workspace.scrollTop=0}
 function back(){if(state.ui.detailTrail&&state.ui.detailTrail.length){state.ui.detailId=state.ui.detailTrail.pop();save();paint();workspace.scrollTop=0;return}state.ui.detailId=null;state.ui.tool=state.ui.lastTool||state.ui.tool;state.ui.view=state.ui.lastView||state.ui.view;save();paint();workspace.scrollTop=0}
 function journalToday(date,bookId){
  var day=date||today(),active=state.ui.tool==="journals"?journalBookForView():null;
@@ -2095,6 +2083,11 @@ function toggleSectionMenu(trigger){
 function onClick(ev){
  var b=ev.target.closest("[data-act]");if(!b)return;
  var act=b.getAttribute("data-act"),id=b.getAttribute("data-id"),type=b.getAttribute("data-type"),ctx=b.getAttribute("data-context"),view=b.getAttribute("data-view"),tool=b.getAttribute("data-tool"),current=get(id);
+ if(act==="history-page"){
+  var pages=Math.max(1,Math.ceil(historyEntries().length/25));
+  state.ui.historyPage=Math.max(0,Math.min(pages-1,Number(b.getAttribute("data-page"))||0));
+  save();renderWorkspace();workspace.scrollTop=0;workspace.focus();return
+ }
  if(act==="nav-section-menu"){toggleSectionMenu(b);return}
  if(act==="nav-section-toggle"){var key=b.getAttribute("data-key");navSections()[key]=!navExpanded(key);closeSectionMenu(false);save();renderSidebar();return}
  if(act==="nav-section-open"){var key=b.getAttribute("data-key");navSections()[key]=true;closeSectionMenu(false);navOpenDestination(key);return}

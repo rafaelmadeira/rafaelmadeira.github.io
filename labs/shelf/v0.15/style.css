@@ -569,3 +569,23 @@ svg{flex-shrink:0;vertical-align:middle}
 .nav-section-toggle{flex:0 0 16px;margin-left:0}
 .nav-node-link{flex:0 1 auto;max-width:calc(100% - 28px)}
 .nav-node-spacer{flex:1 1 auto;min-width:0}
+
+/* Only the Shelf / New row stays fixed; every destination shares one scroll area. */
+.shelf-nav-header{padding:12px 10px 8px;gap:0}
+.shelf-nav-brand{min-height:36px}
+.nav-brand-new{display:flex;align-items:center;gap:5px;padding:6px 8px;border:0;border-radius:7px;background:none;color:#566166;font-size:13px;font-weight:400;letter-spacing:normal}
+.nav-brand-new:hover{background:#eeeeec;color:#263d46}
+.nav-top-links{padding:3px 0 12px}
+.shelf-nav-scroll{display:block;padding-bottom:10px}
+.shelf-nav-footer{max-height:none;display:block;padding:12px 0 0;margin-top:15px;border-top:1px solid #eaece9}
+.shelf-nav-footer .sidebar-calendar-shell{max-height:none;overflow:visible}
+.nav-bottom-links{display:flex;flex-direction:column;gap:1px}
+.nav-bottom-links .nav-leaf{flex:none;width:100%;padding:8px 12px;font-size:12.5px}
+.nav-muted-item{padding-left:33px}
+.history-pagination{display:flex;align-items:center;gap:8px;margin:0 0 15px;color:#7d8588}
+.history-pagination span{margin-right:auto}
+.history-entry{display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--line)}
+.history-entry:last-child{border-bottom:0}
+.history-entry .context-row{flex:1;min-width:0;border:0}
+.history-entry time,.history-legacy{font-size:12px;color:#7d8588;white-space:nowrap;padding-right:12px}
+@media(max-width:680px){.history-entry{align-items:stretch;flex-direction:column;gap:0}.history-entry time,.history-legacy{padding:0 12px 12px 45px}}
