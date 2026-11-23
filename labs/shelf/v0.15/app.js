@@ -1314,6 +1314,111 @@ function renderRoutines(){
  empty("list-checks","No routines yet","A routine can begin with a name; add steps as you use it.","Add routine","routine"))
 }
 
+function overviewShortcut(label,icon,tool,view,subtitle){
+ return '<button class="overview-shortcut" data-act="navigate" data-tool="'+esc(tool)+'" data-view="'+esc(view)+'">'+
+  '<span class="overview-shortcut-icon">'+ic(icon,18)+'</span><span class="overview-shortcut-text"><strong>'+esc(label)+'</strong>'+
+  (subtitle?'<small>'+esc(subtitle)+'</small>':"")+'</span>'+ic("chevron-right",15)+'</button>'
+}
+function overviewItemSection(title,items,action,emptyText){
+ return section(title,items.length?'<div class="nav-overview-items">'+items.map(contextRow).join("")+'</div>':
+  '<div class="nav-overview-empty">'+esc(emptyText||"Nothing here yet.")+'</div>',items.length)+
+  (action||"")
+}
+function renderOverview(){
+ var key=state.ui.view||"todo",date=miniDateForTool("overview"),out="";
+ var chosen=key==="todo"?"To Do":key==="life"?"My Life":key==="resources"?"Resources":
+  key==="filters"?"Filters":key==="tags"?"Tags":key==="pinned"?"Pinned":"Shelf";
+ out+=date?calendarDateHeader(chosen,date,"Items related to this day",""):
+  pageHeader(chosen,"Everything in this section, already organized for you.","","SHELF");
+ function dated(items){return date?items.filter(function(e){return createdDate(e)===date||e.date===date||e.dueDate===date||e.targetDate===date}):items}
+ if(key==="todo"){
+  out+='<div class="overview-quick-grid">'+
+   overviewShortcut("All tasks","check-circle","todo","all","View tasks from every area")+
+   overviewShortcut("Projects","folder-kanban","projects","all","Active work and initiatives")+
+   overviewShortcut("Routines","list-checks","routines","today","Repeatable procedures")+
+   overviewShortcut("Inbox","inbox","home","inbox","Unprocessed work")+'</div>';
+  var tasks=dated(list("task").filter(function(e){return !e.completed})).sort(byDue).slice(0,8),
+   projects=dated(list("project").filter(function(e){return e.projectStatus==="active"})).sort(byRecent).slice(0,8);
+  out+=overviewItemSection("Tasks",tasks,"","No active tasks here yet.");
+  out+=overviewItemSection("Active projects",projects,"","No active projects yet.");
+  return out
+ }
+ if(key==="life"){
+  out+='<div class="overview-quick-grid">'+
+   overviewShortcut("Journal","book-open","journals","journalbook:"+state.ui.defaultJournalId,"Daily entries and reflection")+
+   overviewShortcut("Goals","target","goals","active","What you are working toward")+
+   overviewShortcut("Habits","flame","habits","today","Keep up your habits")+
+   overviewShortcut("All entries","book-open","journals","all","Your complete journal")+'</div>';
+  out+=overviewItemSection("Recent entries",dated(list("journal")).sort(function(a,b){return (b.date||"").localeCompare(a.date||"")}).slice(0,5),"","No entries yet.");
+  out+=overviewItemSection("Active goals",dated(list("goal").filter(function(e){return e.goalStatus==="active"})).sort(byRecent).slice(0,5),"","No goals yet.");
+  return out
+ }
+ if(key==="resources"){
+  out+='<div class="overview-quick-grid">'+
+   overviewShortcut("Notebook","notebook","notes","all","Every note, anywhere")+
+   overviewShortcut("Bookmarks","bookmark","bookmarks","all","Saved links")+
+   overviewShortcut("Files & documents","file","resources","kind:documents","Attached and saved files")+
+   overviewShortcut("Collections","folder","resources","all","Your organized resources")+'</div>';
+  out+=overviewItemSection("Recent resources",dated(list("resource")).sort(byRecent).slice(0,8),"","Nothing saved yet.");
+  return out
+ }
+ if(key==="filters"){
+  var filters=[
+   ["Links","link","link"],["Notes","note","note"],["Images","image","image"],
+   ["Videos","video","video"],["Documents","document","file"],["Tasks","task","check-circle"],
+   ["Events","event","calendar-days"],["Projects","project","folder-kanban"],
+   ["Journal entries","journal","book-open"]
+  ];
+  return out+'<div class="overview-quick-grid">'+filters.map(function(x){
+   return overviewShortcut(x[0],x[2],"browse",x[1],"Find every "+x[0].toLowerCase()+" across Shelf")
+  }).join("")+'</div>'
+ }
+ if(key==="tags"){
+  var tags=navTags();
+  return out+(tags.length?'<div class="overview-tag-grid">'+tags.map(function(t){
+   return '<button data-act="navigate" data-tool="tag" data-view="'+esc(t.label)+'">'+ic("hash",14)+' '+esc(t.label)+
+    ' <span>'+t.count+'</span></button>'
+  }).join("")+'</div>':empty("hash","No tags yet","Tags from any item will appear here automatically."))
+ }
+ if(key==="pinned"){
+  var pins=quickList();
+  return out+(pins.length?'<div class="overview-quick-grid">'+pins.map(function(x){
+   return '<button class="overview-shortcut" data-act="quick-open" data-key="'+esc(quickKey(x.ref))+'">'+ic(x.item.icon,18)+
+    '<span class="overview-shortcut-text"><strong>'+esc(x.item.label)+'</strong><small>'+esc(x.item.desc)+'</small></span>'+
+    ic("chevron-right",15)+'</button>'
+  }).join("")+'</div>':empty("pin","Nothing pinned yet","Pin any page to access it directly."))
+ }
+ return out
+}
+function browseEntities(kind){
+ if(kind==="link")return list("resource").filter(function(e){return !!e.url});
+ if(kind==="document")return list("resource").filter(function(e){return e.resourceKind==="document"});
+ if(kind==="image"||kind==="video")return list("resource").filter(function(e){return e.resourceKind===kind});
+ if(["note","task","event","project","journal","habit","goal","routine"].includes(kind))return list(kind);
+ return list()
+}
+function renderBrowseType(){
+ var k=state.ui.view||"all",labels={link:"Links",note:"Notes",image:"Images",video:"Videos",
+  document:"Documents",task:"Tasks",event:"Events",project:"Projects",journal:"Journal entries",
+  goal:"Goals",habit:"Habits",routine:"Routines"};
+ var contents=browseEntities(k).sort(byRecent),date=miniDateForTool("browse");
+ if(date)contents=contents.filter(function(e){return createdDate(e)===date||e.date===date||e.dueDate===date});
+ var out=date?calendarDateHeader(labels[k]||"All items",date,"Matching items on this date",""):
+  pageHeader(labels[k]||"All items","Browse by type across the entire Shelf.","","FILTERS");
+ return out+(contents.length?'<div class="card-grid">'+contents.map(function(e){return e.type==="resource"?resourceCard(e):entityCard(e)}).join("")+'</div>':
+  empty("filter","Nothing found","Things you create anywhere will appear here automatically."))
+}
+function renderTagResults(){
+ var label=state.ui.view||"",key=label.toLowerCase(),items=list().filter(function(e){
+  return (e.tags||[]).some(function(t){return String(t).toLowerCase()===key})
+ }).sort(byRecent),date=miniDateForTool("tag");
+ if(date)items=items.filter(function(e){return createdDate(e)===date||e.date===date||e.dueDate===date});
+ return (date?calendarDateHeader("Tag: #"+label,date,"Tagged things from this day",""):
+  pageHeader("#"+label,"Every item with this tag, no matter where it was created.","","TAGS"))+
+ (items.length?'<div class="card-grid">'+items.map(function(e){return e.type==="resource"?resourceCard(e):entityCard(e)}).join("")+'</div>':
+  empty("hash","Nothing with this tag","This view updates automatically when you tag an item."))
+}
+
 function renderWorkspace(){
  var inner;
  if(state.ui.detailId){
@@ -1329,6 +1434,9 @@ function renderWorkspace(){
  else if(state.ui.tool==="goals")inner=renderGoals();
  else if(state.ui.tool==="habits")inner=renderHabits();
  else if(state.ui.tool==="routines")inner=renderRoutines();
+ else if(state.ui.tool==="overview")inner=renderOverview();
+ else if(state.ui.tool==="browse")inner=renderBrowseType();
+ else if(state.ui.tool==="tag")inner=renderTagResults();
  else inner=renderHome();
  mediaUrls.forEach(function(u){URL.revokeObjectURL(u)});mediaUrls=[];
  workspace.innerHTML=topbar()+'<div class="ws-body">'+inner+'</div>';
