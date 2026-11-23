@@ -458,7 +458,14 @@ function sidebarDateItems(tool){
  if(tool==="goals")return list("goal");
  if(tool==="habits")return list("habit");
  if(tool==="routines")return list("routine");
- return list().filter(function(e){return ["task","project","event","journal","note","resource","notebook","folder"].includes(e.type)})
+ if(tool==="browse")return browseEntities(view);
+ if(tool==="tag")return list().filter(function(e){return (e.tags||[]).some(function(t){return String(t).toLowerCase()===view.toLowerCase()})});
+ if(tool==="overview"){
+  if(view==="todo")return list().filter(function(e){return ["task","project","routine"].includes(e.type)});
+  if(view==="life")return list().filter(function(e){return ["journal","goal","habit"].includes(e.type)});
+  if(view==="resources")return list().filter(function(e){return ["resource","note","folder","notebook"].includes(e.type)})
+ }
+ return list().filter(function(e){return ["task","project","event","journal","note","resource","notebook","folder","goal","habit","routine"].includes(e.type)})
 }
 function miniDateForTool(tool){
  if(tool==="journals")return state.ui.view.startsWith("day:")?state.ui.view.slice(4):null;
