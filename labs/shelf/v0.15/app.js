@@ -623,6 +623,14 @@ function navTags(){
  return Object.keys(map).sort(function(a,b){return a.localeCompare(b)}).map(function(key){return map[key]})
 }
 function renderSidebar(){
+ var previousScroll=sidebar.querySelector(".shelf-nav-scroll"),scrollTop=previousScroll?previousScroll.scrollTop:0;
+ var focused=document.activeElement,focusAttributes=null;
+ if(focused&&sidebar.contains(focused)&&focused.hasAttribute("data-act")){
+  focusAttributes={};
+  ["data-act","data-key","data-id","data-tool","data-view","data-date"].forEach(function(name){
+   focusAttributes[name]=focused.getAttribute(name)
+  })
+ }
  var taskAreas=list("area"),projects=list("project"),journals=list("journalbook"),books=list("notebook"),
   folders=list("folder"),links=list("resource").filter(isBookmark),more=state.ui.navMore||{};
  var top='<div class="shelf-nav-header">'+
@@ -702,7 +710,20 @@ function renderSidebar(){
  '</div>'+
  '<div class="shelf-nav-meta"><span>Shelf · v0.15</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></div>'+
  '</div>';
- sidebar.innerHTML=top+navigation+footer
+ sidebar.innerHTML=top+navigation+footer;
+ var nextScroll=sidebar.querySelector(".shelf-nav-scroll");
+ if(nextScroll)nextScroll.scrollTop=scrollTop;
+ if(focusAttributes){
+  var replacement=Array.from(sidebar.querySelectorAll("[data-act]")).find(function(button){
+   return Object.keys(focusAttributes).every(function(name){return button.getAttribute(name)===focusAttributes[name]})
+  });
+  if(!replacement&&["nav-show-more","nav-show-less"].includes(focusAttributes["data-act"])){
+   replacement=Array.from(sidebar.querySelectorAll(".nav-show-more")).find(function(button){
+    return button.getAttribute("data-key")===focusAttributes["data-key"]
+   })
+  }
+  if(replacement)replacement.focus({preventScroll:true})
+ }
 }
 function topbar(){
  var focus=isFocusValid();
