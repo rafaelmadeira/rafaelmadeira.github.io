@@ -105,7 +105,7 @@ function ent(type,title,extra){return Object.assign({
  id:uid(),type:type,title:title||"",body:"",html:"",createdAt:now(),updatedAt:now(),contextIds:[],
  goalStatus:"active",goalProgress:0,targetDate:"",frequency:"daily",habitLog:[],routineSteps:[],routineLog:{},
  notebookId:null,folderId:null,journalBookId:null,areaId:null,categoryId:null,sourceId:null,inbox:false,starred:false,pinned:false,archived:false,trashed:false,
- date:"",time:"",endTime:"",dueDate:"",location:"",completed:false,projectStatus:"active",
+ date:"",time:"",endTime:"",dueDate:"",plannedDate:"",plannerDate:"",plannerTime:"",plannerEndTime:"",completedAt:null,location:"",completed:false,projectStatus:"active",
  url:"",resourceKind:"link",blobId:null,fileName:"",mime:"",fileSize:0,tags:[],color:"default",demo:false
 },extra||{})}
 function seed(){
@@ -264,7 +264,7 @@ if(state.ui.expandedAreaId===undefined){
 var $=function(id){return document.getElementById(id)};
 var rail=$("toolrail"),sidebar=$("sidebar"),workspace=$("workspace"),modalRoot=$("modal-root"),toastEl=$("toast");
 var activeComposer="auto",composerFor=null,composerText="",modalState=null,uploadContext=null,universalUpload=false,uploadCaptureOptions=null,mediaUrls=[],toastTimer=null;
-var lastToolView=null,workingSearch="",draggingAreaItem=null,draggingQuickKey=null,itemMenuState=null,lastTypeConversion=null;
+var lastToolView=null,workingSearch="",draggingAreaItem=null,draggingQuickKey=null,itemMenuState=null,lastTypeConversion=null,todayTaskDraft="",todayPlannerEditor=null;
 function get(id){return state.entities.find(function(x){return x.id===id})}
 function list(type,includeHidden){return state.entities.filter(function(x){return (!type||x.type===type)&&(includeHidden||(!x.archived&&!x.trashed))})}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){toast("Cannot save: browser storage may be full. Export a backup.")}}
@@ -790,6 +790,124 @@ function renderHistory(){
    return '<div class="history-entry">'+contextRow(get(visit.id))+(stamp?'<time datetime="'+esc(stamp.toISOString())+'">'+esc(stamp.toLocaleString("en-US",{month:"short",day:"numeric",year:"numeric",hour:"2-digit",minute:"2-digit"}))+'</time>':'<span class="history-legacy">Earlier</span>')+'</div>'
   }).join("")+'</div>':empty("clock","Nothing opened yet","Your history will appear as you open items."))
 }
+// Today membership, deadlines and calendar placement are independent.
+function todayTaskGroups(day){
+ var tasks=list("task"),working=tasks.filter(function(e){return !e.completed&&e.plannedDate&&e.plannedDate<=day}).sort(function(a,b){return (a.todayAddedAt||a.createdAt)-(b.todayAddedAt||b.createdAt)});
+ var workingIds=new Set(working.map(function(e){return e.id}));
+ return {tasks:working,
+  due:tasks.filter(function(e){return !e.completed&&!workingIds.has(e.id)&&e.dueDate===day}).sort(byDue),
+  overdue:tasks.filter(function(e){return !e.completed&&!workingIds.has(e.id)&&e.dueDate&&e.dueDate<day}).sort(byDue),
+  completed:tasks.filter(function(e){return e.completed&&(e.completedAt?ndate(e.completedAt)===day:e.plannedDate&&e.plannedDate<=day||e.dueDate===day)}).sort(byRecent)}
+}
+function isTodayView(){return !state.ui.detailId&&["home","todo"].includes(state.ui.tool)&&state.ui.view==="today"&&!miniDateForTool(state.ui.tool)}
+function todaySections(){return state.ui.todaySections||(state.ui.todaySections={due:true,overdue:true,completed:false})}
+function todayField(e,field,type,label){return '<label class="today-field"><span>'+esc(label)+'</span><input type="'+type+'" data-today-field="'+field+'" data-id="'+esc(e.id)+'" value="'+esc(e[field]||"")+'" aria-label="'+esc(label)+'"></label>'}
+function todayTaskDetails(e){
+ var mode=e.plannerDate?(e.plannerTime?"timed":"all-day"):"none";
+ return '<div class="today-task-details"><label class="today-field"><span>Notes</span><textarea rows="3" data-today-field="body" data-id="'+esc(e.id)+'" aria-label="Task notes" placeholder="Anything you want to remember…">'+esc(e.body)+'</textarea></label>'+
+ '<div class="today-fields">'+todayField(e,"dueDate","date","Deadline (optional)")+
+ '<label class="today-field"><span>Calendar placement</span><select data-today-field="placement" data-id="'+esc(e.id)+'" aria-label="Calendar placement">'+
+ [['none','Not scheduled'],['all-day','All day'],['timed','At a time']].map(function(x){return '<option value="'+x[0]+'"'+(mode===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join("")+'</select></label>'+
+ (mode!=="none"?todayField(e,"plannerDate","date","Calendar date"):"")+
+ (mode==="timed"?todayField(e,"plannerTime","time","Start time")+todayField(e,"plannerEndTime","time","End time (optional)"):"")+'</div>'+
+ '<div class="today-detail-actions">'+(state.ui.detailId===e.id?'':'<button class="button subtle" data-act="open" data-id="'+esc(e.id)+'">Open full page '+ic("external-link",13)+'</button>')+
+ (state.ui.detailId===e.id?'':e.plannedDate&&e.plannedDate<=today()?'<button class="button subtle" data-act="today-remove" data-id="'+esc(e.id)+'">Remove from Today</button>':'<button class="button subtle" data-act="today-bring" data-id="'+esc(e.id)+'">'+ic("plus",13)+' Add to Today</button>')+'</div></div>'
+}
+function todayTaskRow(e,group){
+ var expanded=state.ui.todayExpandedTask===e.id,context=shortContext(e)||(areaOf(e)?objTitle(areaOf(e)):"");
+ return '<div class="today-task-item'+(e.completed?' is-complete':'')+'" data-today-task="'+esc(e.id)+'"><div class="today-task-row">'+
+ '<button class="task-check'+(e.completed?' checked':'')+'" data-act="toggle-task" data-id="'+esc(e.id)+'" aria-label="'+esc((e.completed?'Reopen ':'Complete ')+objTitle(e))+'">'+(e.completed?ic("check",12):"")+'</button>'+
+ '<div class="today-task-text"><input class="today-task-title" data-today-field="title" data-id="'+esc(e.id)+'" value="'+esc(objTitle(e))+'" aria-label="Task title">'+
+ (context?'<span class="today-task-context">'+esc(context)+'</span>':"")+'</div>'+
+ (e.dueDate?'<span class="today-deadline" title="Deadline">'+esc(e.dueDate===today()?"Due today":humanDay(e.dueDate))+'</span>':"")+
+ (group==="due"||group==="overdue"?'<button class="today-bring" data-act="today-bring" data-id="'+esc(e.id)+'" title="Add to Today" aria-label="'+esc('Add '+objTitle(e)+' to Today')+'">'+ic("plus",13)+' Today</button>':"")+
+ '<button class="icon-button today-row-action'+(expanded?' active':'')+'" data-act="today-task-details" data-id="'+esc(e.id)+'" aria-label="'+esc('Details for '+objTitle(e))+'" aria-expanded="'+expanded+'">'+ic("settings",15)+'</button>'+
+ '<button class="icon-button today-row-action" data-act="detail-menu" data-id="'+esc(e.id)+'" aria-label="'+esc('More options for '+objTitle(e))+'" aria-haspopup="menu" aria-expanded="false">'+ic("more",17)+'</button></div>'+
+ (expanded?todayTaskDetails(e):"")+'</div>'
+}
+function todayDeadlineSection(key,label,items){
+ if(!items.length)return "";var open=todaySections()[key]!==false;
+ return '<section class="today-deadline-section"><button class="today-section-toggle" data-act="today-section" data-section="'+key+'" aria-expanded="'+open+'">'+ic(open?"chevron-down":"chevron-right",13)+'<span>'+label+'</span><small>'+items.length+'</small><span class="today-section-hint">'+(open?'Hide':'Show')+'</span></button>'+
+ (open?items.map(function(e){return todayTaskRow(e,key)}).join(""):"")+'</section>'
+}
+function plannerEntries(day){
+ return list().filter(function(e){return e.type==="event"&&e.date===day||e.type==="task"&&e.plannerDate===day&&!e.completed}).map(function(e){return {item:e,time:e.type==="task"?e.plannerTime||"":e.time||"",end:e.type==="task"?e.plannerEndTime||"":e.endTime||""}})
+}
+function plannerMinute(time){var p=String(time||"").split(":");return Math.min(1440,Math.max(0,(+p[0]||0)*60+(+p[1]||0)))}
+function plannerBlocks(entries){
+ var blocks=entries.filter(function(x){return !!x.time}).map(function(x){var start=plannerMinute(x.time);return {entry:x,start:start,end:Math.min(1440,Math.max(start+20,plannerMinute(x.end)||start+30))}}).sort(function(a,b){return a.start-b.start||a.end-b.end});
+ var group=[],end=0;
+ function layout(){var lanes=[];group.forEach(function(b){var lane=lanes.findIndex(function(v){return v<=b.start});if(lane<0)lane=lanes.length;lanes[lane]=b.end;b.lane=lane});group.forEach(function(b){b.lanes=lanes.length})}
+ blocks.forEach(function(b){if(group.length&&b.start>=end){layout();group=[];end=0}group.push(b);end=Math.max(end,b.end)});layout();return blocks
+}
+function renderPlannerEditor(){
+ var p=todayPlannerEditor;if(!p)return "";var allDay=p.allDay===undefined?!p.time:p.allDay;
+ return '<form id="today-planner-form" class="today-planner-editor"><div class="today-editor-heading"><strong>'+(p.id?'Edit calendar item':'Add to calendar')+'</strong><button type="button" class="icon-button" data-act="today-plan-close" aria-label="Close calendar editor">'+ic("x",15)+'</button></div>'+
+ '<input id="today-plan-title" aria-label="Calendar item title" placeholder="What’s happening?" value="'+esc(p.title||"")+'" required>'+
+ '<div class="today-fields"><label class="today-field"><span>Type</span><select id="today-plan-type" aria-label="Calendar item type" '+(p.id?'disabled':'')+'><option value="event"'+(p.type==='event'?' selected':'')+'>Event</option><option value="task"'+(p.type==='task'?' selected':'')+'>Task</option></select></label>'+
+ '<label class="today-field"><span>Date</span><input id="today-plan-date" type="date" aria-label="Calendar item date" value="'+esc(p.date)+'" required></label></div>'+
+ '<label class="today-all-day-check"><input id="today-plan-all-day" type="checkbox"'+(allDay?' checked':'')+'> All day</label>'+
+ '<div class="today-fields" id="today-plan-times"'+(allDay?' hidden':'')+'><label class="today-field"><span>Start</span><input id="today-plan-time" type="time" aria-label="Calendar start time" value="'+esc(p.time||'09:00')+'"></label><label class="today-field"><span>End (optional)</span><input id="today-plan-end" type="time" aria-label="Calendar end time" value="'+esc(p.end||"")+'"></label></div>'+
+ '<div class="today-editor-actions">'+(p.id&&p.type==='task'?'<button type="button" class="button subtle" data-act="today-unschedule" data-id="'+esc(p.id)+'">Remove from calendar</button>':'')+'<button class="button primary" type="submit">'+(p.id?'Save':'Add')+'</button></div></form>'
+}
+function renderTodayPlanner(day){
+ var entries=plannerEntries(day),allDay=entries.filter(function(e){return !e.time}),minutes=new Date().getHours()*60+new Date().getMinutes();
+ return '<aside class="today-planner" aria-label="Today’s calendar"><header class="today-pane-header"><div><h2>Calendar</h2><span>'+esc(humanDay(day))+'</span></div><button class="icon-button" data-act="today-plan-new" aria-label="Add calendar item">'+ic("plus",17)+'</button></header>'+
+ renderPlannerEditor()+'<section class="today-all-day"><div class="today-all-day-heading"><span>All day</span><button class="icon-button" data-act="today-plan-new" aria-label="Add all-day item">'+ic("plus",14)+'</button></div>'+
+ (allDay.length?allDay.map(function(x){return '<button class="today-all-day-item'+(x.item.type==='task'?' is-task':'')+'" data-act="today-plan-edit" data-id="'+esc(x.item.id)+'">'+ic(x.item.type==='task'?'check-circle':'calendar',12)+'<span>'+esc(objTitle(x.item))+'</span></button>'}).join(""):'<span class="today-calendar-empty">No all-day plans</span>')+'</section>'+
+ '<div class="today-timeline-scroll"><div class="today-timeline">'+Array.from({length:24},function(_,hour){var time=String(hour).padStart(2,"0")+":00";return '<div class="today-hour" style="top:'+(hour*60)+'px"><span>'+time+'</span><button data-act="today-plan-new" data-time="'+time+'" aria-label="Add calendar item at '+time+'"></button></div>'}).join("")+
+ plannerBlocks(entries).map(function(b){var e=b.entry.item;return '<button class="today-time-block'+(e.type==='task'?' is-task':'')+'" style="top:'+b.start+'px;height:'+(b.end-b.start)+'px;left:calc(44px + (100% - 48px) * '+b.lane+'/'+b.lanes+');width:calc((100% - 48px) / '+b.lanes+' - 3px)" data-act="today-plan-edit" data-id="'+esc(e.id)+'" aria-label="'+esc(objTitle(e)+' at '+b.entry.time)+'"><strong>'+esc(objTitle(e))+'</strong><small>'+esc(b.entry.time+(b.entry.end?'–'+b.entry.end:''))+'</small></button>'}).join("")+
+ '<div class="today-now" style="top:'+minutes+'px" aria-label="Current time"><span></span></div></div></div></aside>'
+}
+function renderToday(){
+ var day=today(),groups=todayTaskGroups(day),doneOpen=!!todaySections().completed;
+ return '<div class="today-layout" data-day="'+day+'"><section class="today-task-pane" aria-label="Today’s tasks"><header class="today-pane-header"><div><h1>Today</h1><span>'+esc(humanDay(day,{weekday:"long",month:"long",day:"numeric"}))+'</span></div></header>'+
+ '<div class="today-task-scroll"><section class="today-working"><h2>Tasks <span>'+groups.tasks.length+'</span></h2>'+groups.tasks.map(function(e){return todayTaskRow(e,"tasks")}).join("")+
+ '<form id="today-add-form" class="today-add-row"><span>'+ic("plus",16)+'</span><input id="today-add-task" aria-label="Add task to Today" placeholder="Add task" autocomplete="off" value="'+esc(todayTaskDraft)+'"><button type="submit" aria-label="Save task to Today">'+ic("corner-down-right",16)+'</button></form>'+
+ (!groups.tasks.length?'<p class="today-start-hint">What’s on your mind? Type a task and press Enter.</p>':"")+'</section>'+
+ todayDeadlineSection("due","Due today",groups.due)+todayDeadlineSection("overdue","Overdue",groups.overdue)+'</div>'+
+ '<section class="today-completed"><button class="today-section-toggle" data-act="today-section" data-section="completed" aria-expanded="'+doneOpen+'">'+ic(doneOpen?"chevron-down":"chevron-right",13)+'<span>Completed</span><small>'+groups.completed.length+'</small></button>'+
+ (doneOpen?'<div class="today-completed-list">'+(groups.completed.length?groups.completed.map(function(e){return todayTaskRow(e,"completed")}).join(""):'<p class="today-calendar-empty">Tasks you complete today will appear here.</p>')+'</div>':"")+'</section></section>'+renderTodayPlanner(day)+'</div>'
+}
+function addTodayTask(value){
+ var title=String(value||"").trim();if(!title)return null;
+ var e=ent("task",title,{plannedDate:today(),todayAddedAt:now(),inbox:false});state.entities.push(e);todayTaskDraft="";var oldInput=$("today-add-task");if(oldInput)oldInput.value="";save();paint();
+ var input=$("today-add-task");if(input){input.focus();input.scrollIntoView({block:"nearest"})}return e
+}
+function bringTaskToToday(id){var e=get(id);if(!e||e.type!=="task")return;e.plannedDate=today();e.todayAddedAt=now();e.inbox=false;touched(e);paint()}
+function setTodayTaskField(input){
+ var e=get(input.getAttribute("data-id")),field=input.getAttribute("data-today-field");if(!e||e.type!=="task")return;
+ if(field==="placement"){
+  if(input.value==="none"){e.plannerDate="";e.plannerTime="";e.plannerEndTime=""}
+  else{e.plannerDate=e.plannerDate||today();e.plannerTime=input.value==="timed"?e.plannerTime||"09:00":"";if(input.value==="all-day")e.plannerEndTime="";if(!e.plannedDate)e.plannedDate=e.plannerDate;e.inbox=false}
+ }else if(["title","body","dueDate","plannerDate","plannerTime","plannerEndTime"].includes(field)){
+  if(field==="plannerEndTime"&&input.value&&e.plannerTime&&input.value<=e.plannerTime){input.setCustomValidity("End time must be after start time.");input.reportValidity();return false}
+  input.setCustomValidity("");e[field]=input.value;
+  if(field==="plannerDate"&&!e.plannerDate){e.plannerTime="";e.plannerEndTime=""}
+  if(field==="plannerTime"&&e.plannerEndTime&&e.plannerEndTime<=e.plannerTime)e.plannerEndTime="";
+ }else return;
+ touched(e);return true
+}
+function rememberTodayPlanner(){
+ if(!todayPlannerEditor||!$("today-plan-title"))return;
+ var p=todayPlannerEditor;p.title=$("today-plan-title").value;p.type=$("today-plan-type").value;p.date=$("today-plan-date").value;p.allDay=$("today-plan-all-day").checked;p.time=p.allDay?"":$("today-plan-time").value;p.end=p.allDay?"":$("today-plan-end").value
+}
+function openTodayPlanner(id,time){
+ var e=get(id);todayPlannerEditor=e?{id:e.id,type:e.type,title:objTitle(e),date:e.type==='task'?e.plannerDate:e.date,time:e.type==='task'?e.plannerTime:e.time,end:e.type==='task'?e.plannerEndTime:e.endTime}:{type:"event",date:today(),time:time||"",end:""};
+ paint();var input=$("today-plan-title");if(input)input.focus()
+}
+function saveTodayPlanner(){
+ var form=$("today-planner-form");if(!form||!form.reportValidity())return;
+ var title=$("today-plan-title").value.trim(),date=$("today-plan-date").value,allDay=$("today-plan-all-day").checked,time=allDay?"":$("today-plan-time").value,end=allDay?"":$("today-plan-end").value;
+ if(!title)return;if(!allDay&&!time){$("today-plan-time").required=true;$("today-plan-time").reportValidity();return}
+ if(time&&end&&end<=time){$("today-plan-end").setCustomValidity("End time must be after start time.");$("today-plan-end").reportValidity();return}
+ var p=todayPlannerEditor,e=get(p.id),type=e?e.type:$("today-plan-type").value;
+ if(!e){e=ent(type,title);state.entities.push(e)}e.title=title;
+ if(type==="task"){e.plannerDate=date;e.plannerTime=time;e.plannerEndTime=end;e.plannedDate=e.plannedDate||date;e.inbox=false}
+ else{e.date=date;e.time=time;e.endTime=end}
+ touched(e);todayPlannerEditor=null;paint()
+}
+
 function renderHome(){
  var filter=miniDateForTool("home");
  if(filter)return renderDeskForDate(filter);
@@ -797,20 +915,7 @@ function renderHome(){
  if(view==="inbox"){var inbox=tasks.filter(inInbox);return pageHeader("Inbox","Tasks waiting to be processed.",'<button class="button primary" data-act="create" data-type="task">'+ic("plus",15)+' New task</button>',"DESK")+ (inbox.length?rows(inbox,taskRow):empty("inbox","Your inbox is clear","Captured tasks waiting for a decision will appear here."))}
  if(view==="history"||view==="recent")return renderHistory();
  if(view==="starred"){var stars=list().filter(function(e){return e.starred});return pageHeader("Starred","Things you keep close.","","DESK")+(stars.length?'<div class="card-grid">'+stars.map(entityCard).join("")+'</div>':empty("star","Nothing starred yet","Star items from their detail pages."))}
- var d=today(),due=tasks.filter(function(e){return !e.completed&&e.dueDate&&e.dueDate<=d}).sort(byDue);
- var todaysEvents=events.filter(function(e){return e.date===d}).sort(function(a,b){return a.time.localeCompare(b.time)});
- var upcoming=events.filter(function(e){return e.date>d}).sort(function(a,b){return (a.date+a.time).localeCompare(b.date+b.time)}).slice(0,3);
- var active=(state.ui.recent||[]).map(get).filter(function(e){return e&&["project","event","notebook","journal"].includes(e.type)&&!e.trashed}).slice(0,4);
- var j=list("journal").find(function(x){return x.date===d&&x.journalBookId===state.ui.defaultJournalId});
- return pageHeader("Today",humanDay(d,{weekday:"long",month:"long",day:"numeric",year:"numeric"}),'<button class="button primary" data-act="new-menu">'+ic("plus",15)+' Capture</button>',"YOUR DAY")+
- '<div class="hero"><div><h2>Everything in its place.</h2><p>Open anything, add what belongs to it, and let Shelf keep things connected.</p></div><div class="hero-illustration">'+ic("layers",53)+'</div></div>'+
- '<div class="dashboard-grid"><div>'+
- panel("Your tasks",due.length?due.map(taskRow).join(""):empty("check-circle","Nothing due today","Tasks with a due date appear here."),'<button class="panel-link" data-act="navigate" data-tool="planner" data-view="today">Open planner</button>')+
- panel("Schedule",todaysEvents.length?todaysEvents.map(eventRow).join(""):(upcoming.length?'<div style="font-size:11px;color:#9ba5a8;margin-bottom:8px">No events today · Coming up</div>'+upcoming.map(eventRow).join(""):empty("calendar","Nothing scheduled","Create an event from Calendar.")),'<button class="panel-link" data-act="navigate" data-tool="calendar" data-view="month">Open calendar</button>')+
- '</div><div>'+
- panel("Continue where you left off",active.length?active.map(contextRow).join(""):empty("clock","Start anywhere","Recent things appear automatically."))+
- panel("Journal",j?'<div class="card-excerpt" style="margin-bottom:13px">'+esc(trim(stripHtml(j.html),170))+'</div>':'<p style="color:#96a2a5;font-size:12px;margin:0 0 12px">A page for today is ready when you are.</p>','<button class="panel-link" data-act="journal-today">'+(j?"Continue writing":"Write today")+'</button>')+
- panel("Quick capture",'<div class="inline-add"><span style="color:#93a0a4">'+ic("plus",16)+'</span><input id="home-capture" placeholder="Write, paste a link, or add a task…" aria-label="Quick capture"><button data-act="home-capture">Save</button></div><div class="capture-tip">Use “todo: ” to capture a task.</div>')+'</div></div>';
+ return renderToday();
 }
 function journalPageMenu(book){
  if(!book||book.trashed)return "";
@@ -850,8 +955,9 @@ function renderJournal(){
     '<button class="panel-link" data-act="open" data-id="'+e.id+'" style="margin-top:10px">Open entry '+ic("chevron-right",12)+'</button></article>'
   }).join(""):empty("book-open","No entries yet","Your journal entries will appear here automatically."));
 }
+function calendarEntities(){return list().filter(function(e){return e.type==="event"||e.type==="task"&&e.plannerDate&&!e.completed}).map(function(e){return e.type==="task"?Object.assign({},e,{date:e.plannerDate,time:e.plannerTime||"",endTime:e.plannerEndTime||""}):e})}
 function calendarMonthHtml(key){
- var y=+key.slice(0,4),m=+key.slice(5,7)-1,first=new Date(y,m,1),start=first.getDay(),days=new Date(y,m+1,0).getDate(),events=list("event");
+ var y=+key.slice(0,4),m=+key.slice(5,7)-1,first=new Date(y,m,1),start=first.getDay(),days=new Date(y,m+1,0).getDate(),events=calendarEntities();
  var html='<div class="calendar-wrap"><div class="cal-head"><h2>'+esc(prettyMonth(key))+'</h2><div class="cal-nav"><button data-act="month-prev" aria-label="Previous month">'+ic("chevron-left",17)+'</button><button data-act="month-next" aria-label="Next month">'+ic("chevron-right",17)+'</button></div><button class="button" data-act="calendar-today">Today</button></div><div class="calendar-grid">';
  ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].forEach(function(n){html+='<div class="weekday">'+n+'</div>'});
  var total=Math.ceil((start+days)/7)*7;
@@ -862,7 +968,7 @@ function calendarMonthHtml(key){
  return html+'</div></div>'
 }
 function renderCalendar(){
- var view=state.ui.view,events=list("event").sort(function(a,b){return (a.date+a.time).localeCompare(b.date+b.time)});
+ var view=state.ui.view,events=calendarEntities().sort(function(a,b){return (a.date+a.time).localeCompare(b.date+b.time)});
  if(view==="upcoming"){var up=events.filter(function(e){return e.date>=today()});return pageHeader("Upcoming events","Your next appointments and commitments.",'<button class="button primary" data-act="create" data-type="event">'+ic("plus",15)+' New event</button>',"CALENDAR")+(up.length?'<div class="agenda-list">'+up.map(eventRow).join("")+'</div>':empty("calendar","No upcoming events","Add an event from your Calendar."))}
  if(view==="all"){return pageHeader("My calendar","Every event, all in one place.",'<button class="button primary" data-act="create" data-type="event">'+ic("plus",15)+' New event</button>',"CALENDAR")+(events.length?'<div class="agenda-list">'+events.map(eventRow).join("")+'</div>':empty("calendar","No events yet","Create a new calendar event."))}
  var day=state.ui.selectedDate||today(),ev=events.filter(function(e){return e.date===day});
@@ -963,6 +1069,7 @@ function renderPlannerDate(date){
 }
 
 function renderPlanner(){
+ if(state.ui.view==="today"&&!miniDateForTool("todo"))return renderToday();
  var filter=miniDateForTool("todo");if(filter)return renderPlannerDate(filter);
  var view=state.ui.view,all=list("task"),items;
  if(view.startsWith("category:"))return renderCategory(get(view.slice(9)));
@@ -1131,7 +1238,7 @@ function detailMain(e){
   if(e.type==="routine")parts+=routineDetail(e);
   if(e.type==="project")parts+='<div class="detail-section"><h3>About this project</h3><textarea class="plain-editor" data-edit="body" placeholder="Context, current state, or anything useful…">'+esc(e.body)+'</textarea></div>';
   else if(e.type==="event")parts+='<div class="detail-section"><h3>About this event</h3><textarea class="plain-editor" data-edit="body" placeholder="What should you remember about this event?">'+esc(e.body)+'</textarea></div>';
-  else if(e.type==="task")parts+='<div class="detail-section"><h3>Details</h3><textarea class="plain-editor" data-edit="body" placeholder="Add details if you need them…">'+esc(e.body)+'</textarea></div>';
+  else if(e.type==="task")parts+=todayTaskDetails(e);
  }
  return parts
 }
@@ -1139,6 +1246,7 @@ function detailMeta(e){
  var out="";
  if(e.type==="event")out+='<div class="meta-pill">'+ic("calendar",15)+'<input type="date" data-edit="date" value="'+esc(e.date)+'" aria-label="Event date"></div><div class="meta-pill">'+ic("clock",15)+'<input type="time" data-edit="time" value="'+esc(e.time)+'" aria-label="Event time"></div><div class="meta-pill">'+ic("map-pin",15)+'<input type="text" data-edit="location" value="'+esc(e.location)+'" placeholder="Location" aria-label="Location"></div>';
  if(e.type==="task"){
+  out+='<button class="button" data-act="'+(e.plannedDate&&e.plannedDate<=today()?'today-remove':'today-bring')+'" data-id="'+esc(e.id)+'">'+ic("sun",14)+' '+(e.plannedDate&&e.plannedDate<=today()?'Remove from Today':'Add to Today')+'</button>';
   out+='<div class="meta-pill">'+ic("calendar",15)+'<input type="date" data-edit="dueDate" value="'+esc(e.dueDate)+'" aria-label="Due date"></div>';
   if(inInbox(e))out+='<button class="button" data-act="clear-inbox" data-id="'+e.id+'">'+ic("check",14)+' Keep outside Inbox</button>';
  }
@@ -1490,6 +1598,10 @@ function renderSettings(){
  '</fieldset></section>'
 }
 function renderWorkspace(){
+ var previousToday=workspace.querySelector(".today-layout"),taskScroll=workspace.querySelector(".today-task-scroll"),calendarScroll=workspace.querySelector(".today-timeline-scroll"),active=document.activeElement;
+ var positions=previousToday?{tasks:taskScroll.scrollTop,calendar:calendarScroll.scrollTop}:null;
+ var focused=previousToday&&active&&active.hasAttribute("data-today-field")?{id:active.getAttribute("data-id"),field:active.getAttribute("data-today-field")}:null;
+ var addInput=$("today-add-task");if(addInput)todayTaskDraft=addInput.value;
  var inner;
  if(state.ui.detailId){
   var e=get(state.ui.detailId);if(e)inner=renderDetail(e);else{state.ui.detailId=null;inner=renderHome()}
@@ -1510,7 +1622,14 @@ function renderWorkspace(){
  else if(state.ui.tool==="settings")inner=renderSettings();
  else inner=renderHome();
  mediaUrls.forEach(function(u){URL.revokeObjectURL(u)});mediaUrls=[];
- workspace.innerHTML=topbar()+'<div class="ws-body">'+inner+'</div>';
+ var todayView=isTodayView();workspace.classList.toggle("today-workspace",todayView);
+ workspace.innerHTML=topbar()+'<div class="ws-body'+(todayView?' today-body':'')+'">'+inner+'</div>';
+ if(todayView){
+  var taskArea=workspace.querySelector(".today-task-scroll"),calendarArea=workspace.querySelector(".today-timeline-scroll");
+  taskArea.scrollTop=positions?positions.tasks:0;
+  calendarArea.scrollTop=positions?positions.calendar:Math.max(0,(new Date().getHours()-1)*60);
+  if(focused){var replacement=Array.from(workspace.querySelectorAll("[data-today-field]")).find(function(el){return el.getAttribute("data-id")===focused.id&&el.getAttribute("data-today-field")===focused.field});if(replacement)replacement.focus({preventScroll:true})}
+ }
  fillPreviews()
 }
 function paint(){closeDetailsMenu(false);renderRail();renderSidebar();renderWorkspace()}
@@ -2067,7 +2186,7 @@ function detailsMenu(e,trigger){
  var menu=document.createElement("div");menu.id="item-menu";menu.className="item-popover";menu.setAttribute("role","menu");
  document.body.appendChild(menu);trigger.setAttribute("aria-expanded","true");renderDetailsMenu()
 }
-function toggleTask(id){var e=get(id);if(!e)return;e.completed=!e.completed;if(e.completed)e.inbox=false;touched(e);paint();toast(e.completed?"Task completed":"Task reopened")}
+function toggleTask(id){var e=get(id);if(!e)return;e.completed=!e.completed;e.completedAt=e.completed?now():null;if(e.completed)e.inbox=false;touched(e);paint();toast(e.completed?"Task completed":"Task reopened")}
 function clearInbox(id){var e=get(id);if(!e||e.type!=="task")return;e.inbox=false;touched(e);paint();toast("Kept as an independent task · removed from Inbox")}
 function markInbox(id){var e=get(id);if(!e||e.type!=="task")return;e.inbox=true;touched(e);paint();toast("Moved to Inbox for review")}
 function focusContext(id){state.ui.focusId=state.ui.focusId===id?null:id;save();closeModal();paint();toast(state.ui.focusId?"Working on "+objTitle(get(id)):"Context cleared")}
@@ -2238,6 +2357,14 @@ function toggleSectionMenu(trigger){
 function onClick(ev){
  var b=ev.target.closest("[data-act]");if(!b)return;
  var act=b.getAttribute("data-act"),id=b.getAttribute("data-id"),type=b.getAttribute("data-type"),ctx=b.getAttribute("data-context"),view=b.getAttribute("data-view"),tool=b.getAttribute("data-tool"),current=get(id);
+ if(act==="today-section"){var key=b.getAttribute("data-section");if(["due","overdue","completed"].includes(key)){var prefs=todaySections();prefs[key]=!prefs[key];save();paint();var button=document.querySelector('[data-act="today-section"][data-section="'+key+'"]');if(button)button.focus({preventScroll:true})}return}
+ if(act==="today-task-details"){state.ui.todayExpandedTask=state.ui.todayExpandedTask===id?null:id;save();paint();return}
+ if(act==="today-bring"){bringTaskToToday(id);return}
+ if(act==="today-remove"){if(current){current.plannedDate="";touched(current);paint()}return}
+ if(act==="today-plan-new"){openTodayPlanner(null,b.getAttribute("data-time"));return}
+ if(act==="today-plan-edit"){openTodayPlanner(id);return}
+ if(act==="today-plan-close"){todayPlannerEditor=null;paint();return}
+ if(act==="today-unschedule"){if(current){current.plannerDate="";current.plannerTime="";current.plannerEndTime="";touched(current)}todayPlannerEditor=null;paint();return}
  if(act==="item-menu-turn"){if(itemMenuState){itemMenuState.view="convert";renderDetailsMenu()}return}
  if(act==="item-menu-back"){if(itemMenuState){itemMenuState.view="actions";renderDetailsMenu()}return}
  if(act==="turn-into"){turnItemInto(id,type,false);return}
@@ -2359,7 +2486,7 @@ function onClick(ev){
   return
  }
  if(act==="planner-quick"){
-  var inp=$("planner-quick");if(inp&&inp.value.trim()){var task=ent("task",inp.value.trim(),{dueDate:state.ui.view==="today"?today():"",inbox:state.ui.view==="inbox"});var focus=isFocusValid();if(focus){task.contextIds=[focus.id];task.inbox=false}state.entities.unshift(task);save();paint();toast("Task saved in To do")}return
+  var inp=$("planner-quick");if(inp&&inp.value.trim()){var task=ent("task",inp.value.trim(),{plannedDate:state.ui.view==="today"?today():"",inbox:state.ui.view==="inbox"});var focus=isFocusValid();if(focus){task.contextIds=[focus.id];task.inbox=false}state.entities.unshift(task);save();paint();toast("Task saved in To do")}return
  }
  if(act==="upload"){universalUpload=false;uploadContext=ctx||state.ui.detailId||state.ui.focusId||null;$("upload-input").click();return}
  if(act==="download-resource"){if(current)resourceDownload(current);return}
@@ -2389,9 +2516,15 @@ document.addEventListener("scroll",function(ev){
  closeDetailsMenu(false);closeSectionMenu(false);closeJournalMenu(false)
 },true);
 window.addEventListener("resize",function(){closeDetailsMenu(false);closeSectionMenu(false);closeJournalMenu(false)});
-document.addEventListener("submit",function(ev){if(ev.target.id==="create-form"){ev.preventDefault();submitCreate()}else if(ev.target.id==="rename-area-form"){ev.preventDefault();submitRenameArea()}else if(ev.target.id==="create-category-form"){ev.preventDefault();submitCreateCategory()}else if(ev.target.id==="rename-category-form"){ev.preventDefault();submitRenameCategory()}else if(ev.target.id==="rename-journal-form"){ev.preventDefault();submitRenameJournal()}});
+document.addEventListener("submit",function(ev){
+ if(ev.target.id==="today-add-form"){ev.preventDefault();addTodayTask($("today-add-task").value);return}
+ if(ev.target.id==="today-planner-form"){ev.preventDefault();saveTodayPlanner();return}
+if(ev.target.id==="create-form"){ev.preventDefault();submitCreate()}else if(ev.target.id==="rename-area-form"){ev.preventDefault();submitRenameArea()}else if(ev.target.id==="create-category-form"){ev.preventDefault();submitCreateCategory()}else if(ev.target.id==="rename-category-form"){ev.preventDefault();submitRenameCategory()}else if(ev.target.id==="rename-journal-form"){ev.preventDefault();submitRenameJournal()}});
 document.addEventListener("input",function(ev){
  var el=ev.target;
+ if(el.id==="today-add-task"){todayTaskDraft=el.value;return}
+ if(el.hasAttribute("data-today-field")){if(["title","body"].includes(el.getAttribute("data-today-field")))setTodayTaskField(el);return}
+ if(el.id&&el.id.startsWith("today-plan-")){rememberTodayPlanner();if(el.id==="today-plan-end"||el.id==="today-plan-time")$("today-plan-end").setCustomValidity("");return}
  if(el.id==="quick-search"){updateQuickResults(el.value);return}
  if(el.id==="global-search"){updateSearchResults(el.value);return}
  if(el.id==="universal-capture"){updateUniversalPreview();return}
@@ -2401,6 +2534,9 @@ document.addEventListener("input",function(ev){
 });
 document.addEventListener("change",function(ev){
  var input=ev.target;
+ if(input.id==="today-plan-all-day"){$("today-plan-times").hidden=input.checked;$("today-plan-time").required=!input.checked;rememberTodayPlanner();return}
+ if(input.id&&input.id.startsWith("today-plan-")){rememberTodayPlanner();return}
+ if(input.hasAttribute("data-today-field")){var changed=setTodayTaskField(input);if(changed!==false&&!["title","body"].includes(input.getAttribute("data-today-field")))paint();return}
  if(input.hasAttribute("data-sidebar-section")){
   setSidebarSectionVisible(input.getAttribute("data-sidebar-section"),input.checked);
   save();renderSidebar();var summary=$("sidebar-visibility-summary");if(summary)summary.textContent=sidebarVisibilitySummary();return
@@ -2412,6 +2548,9 @@ document.addEventListener("keydown",function(ev){
  var isTyping=["INPUT","TEXTAREA","SELECT"].includes(tag)||target.isContentEditable||
   (typeof target.closest==="function"&&!!target.closest('[contenteditable="true"],[contenteditable=""],[role="textbox"]'));
  var modalOpen=modalRoot.classList.contains("open");
+ if(ev.isComposing)return;
+ if(ev.key==="Enter"&&target.id==="today-add-task"){ev.preventDefault();if(!ev.repeat)addTodayTask(target.value);return}
+ if(ev.key==="Escape"&&todayPlannerEditor){ev.preventDefault();todayPlannerEditor=null;paint();return}
  if(itemMenuState&&["ArrowDown","ArrowUp","Home","End","Tab"].includes(ev.key)){
   if(ev.key==="Tab"){closeDetailsMenu(true);return}
   var menu=document.getElementById("item-menu"),items=menu?Array.from(menu.querySelectorAll('[role="menuitem"]')):[],index=items.indexOf(document.activeElement);
@@ -2505,5 +2644,11 @@ document.addEventListener("drop",function(ev){
  else paint()
 });
 document.addEventListener("drop",function(ev){if(ev.dataTransfer&&ev.dataTransfer.files&&ev.dataTransfer.files.length){ev.preventDefault();uploadContext=state.ui.detailId||state.ui.focusId||null;handleUpload(ev.dataTransfer.files)}});
+setInterval(function(){
+ if(!isTodayView())return;
+ var layout=workspace.querySelector(".today-layout");if(!layout)return;
+ if(layout.getAttribute("data-day")!==today()){paint();return}
+ var line=workspace.querySelector(".today-now"),time=new Date();if(line)line.style.top=(time.getHours()*60+time.getMinutes())+"px"
+},60000);
 save();paint();
 })();

@@ -664,3 +664,81 @@ svg{flex-shrink:0;vertical-align:middle}
 .toast.open.has-action{display:flex;align-items:center;gap:16px;pointer-events:auto}
 .toast.has-action button{border:0;background:none;padding:4px 0;color:inherit;font-weight:600;text-decoration:underline}
 .retained-resource a{display:flex;align-items:center;gap:7px;overflow-wrap:anywhere;font-size:13px;margin-bottom:10px}
+
+/* Today: a persistent task list beside an explicit calendar. */
+.workspace.today-workspace{display:flex;flex-direction:column;overflow:hidden}
+.today-workspace>.topbar{flex-shrink:0}
+.ws-body.today-body{flex:1;width:100%;min-height:0;max-width:none;margin:0;padding:20px 22px 22px}
+.today-layout{height:100%;display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px}
+.today-task-pane,.today-planner{min-height:0;min-width:0;background:var(--paper);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow:hidden}
+.today-pane-header{min-height:81px;padding:17px 22px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);flex-shrink:0;gap:10px}
+.today-pane-header h1{font-size:23px;line-height:1.3;letter-spacing:-.5px;margin:0 0 3px}
+.today-pane-header h2{font-size:14px;margin:0 0 3px;font-weight:600}
+.today-pane-header span{font-size:11px;color:var(--muted)}
+.today-task-scroll{flex:1;min-height:0;overflow:auto;padding:22px;scrollbar-width:thin;scrollbar-color:#e0e2e0 transparent}
+.today-working>h2{font-size:12px;font-weight:600;margin:0 0 10px;display:flex;align-items:center;gap:9px}
+.today-working>h2>span{font-size:10px;font-weight:400;color:var(--quiet)}
+.today-task-item{border-bottom:1px solid #f1f2ef}
+.today-task-row{min-height:43px;display:flex;align-items:center;gap:10px}
+.today-task-row>.task-check{flex-shrink:0;width:16px;height:16px;margin:0}
+.today-task-text{flex:1;min-width:0;padding:6px 0;display:flex;flex-direction:column}
+.today-task-title{width:100%;min-width:0;border:0;background:transparent;padding:2px 0;outline-offset:3px;font-size:13px}
+.today-task-context{font-size:10px;color:var(--quiet);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.today-deadline{font-size:10px;color:var(--muted);white-space:nowrap}
+.today-row-action.icon-button{width:25px;height:27px;flex-shrink:0;opacity:0;color:var(--muted)}
+.today-task-item:hover .today-row-action,.today-task-item:focus-within .today-row-action,.today-row-action.active{opacity:1}
+.today-bring{border:0;background:none;display:flex;align-items:center;gap:3px;font-size:10px;color:var(--blue);padding:5px 2px;white-space:nowrap}
+.today-add-row{display:flex;align-items:center;gap:10px;min-height:45px;color:var(--muted)}
+.today-add-row>span{display:flex;width:16px;flex-shrink:0}
+.today-add-row input{flex:1;min-width:0;border:0;background:none;padding:10px 0;font-size:13px}
+.today-add-row input::placeholder{color:#9ba3a4}
+.today-add-row button{border:0;background:var(--soft);color:var(--muted);display:flex;padding:5px;border-radius:5px;opacity:0}
+.today-add-row:focus-within button,.today-add-row:hover button{opacity:1}
+.today-start-hint{font-size:11px;color:var(--quiet);margin:2px 0 24px 26px}
+.today-deadline-section{margin-top:25px}
+.today-section-toggle{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;text-align:left;padding:10px 0;color:var(--muted);font-size:11px}
+.today-section-toggle>span:not(.today-section-hint){font-weight:500}
+.today-section-toggle small{color:var(--quiet);font-size:10px}
+.today-section-hint{margin-left:auto;color:var(--quiet);font-size:10px}
+.today-completed{margin-top:auto;border-top:1px solid var(--line);padding:3px 22px;flex-shrink:0}
+.today-completed>.today-section-toggle{min-height:41px}
+.today-completed-list{max-height:30vh;overflow:auto;padding-bottom:12px}
+.is-complete .today-task-title{text-decoration:line-through;color:var(--quiet)}
+.today-task-details{margin:1px 0 13px 26px;padding:14px;background:#f8f9f7;border-radius:8px}
+.today-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.today-field{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:10px;color:var(--muted)}
+.today-field input,.today-field select,.today-field textarea,.today-planner-editor>input{width:100%;min-width:0;border:1px solid #e1e5e1;background:white;color:var(--ink);border-radius:5px;padding:7px;font-size:11px}
+.today-field textarea{resize:vertical}
+.today-detail-actions{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-top:13px}
+.today-detail-actions .button{font-size:10px;padding:4px 0}
+.today-planner .today-pane-header{padding-left:16px;padding-right:12px}
+.today-all-day{padding:9px 12px 12px 44px;min-height:69px;max-height:175px;overflow:auto;border-bottom:1px solid var(--line);flex-shrink:0}
+.today-all-day-heading{display:flex;justify-content:space-between;align-items:center;min-height:23px;color:var(--muted);font-size:10px}
+.today-all-day-heading .icon-button{width:22px;height:22px}
+.today-all-day-item{display:flex;align-items:center;gap:6px;width:100%;padding:4px 7px;border:0;border-left:2px solid #a3b7cc;background:#edf2f7;color:#445b70;text-align:left;border-radius:4px;margin-top:4px;font-size:10px}
+.today-all-day-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.today-calendar-empty{font-size:10px;color:var(--quiet);display:block;padding:5px 0}
+.today-timeline-scroll{flex:1;min-height:180px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#e0e2e0 transparent;position:relative}
+.today-timeline{height:1440px;position:relative;margin-right:7px}
+.today-hour{position:absolute;left:0;right:0;height:60px;display:flex}
+.today-hour>span{width:44px;flex-shrink:0;font-size:9px;color:#9ca4a6;text-align:right;padding:2px 7px 0 0}
+.today-hour>button{flex:1;border:0;border-top:1px solid #eceeeb;background:none;padding:0}
+.today-hour>button:hover{background:#f6f8f5}
+.today-time-block{position:absolute;z-index:2;border:0;border-left:2px solid #91adc7;border-radius:4px;background:#edf2f7;color:#40596d;text-align:left;padding:3px 7px;overflow:hidden;min-height:20px;line-height:1.3}
+.today-time-block strong{display:block;font-weight:500;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.today-time-block small{font-size:9px;opacity:.8}
+.today-time-block:hover{filter:brightness(.97)}
+.today-all-day-item.is-task,.today-time-block.is-task{background:#eef3ec;border-left-color:#9caf91;color:#536749}
+.today-now{position:absolute;z-index:3;left:41px;right:0;border-top:1px solid #cf8271;pointer-events:none}
+.today-now>span{display:block;position:absolute;left:-2px;top:-3px;width:5px;height:5px;border-radius:50%;background:#cf8271}
+.today-planner-editor{flex-shrink:0;max-height:48%;overflow:auto;margin:0;padding:12px 14px;border-bottom:1px solid var(--line);background:#f8f9f7}
+.today-editor-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:11px}
+.today-editor-heading .icon-button{width:23px;height:23px}
+.today-all-day-check{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--muted);margin-top:10px}
+.today-fields[hidden]{display:none}
+.today-editor-actions{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:12px}
+.today-editor-actions .button{font-size:10px;padding:5px 10px}
+.today-full-task-planning{margin:0 0 20px;padding:14px;background:var(--soft);border-radius:8px}
+@media(max-width:1150px){.today-layout{grid-template-columns:minmax(0,1fr) 275px;gap:12px}.ws-body.today-body{padding:14px}.today-task-scroll{padding:16px}.today-pane-header{padding-left:16px;padding-right:16px}.today-completed{padding-left:16px;padding-right:16px}.today-task-row{gap:7px}.today-task-title{font-size:12px}}
+@media(max-width:850px){.workspace.today-workspace{display:block;overflow:auto}.ws-body.today-body{height:auto;padding:12px}.today-layout{height:auto;grid-template-columns:minmax(0,1fr)}.today-task-pane{min-height:65dvh}.today-task-scroll{overflow:visible}.today-planner{height:580px}.today-planner-editor{max-height:290px}.today-completed{margin-top:auto}.today-task-pane .today-pane-header{min-height:70px}}
+@media(hover:none){.today-row-action.icon-button,.today-add-row button{opacity:1}}
