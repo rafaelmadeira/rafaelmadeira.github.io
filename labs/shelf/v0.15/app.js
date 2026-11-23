@@ -252,6 +252,7 @@ function ensureV15(){
  if(!Array.isArray(ui.history))ui.history=(ui.recent||[]).map(function(id){return {id:id,openedAt:null}});
  if(!Number.isInteger(ui.historyPage)||ui.historyPage<0)ui.historyPage=0;
  if(ui.tool==="home"&&["recent","history"].includes(ui.view))ui.view="today";
+ delete ui.todayExpandedTask;
  ui.navMenu=null;
  state.version=15
 }
@@ -264,7 +265,7 @@ if(state.ui.expandedAreaId===undefined){
 var $=function(id){return document.getElementById(id)};
 var rail=$("toolrail"),sidebar=$("sidebar"),workspace=$("workspace"),modalRoot=$("modal-root"),toastEl=$("toast");
 var activeComposer="auto",composerFor=null,composerText="",modalState=null,uploadContext=null,universalUpload=false,uploadCaptureOptions=null,mediaUrls=[],toastTimer=null;
-var lastToolView=null,workingSearch="",draggingAreaItem=null,draggingQuickKey=null,itemMenuState=null,lastTypeConversion=null,todayTaskDraft="",todayPlannerEditor=null;
+var lastToolView=null,workingSearch="",draggingAreaItem=null,draggingQuickKey=null,itemMenuState=null,lastTypeConversion=null,todayTaskDraft="",todayPlannerEditor=null,draggingTodayTask=null,lastTodayDragScroll=0,todayDragClickUntil=0,todayPointerDrag=null;
 function get(id){return state.entities.find(function(x){return x.id===id})}
 function list(type,includeHidden){return state.entities.filter(function(x){return (!type||x.type===type)&&(includeHidden||(!x.archived&&!x.trashed))})}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){toast("Cannot save: browser storage may be full. Export a backup.")}}
@@ -664,7 +665,7 @@ function renderSidebar(){
  var taskAreas=list("area"),projects=list("project"),journals=list("journalbook"),books=list("notebook"),
   folders=list("folder");
  var top='<div class="shelf-nav-header"><div class="shelf-nav-brand"><span>Shelf</span>'+
-  '<span class="shelf-nav-head-spacer"></span><button data-act="universal-open" class="nav-brand-new" title="New item (Q)">'+ic("plus",15)+' New</button></div></div>';
+  '<span class="shelf-nav-head-spacer"></span><button data-act="search" class="icon-button nav-brand-icon" title="Search (/)" aria-label="Search">'+ic("search",17)+'</button><button data-act="universal-open" class="icon-button nav-brand-icon" title="Quick capture (Q)" aria-label="Capture">'+ic("plus",18)+'</button></div></div>';
  var topLinks='<div class="nav-top-links">'+navTop("Today","home","today","sun")+
   navTop("Inbox","home","inbox","inbox",inboxCount())+navTop("Calendar","calendar","month","calendar-days")+
   '</div>';
@@ -721,13 +722,7 @@ function renderSidebar(){
   if(replacement)replacement.focus({preventScroll:true})
  }
 }
-function topbar(){
- var focus=isFocusValid();
- return '<div class="topbar"><button class="search-trigger" data-act="search" title="Search or create anything">'+ic("search",18)+'<span>Search or capture anything…</span><small class="kbd">/</small></button><div class="topbar-spacer"></div>'+
- (!state.ui.detailId&&state.ui.tool!=="home"?'<button class="icon-button'+(quickHas({kind:"view",tool:state.ui.tool,view:state.ui.view})?' quick-pinned':'')+'" data-act="quick-pin-current" title="'+(quickHas({kind:"view",tool:state.ui.tool,view:state.ui.view})?'Remove page from Home':'Pin this page to Home')+'" aria-label="Pin or unpin current page in Quick Access">'+ic(quickHas({kind:"view",tool:state.ui.tool,view:state.ui.view})?"pinfill":"pin",17)+'</button>':"")+
- (focus?'<div class="context-pill" title="New items can be linked to this context">'+ic("layers",13)+'<span class="context-name">'+esc(objTitle(focus))+'</span><button data-act="clear-focus" title="Stop using this context">'+ic("x",13)+'</button></div>':"")+
- '<button class="top-new" data-act="new-menu">'+ic("plus",16)+' New</button></div>'
-}
+
 function pageHeader(title,subtitle,actions,eyebrow){return '<div class="page-header"><div><div class="page-eyebrow">'+esc(eyebrow||"SHELF")+'</div><h1>'+esc(title)+'</h1>'+(subtitle?'<p>'+esc(subtitle)+'</p>':"")+'</div><div class="page-head-actions">'+(actions||"")+'</div></div>'}
 function btn(label,action,iconName,type){return '<button class="button'+(type==="primary"?" primary":type==="subtle"?" subtle":"")+'" data-act="'+esc(action)+'">'+(iconName?ic(iconName,15):"")+esc(label)+'</button>'}
 function empty(iconName,title,subtitle,action,type){return '<div class="empty"><div class="empty-icon">'+ic(iconName,27)+'</div><h3>'+esc(title)+'</h3><p>'+esc(subtitle)+'</p>'+(action?'<button class="button" data-act="create" data-type="'+esc(type)+'">'+ic("plus",14)+' '+esc(action)+'</button>':"")+'</div>'}
@@ -801,29 +796,18 @@ function todayTaskGroups(day){
 }
 function isTodayView(){return !state.ui.detailId&&["home","todo"].includes(state.ui.tool)&&state.ui.view==="today"&&!miniDateForTool(state.ui.tool)}
 function todaySections(){return state.ui.todaySections||(state.ui.todaySections={due:true,overdue:true,completed:false})}
-function todayField(e,field,type,label){return '<label class="today-field"><span>'+esc(label)+'</span><input type="'+type+'" data-today-field="'+field+'" data-id="'+esc(e.id)+'" value="'+esc(e[field]||"")+'" aria-label="'+esc(label)+'"></label>'}
-function todayTaskDetails(e){
- var mode=e.plannerDate?(e.plannerTime?"timed":"all-day"):"none";
- return '<div class="today-task-details"><label class="today-field"><span>Notes</span><textarea rows="3" data-today-field="body" data-id="'+esc(e.id)+'" aria-label="Task notes" placeholder="Anything you want to remember…">'+esc(e.body)+'</textarea></label>'+
- '<div class="today-fields">'+todayField(e,"dueDate","date","Deadline (optional)")+
- '<label class="today-field"><span>Calendar placement</span><select data-today-field="placement" data-id="'+esc(e.id)+'" aria-label="Calendar placement">'+
- [['none','Not scheduled'],['all-day','All day'],['timed','At a time']].map(function(x){return '<option value="'+x[0]+'"'+(mode===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join("")+'</select></label>'+
- (mode!=="none"?todayField(e,"plannerDate","date","Calendar date"):"")+
- (mode==="timed"?todayField(e,"plannerTime","time","Start time")+todayField(e,"plannerEndTime","time","End time (optional)"):"")+'</div>'+
- '<div class="today-detail-actions">'+(state.ui.detailId===e.id?'':'<button class="button subtle" data-act="open" data-id="'+esc(e.id)+'">Open full page '+ic("external-link",13)+'</button>')+
- (state.ui.detailId===e.id?'':e.plannedDate&&e.plannedDate<=today()?'<button class="button subtle" data-act="today-remove" data-id="'+esc(e.id)+'">Remove from Today</button>':'<button class="button subtle" data-act="today-bring" data-id="'+esc(e.id)+'">'+ic("plus",13)+' Add to Today</button>')+'</div></div>'
-}
+
 function todayTaskRow(e,group){
- var expanded=state.ui.todayExpandedTask===e.id,context=shortContext(e)||(areaOf(e)?objTitle(areaOf(e)):"");
- return '<div class="today-task-item'+(e.completed?' is-complete':'')+'" data-today-task="'+esc(e.id)+'"><div class="today-task-row">'+
+ var context=shortContext(e)||(areaOf(e)?objTitle(areaOf(e)):"");
+ return '<div class="today-task-item'+(e.completed?' is-complete':'')+'" data-today-task="'+esc(e.id)+'"><div class="today-task-row" draggable="false" data-today-drag="'+esc(e.id)+'">'+
+ (!e.completed?'<span class="today-drag-handle" draggable="false" data-today-drag="'+esc(e.id)+'" title="Drag to calendar" aria-label="'+esc('Drag '+objTitle(e)+' to calendar')+'">'+ic("dots-vertical",12)+'</span>':"")+
  '<button class="task-check'+(e.completed?' checked':'')+'" data-act="toggle-task" data-id="'+esc(e.id)+'" aria-label="'+esc((e.completed?'Reopen ':'Complete ')+objTitle(e))+'">'+(e.completed?ic("check",12):"")+'</button>'+
  '<div class="today-task-text"><input class="today-task-title" data-today-field="title" data-id="'+esc(e.id)+'" value="'+esc(objTitle(e))+'" aria-label="Task title">'+
  (context?'<span class="today-task-context">'+esc(context)+'</span>':"")+'</div>'+
  (e.dueDate?'<span class="today-deadline" title="Deadline">'+esc(e.dueDate===today()?"Due today":humanDay(e.dueDate))+'</span>':"")+
  (group==="due"||group==="overdue"?'<button class="today-bring" data-act="today-bring" data-id="'+esc(e.id)+'" title="Add to Today" aria-label="'+esc('Add '+objTitle(e)+' to Today')+'">'+ic("plus",13)+' Today</button>':"")+
- '<button class="icon-button today-row-action'+(expanded?' active':'')+'" data-act="today-task-details" data-id="'+esc(e.id)+'" aria-label="'+esc('Details for '+objTitle(e))+'" aria-expanded="'+expanded+'">'+ic("settings",15)+'</button>'+
  '<button class="icon-button today-row-action" data-act="detail-menu" data-id="'+esc(e.id)+'" aria-label="'+esc('More options for '+objTitle(e))+'" aria-haspopup="menu" aria-expanded="false">'+ic("more",17)+'</button></div>'+
- (expanded?todayTaskDetails(e):"")+'</div>'
+ '</div>'
 }
 function todayDeadlineSection(key,label,items){
  if(!items.length)return "";var open=todaySections()[key]!==false;
@@ -847,7 +831,7 @@ function renderPlannerEditor(){
  '<div class="today-fields"><label class="today-field"><span>Type</span><select id="today-plan-type" aria-label="Calendar item type" '+(p.id?'disabled':'')+'><option value="event"'+(p.type==='event'?' selected':'')+'>Event</option><option value="task"'+(p.type==='task'?' selected':'')+'>Task</option></select></label>'+
  '<label class="today-field"><span>Date</span><input id="today-plan-date" type="date" aria-label="Calendar item date" value="'+esc(p.date)+'" required></label></div>'+
  '<label class="today-all-day-check"><input id="today-plan-all-day" type="checkbox"'+(allDay?' checked':'')+'> All day</label>'+
- '<div class="today-fields" id="today-plan-times"'+(allDay?' hidden':'')+'><label class="today-field"><span>Start</span><input id="today-plan-time" type="time" aria-label="Calendar start time" value="'+esc(p.time||'09:00')+'"></label><label class="today-field"><span>End (optional)</span><input id="today-plan-end" type="time" aria-label="Calendar end time" value="'+esc(p.end||"")+'"></label></div>'+
+ '<div class="today-fields" id="today-plan-times"'+(allDay?' hidden':'')+'><label class="today-field"><span>Start</span><select id="today-plan-time" aria-label="Calendar start time">'+quarterHourOptions(p.time||'09:00',"",false)+'</select></label><label class="today-field"><span>End (optional)</span><select id="today-plan-end" aria-label="Calendar end time">'+quarterHourOptions(p.end||defaultCalendarEnd(p.time||'09:00'),"",true)+'</select></label></div>'+
  '<div class="today-editor-actions">'+(p.id&&p.type==='task'?'<button type="button" class="button subtle" data-act="today-unschedule" data-id="'+esc(p.id)+'">Remove from calendar</button>':'')+'<button class="button primary" type="submit">'+(p.id?'Save':'Add')+'</button></div></form>'
 }
 function renderTodayPlanner(day){
@@ -857,13 +841,13 @@ function renderTodayPlanner(day){
  (allDay.length?allDay.map(function(x){return '<button class="today-all-day-item'+(x.item.type==='task'?' is-task':'')+'" data-act="today-plan-edit" data-id="'+esc(x.item.id)+'">'+ic(x.item.type==='task'?'check-circle':'calendar',12)+'<span>'+esc(objTitle(x.item))+'</span></button>'}).join(""):'<span class="today-calendar-empty">No all-day plans</span>')+'</section>'+
  '<div class="today-timeline-scroll"><div class="today-timeline">'+Array.from({length:24},function(_,hour){var time=String(hour).padStart(2,"0")+":00";return '<div class="today-hour" style="top:'+(hour*60)+'px"><span>'+time+'</span><button data-act="today-plan-new" data-time="'+time+'" aria-label="Add calendar item at '+time+'"></button></div>'}).join("")+
  plannerBlocks(entries).map(function(b){var e=b.entry.item;return '<button class="today-time-block'+(e.type==='task'?' is-task':'')+'" style="top:'+b.start+'px;height:'+(b.end-b.start)+'px;left:calc(44px + (100% - 48px) * '+b.lane+'/'+b.lanes+');width:calc((100% - 48px) / '+b.lanes+' - 3px)" data-act="today-plan-edit" data-id="'+esc(e.id)+'" aria-label="'+esc(objTitle(e)+' at '+b.entry.time)+'"><strong>'+esc(objTitle(e))+'</strong><small>'+esc(b.entry.time+(b.entry.end?'–'+b.entry.end:''))+'</small></button>'}).join("")+
- '<div class="today-now" style="top:'+minutes+'px" aria-label="Current time"><span></span></div></div></div></aside>'
+ '<div class="today-drop-preview" hidden><span></span></div><div class="today-now" style="top:'+minutes+'px" aria-label="Current time"><span></span></div></div></div></aside>'
 }
 function renderToday(){
  var day=today(),groups=todayTaskGroups(day),doneOpen=!!todaySections().completed;
  return '<div class="today-layout" data-day="'+day+'"><section class="today-task-pane" aria-label="Today’s tasks"><header class="today-pane-header"><div><h1>Today</h1><span>'+esc(humanDay(day,{weekday:"long",month:"long",day:"numeric"}))+'</span></div></header>'+
  '<div class="today-task-scroll"><section class="today-working"><h2>Tasks <span>'+groups.tasks.length+'</span></h2>'+groups.tasks.map(function(e){return todayTaskRow(e,"tasks")}).join("")+
- '<form id="today-add-form" class="today-add-row"><span>'+ic("plus",16)+'</span><input id="today-add-task" aria-label="Add task to Today" placeholder="Add task" autocomplete="off" value="'+esc(todayTaskDraft)+'"><button type="submit" aria-label="Save task to Today">'+ic("corner-down-right",16)+'</button></form>'+
+ '<form id="today-add-form" class="today-add-row"><span class="today-add-checkbox" aria-hidden="true"></span><input id="today-add-task" aria-label="Add task to Today" placeholder="Add task" autocomplete="off" value="'+esc(todayTaskDraft)+'"><button type="submit" aria-label="Save task to Today">'+ic("corner-down-right",16)+'</button></form>'+
  (!groups.tasks.length?'<p class="today-start-hint">What’s on your mind? Type a task and press Enter.</p>':"")+'</section>'+
  todayDeadlineSection("due","Due today",groups.due)+todayDeadlineSection("overdue","Overdue",groups.overdue)+'</div>'+
  '<section class="today-completed"><button class="today-section-toggle" data-act="today-section" data-section="completed" aria-expanded="'+doneOpen+'">'+ic(doneOpen?"chevron-down":"chevron-right",13)+'<span>Completed</span><small>'+groups.completed.length+'</small></button>'+
@@ -893,7 +877,7 @@ function rememberTodayPlanner(){
  var p=todayPlannerEditor;p.title=$("today-plan-title").value;p.type=$("today-plan-type").value;p.date=$("today-plan-date").value;p.allDay=$("today-plan-all-day").checked;p.time=p.allDay?"":$("today-plan-time").value;p.end=p.allDay?"":$("today-plan-end").value
 }
 function openTodayPlanner(id,time){
- var e=get(id);todayPlannerEditor=e?{id:e.id,type:e.type,title:objTitle(e),date:e.type==='task'?e.plannerDate:e.date,time:e.type==='task'?e.plannerTime:e.time,end:e.type==='task'?e.plannerEndTime:e.endTime}:{type:"event",date:today(),time:time||"",end:""};
+ var e=get(id);todayPlannerEditor=e?{id:e.id,type:e.type,title:objTitle(e),date:e.type==='task'?e.plannerDate:e.date,time:e.type==='task'?e.plannerTime:e.time,end:e.type==='task'?e.plannerEndTime:e.endTime}:{type:"event",date:today(),time:time||"",end:time?defaultCalendarEnd(time):""};
  paint();var input=$("today-plan-title");if(input)input.focus()
 }
 function saveTodayPlanner(){
@@ -907,6 +891,104 @@ function saveTodayPlanner(){
  else{e.date=date;e.time=time;e.endTime=end}
  touched(e);todayPlannerEditor=null;paint()
 }
+
+function clockTime(minutes){return String(Math.floor(minutes/60)).padStart(2,"0")+":"+String(minutes%60).padStart(2,"0")}
+function quarterHourOptions(value,emptyLabel,end){
+ var options=emptyLabel?'<option value="">'+esc(emptyLabel)+'</option>':"",times=[];
+ for(var m=0;m<(end?1441:1440);m+=15)times.push(clockTime(m));
+ // Keep existing off-grid times intact when editing older records.
+ if(value&&!times.includes(value))times.push(value);times.sort();
+ return options+times.map(function(t){return '<option value="'+t+'"'+(t===value?' selected':'')+'>'+t+'</option>'}).join("")
+}
+function defaultCalendarEnd(time){return time?clockTime(Math.min(1440,plannerMinute(time)+30)):""}
+function syncPlannerTime(){
+ var start=$("today-plan-time"),end=$("today-plan-end");if(!start||!end)return;
+ var previous=todayPlannerEditor&&todayPlannerEditor.time,oldEnd=todayPlannerEditor&&todayPlannerEditor.end;
+ var duration=previous&&oldEnd?Math.max(15,Math.round((plannerMinute(oldEnd)-plannerMinute(previous))/15)*15):30;
+ end.value=clockTime(Math.min(1440,plannerMinute(start.value)+duration));end.setCustomValidity("")
+}
+function taskEditorScheduleVisibility(){
+ var mode=$("edit-task-placement").value,scheduled=mode!=="none";
+ $("edit-task-schedule").hidden=!scheduled;$("edit-task-times").hidden=mode!=="timed";
+ $("edit-task-date").required=scheduled;$("edit-task-start").required=mode==="timed"
+}
+function openTaskEditor(id){
+ var e=get(id);if(!e||e.type!=="task"||e.trashed)return;
+ var placement=e.plannerDate?(e.plannerTime?"timed":"all-day"):"none",start=e.plannerTime||"09:00",end=e.plannerEndTime||defaultCalendarEnd(start);
+ modalState={mode:"edit-task",id:e.id};
+ openModal('<div class="modal-header"><h2 id="task-editor-heading">Edit task</h2><button type="button" class="icon-button" data-act="modal-close" aria-label="Close task editor">'+ic("x",19)+'</button></div>'+
+ '<div class="modal-scroll"><form id="edit-task-form"><div class="field"><label for="edit-task-title">Task</label><input id="edit-task-title" value="'+esc(e.title)+'" required></div>'+
+ '<div class="field"><label for="edit-task-notes">Notes</label><textarea id="edit-task-notes" rows="4" placeholder="Anything you want to remember…">'+esc(e.body)+'</textarea></div>'+
+ '<div class="field-row"><div class="field"><label for="edit-task-deadline">Deadline (optional)</label><input id="edit-task-deadline" type="date" value="'+esc(e.dueDate)+'"></div>'+
+ '<div class="field"><label for="edit-task-placement">Calendar placement</label><select id="edit-task-placement">'+[['none','Not scheduled'],['all-day','All day'],['timed','At a time']].map(function(x){return '<option value="'+x[0]+'"'+(x[0]===placement?' selected':'')+'>'+x[1]+'</option>'}).join("")+'</select></div></div>'+
+ '<div id="edit-task-schedule"><div class="field"><label for="edit-task-date">Calendar date</label><input id="edit-task-date" type="date" value="'+esc(e.plannerDate||today())+'"></div>'+
+ '<div class="field-row" id="edit-task-times"><div class="field"><label for="edit-task-start">Start</label><select id="edit-task-start">'+quarterHourOptions(start,"",false)+'</select></div>'+
+ '<div class="field"><label for="edit-task-end">End</label><select id="edit-task-end">'+quarterHourOptions(end,"",true)+'</select></div></div></div>'+
+ '<div class="modal-buttons"><button type="button" class="button" data-act="modal-close">Cancel</button><button type="submit" class="button primary">Save</button></div></form></div>');
+ modalRoot.querySelector('[role="dialog"]').setAttribute("aria-labelledby","task-editor-heading");taskEditorScheduleVisibility();$("edit-task-title").focus()
+}
+function saveTaskEditor(){
+ if(!modalState||modalState.mode!=="edit-task")return;
+ var e=get(modalState.id),form=$("edit-task-form");if(!e||e.trashed||!form||!form.reportValidity())return;
+ var title=$("edit-task-title").value.trim(),mode=$("edit-task-placement").value,date=$("edit-task-date").value,start=$("edit-task-start").value,end=$("edit-task-end").value;
+ if(!title){$("edit-task-title").focus();return}
+ if(mode==="timed"&&end<=start){$("edit-task-end").setCustomValidity("End time must be after start time.");$("edit-task-end").reportValidity();return}
+ e.title=title;e.body=$("edit-task-notes").value;e.dueDate=$("edit-task-deadline").value;
+ if(mode==="none"){e.plannerDate="";e.plannerTime="";e.plannerEndTime=""}
+ else{e.plannerDate=date;e.plannerTime=mode==="timed"?start:"";e.plannerEndTime=mode==="timed"?end:"";if(!e.plannedDate)e.plannedDate=date;e.inbox=false}
+ touched(e);closeModal();paint();focusTaskMenu(e.id)
+}
+function focusTaskMenu(id){var button=Array.from(document.querySelectorAll('[data-act="detail-menu"]')).find(function(el){return el.getAttribute("data-id")===id});if(button)button.focus({preventScroll:true})}
+function scheduleDroppedTask(id,day,minute){
+ var e=get(id);if(!e||e.type!=="task"||e.completed||e.trashed||e.archived)return false;
+ e.plannerDate=day;e.plannerTime=minute===null?"":clockTime(minute);e.plannerEndTime=minute===null?"":clockTime(minute+30);
+ if(!e.plannedDate||e.plannedDate>day){e.plannedDate=day;e.todayAddedAt=now()}e.inbox=false;touched(e);return true
+}
+function plannerDropMinute(clientY,top){return Math.max(0,Math.min(1410,Math.floor((clientY-top)/15)*15))}
+function clearTodayDrag(){
+ draggingTodayTask=null;
+ document.querySelectorAll('.today-dragging,.today-calendar-drag,.today-all-day.is-drop-target').forEach(function(el){el.classList.remove("today-dragging","today-calendar-drag","is-drop-target")});
+ var preview=document.querySelector(".today-drop-preview");if(preview)preview.hidden=true
+}
+function showTodayDragFeedback(target,x,y){
+ var timeline=target&&target.closest(".today-timeline"),allDay=target&&target.closest(".today-all-day"),preview=document.querySelector(".today-drop-preview"),dayArea=document.querySelector(".today-all-day");
+ if(dayArea)dayArea.classList.toggle("is-drop-target",!!allDay);
+ if(!timeline){if(preview)preview.hidden=true;return}
+ var minute=plannerDropMinute(y,timeline.getBoundingClientRect().top);
+ if(preview){preview.hidden=false;preview.style.top=minute+"px";preview.querySelector("span").textContent=clockTime(minute)+"–"+clockTime(minute+30)}
+ var scroll=timeline.parentElement,rect=scroll.getBoundingClientRect();
+ if(now()-lastTodayDragScroll>40){if(y<rect.top+35)scroll.scrollTop-=12;else if(y>rect.bottom-35)scroll.scrollTop+=12;lastTodayDragScroll=now()}
+}
+document.addEventListener("pointerdown",function(ev){
+ if(ev.button!==0||!ev.target.closest)return;
+ var row=ev.target.closest(".today-task-row[data-today-drag]");if(!row)return;
+ var e=get(row.getAttribute("data-today-drag"));if(!e||e.completed||e.trashed||e.archived)return;
+ if(ev.target.closest("button,select,textarea"))return;
+ var handle=ev.target.closest(".today-drag-handle");
+ if(!handle&&(ev.pointerType==="touch"||document.activeElement===ev.target&&ev.target.tagName==="INPUT"))return;
+ todayPointerDrag={id:e.id,row:row,pointerId:ev.pointerId,x:ev.clientX,y:ev.clientY,active:false};
+});
+document.addEventListener("pointermove",function(ev){
+ var p=todayPointerDrag;if(!p||p.pointerId!==ev.pointerId)return;
+ if(!p.active){
+  if(Math.hypot(ev.clientX-p.x,ev.clientY-p.y)<6)return;
+  p.active=true;draggingTodayTask=p.id;p.row.setPointerCapture(ev.pointerId);p.row.closest(".today-task-item").classList.add("today-dragging");
+  var planner=document.querySelector(".today-planner");if(planner)planner.classList.add("today-calendar-drag")
+ }
+ ev.preventDefault();showTodayDragFeedback(document.elementFromPoint(ev.clientX,ev.clientY),ev.clientX,ev.clientY)
+},{passive:false});
+document.addEventListener("pointerup",function(ev){
+ var p=todayPointerDrag;if(!p||p.pointerId!==ev.pointerId)return;todayPointerDrag=null;
+ if(!p.active)return;
+ ev.preventDefault();var target=document.elementFromPoint(ev.clientX,ev.clientY),timeline=target&&target.closest(".today-timeline"),allDay=target&&target.closest(".today-all-day"),layout=document.querySelector(".today-layout");
+ var minute=timeline?plannerDropMinute(ev.clientY,timeline.getBoundingClientRect().top):null,day=layout?layout.getAttribute("data-day"):today();
+ if(p.row.hasPointerCapture(ev.pointerId))p.row.releasePointerCapture(ev.pointerId);
+ clearTodayDrag();todayDragClickUntil=now()+400;
+ if((timeline||allDay)&&scheduleDroppedTask(p.id,day,minute))paint()
+});
+function cancelTodayPointerDrag(){var p=todayPointerDrag;if(p&&p.row.hasPointerCapture(p.pointerId))p.row.releasePointerCapture(p.pointerId);todayPointerDrag=null;clearTodayDrag()}
+document.addEventListener("pointercancel",cancelTodayPointerDrag);
+window.addEventListener("blur",cancelTodayPointerDrag);
 
 function renderHome(){
  var filter=miniDateForTool("home");
@@ -1238,13 +1320,13 @@ function detailMain(e){
   if(e.type==="routine")parts+=routineDetail(e);
   if(e.type==="project")parts+='<div class="detail-section"><h3>About this project</h3><textarea class="plain-editor" data-edit="body" placeholder="Context, current state, or anything useful…">'+esc(e.body)+'</textarea></div>';
   else if(e.type==="event")parts+='<div class="detail-section"><h3>About this event</h3><textarea class="plain-editor" data-edit="body" placeholder="What should you remember about this event?">'+esc(e.body)+'</textarea></div>';
-  else if(e.type==="task")parts+=todayTaskDetails(e);
+  else if(e.type==="task")parts+='<div class="detail-section"><h3>Notes</h3><textarea class="plain-editor" data-edit="body" placeholder="Anything you want to remember…">'+esc(e.body)+'</textarea></div><button class="button" data-act="edit-task" data-id="'+esc(e.id)+'">'+ic("pen",14)+' Edit task</button>';
  }
  return parts
 }
 function detailMeta(e){
  var out="";
- if(e.type==="event")out+='<div class="meta-pill">'+ic("calendar",15)+'<input type="date" data-edit="date" value="'+esc(e.date)+'" aria-label="Event date"></div><div class="meta-pill">'+ic("clock",15)+'<input type="time" data-edit="time" value="'+esc(e.time)+'" aria-label="Event time"></div><div class="meta-pill">'+ic("map-pin",15)+'<input type="text" data-edit="location" value="'+esc(e.location)+'" placeholder="Location" aria-label="Location"></div>';
+ if(e.type==="event")out+='<div class="meta-pill">'+ic("calendar",15)+'<input type="date" data-edit="date" value="'+esc(e.date)+'" aria-label="Event date"></div><div class="meta-pill">'+ic("clock",15)+'<select data-edit="time" aria-label="Event time">'+quarterHourOptions(e.time||"","All day",false)+'</select></div><div class="meta-pill">'+ic("map-pin",15)+'<input type="text" data-edit="location" value="'+esc(e.location)+'" placeholder="Location" aria-label="Location"></div>';
  if(e.type==="task"){
   out+='<button class="button" data-act="'+(e.plannedDate&&e.plannedDate<=today()?'today-remove':'today-bring')+'" data-id="'+esc(e.id)+'">'+ic("sun",14)+' '+(e.plannedDate&&e.plannedDate<=today()?'Remove from Today':'Add to Today')+'</button>';
   out+='<div class="meta-pill">'+ic("calendar",15)+'<input type="date" data-edit="dueDate" value="'+esc(e.dueDate)+'" aria-label="Due date"></div>';
@@ -1623,7 +1705,7 @@ function renderWorkspace(){
  else inner=renderHome();
  mediaUrls.forEach(function(u){URL.revokeObjectURL(u)});mediaUrls=[];
  var todayView=isTodayView();workspace.classList.toggle("today-workspace",todayView);
- workspace.innerHTML=topbar()+'<div class="ws-body'+(todayView?' today-body':'')+'">'+inner+'</div>';
+ workspace.innerHTML='<div class="ws-body'+(todayView?' today-body':'')+'">'+inner+'</div>';
  if(todayView){
   var taskArea=workspace.querySelector(".today-task-scroll"),calendarArea=workspace.querySelector(".today-timeline-scroll");
   taskArea.scrollTop=positions?positions.tasks:0;
@@ -1712,7 +1794,7 @@ function openCreate(type,contextId,opts){
  var title="New "+typeName(type).toLowerCase(),field='<div class="field"><label for="new-title">Title</label><input id="new-title" placeholder="'+(type==="event"?"e.g. Dentist, 2 PM":type==="project"?"e.g. Alpine Park HOA":"Give it a name")+'" required></div>';
  if(type==="note")field='<div class="field"><label for="new-title">Title (optional)</label><input id="new-title" placeholder="Start with an idea…"></div>';
  if(type==="resource")field='<div class="field"><label for="new-url">Paste a URL (or upload a file instead)</label><input id="new-url" placeholder="https://example.com"></div><div class="field"><label for="new-title">Title (optional)</label><input id="new-title" placeholder="Recognized automatically if blank"></div><button class="button" data-act="upload" data-context="'+esc(modalState.contextId||"")+'">'+ic("upload",15)+' Choose a file</button>';
- if(type==="event")field+='<div class="field-row"><div class="field"><label for="new-date">Date</label><input id="new-date" type="date" value="'+esc(opts.date||state.ui.selectedDate||today())+'" required></div><div class="field"><label for="new-time">Time</label><input id="new-time" type="time" value="14:00"></div></div><div class="field"><label for="new-location">Location (optional)</label><input id="new-location" placeholder="Add location"></div>';
+ if(type==="event")field+='<div class="field-row"><div class="field"><label for="new-date">Date</label><input id="new-date" type="date" value="'+esc(opts.date||state.ui.selectedDate||today())+'" required></div><div class="field"><label for="new-time">Time</label><select id="new-time">'+quarterHourOptions("14:00","All day",false)+'</select></div></div><div class="field"><label for="new-end-time">End</label><select id="new-end-time">'+quarterHourOptions("14:30","",true)+'</select></div><div class="field"><label for="new-location">Location (optional)</label><input id="new-location" placeholder="Add location"></div>';
  if(type==="task")field+='<div class="field"><label for="new-due">Due date (optional)</label><input id="new-due" type="date" value="'+esc(opts.dueDate||"")+'"></div>';
  if(type==="goal")field+='<div class="field"><label for="new-target">Target date (optional)</label><input id="new-target" type="date"></div><div class="field"><label for="new-body">What does success look like? (optional)</label><textarea id="new-body" rows="3" placeholder="You can add details later."></textarea></div>';
  if(type==="habit")field+='<div class="field"><label for="new-frequency">Repeat</label><select id="new-frequency"><option value="daily">Every day</option><option value="weekly">Once a week</option></select></div>';
@@ -1729,7 +1811,7 @@ function submitCreate(){
  if(!title){if(type==="resource")title=hostname(url);else if(type==="note")title="";else{toast("Add a title first");return}}
  var extra={};
  if(type==="resource"){extra.url=url;extra.resourceKind=classifyUrl(url)}
- if(type==="event"){extra.date=$("new-date").value||today();extra.time=$("new-time").value;extra.location=$("new-location").value.trim()}
+ if(type==="event"){extra.date=$("new-date").value||today();extra.time=$("new-time").value;extra.endTime=extra.time?$("new-end-time").value:"";if(extra.time&&extra.endTime<=extra.time){$("new-end-time").setCustomValidity("End time must be after start time.");$("new-end-time").reportValidity();return}extra.location=$("new-location").value.trim()}
  if(type==="task"){extra.dueDate=$("new-due").value||"";extra.inbox=!!(modalState.opts&&modalState.opts.inbox&&!context)}
  if(type==="goal"){extra.targetDate=$("new-target").value||"";extra.body=$("new-body").value.trim();extra.goalStatus="active";extra.goalProgress=0}
  if(type==="habit"){extra.frequency=$("new-frequency").value||"daily";extra.habitLog=[]}
@@ -1858,7 +1940,7 @@ function submitRenameArea(){
  area.title=name;touched(area);closeModal();paint();toast("Area renamed")
 }
 function openModal(inner){closeDetailsMenu(false);modalRoot.innerHTML='<div class="modal-backdrop" data-act="modal-close"></div><div class="modal-box" role="dialog" aria-modal="true">'+inner+'</div>';modalRoot.classList.add("open");modalRoot.setAttribute("aria-hidden","false")}
-function closeModal(){modalRoot.classList.remove("open");modalRoot.setAttribute("aria-hidden","true");modalRoot.innerHTML="";modalState=null;workingSearch=""}
+function closeModal(){var taskId=modalState&&modalState.mode==="edit-task"?modalState.id:null;modalRoot.classList.remove("open");modalRoot.setAttribute("aria-hidden","true");modalRoot.innerHTML="";modalState=null;workingSearch="";if(taskId)focusTaskMenu(taskId)}
 function newMenu(){
  var t=state.ui.tool;
  var types=[{type:"task",title:"Task",help:"Something to do",icon:"check-circle"},{type:"event",title:"Calendar event",help:"Something on your schedule",icon:"calendar"},{type:"note",title:"Note",help:"Something to write or remember",icon:"note"},{type:"resource",title:"Link or file",help:"Something worth keeping",icon:"link"},{type:"project",title:"Project",help:"Something to work on",icon:"folder-kanban"},{type:"goal",title:"Goal",help:"An outcome to work toward",icon:"target"},{type:"habit",title:"Habit",help:"Something to practice",icon:"flame"},{type:"routine",title:"Routine",help:"A repeatable checklist",icon:"list-checks"},{type:"notebook",title:"Notebook",help:"A place for written things",icon:"notebook"}];
@@ -2166,7 +2248,7 @@ function renderDetailsMenu(){
    conversionTargets(e).map(function(type){return option(typeName(type),"turn-into",typeIcon({type:type}), 'data-type="'+type+'"')}).join("")
  }else{
   menu.setAttribute("aria-label","Item actions");
-  menu.innerHTML=option(e.starred?"Remove star":"Star this item","toggle-star","star")+
+  menu.innerHTML=(e.type==="task"&&!e.trashed?option("Edit task","edit-task","pen"):"")+option(e.starred?"Remove star":"Star this item","toggle-star","star")+
    option(quickHas({kind:"entity",id:e.id})?"Remove from Home Quick Access":"Pin to Home","quick-toggle-entity","pin")+
    (e.type==="task"?option(inInbox(e)?"Remove from Inbox":"Send to Inbox",inInbox(e)?"clear-inbox":"mark-inbox","inbox"):"")+
    (conversionTargets(e).length?option("Turn into…","item-menu-turn","repeat",'aria-haspopup="menu" aria-expanded="false"'):"")+
@@ -2284,6 +2366,10 @@ function editField(target){
  if(f==="areaId"){if(!assignArea(e,target.value))paint();return}
  if(f==="categoryId"){if(!assignCategory(e,target.value))paint();return}
  if(["title","body","date","time","dueDate","location","projectStatus","targetDate","goalStatus","frequency"].includes(f)){
+  if(e.type==="event"&&f==="time"){
+   var duration=e.time&&e.endTime?Math.max(15,Math.round((plannerMinute(e.endTime)-plannerMinute(e.time))/15)*15):30;
+   e.endTime=target.value?clockTime(Math.min(1440,plannerMinute(target.value)+duration)):""
+  }
   e[f]=target.value;touched(e);return
  }
  if(f==="goalProgress"){var pct=Math.min(100,Math.max(0,Number(target.value)||0));e.goalProgress=pct;if(pct===100)e.goalStatus="achieved";touched(e)}
@@ -2356,9 +2442,10 @@ function toggleSectionMenu(trigger){
 
 function onClick(ev){
  var b=ev.target.closest("[data-act]");if(!b)return;
+ if(now()<todayDragClickUntil&&b.closest(".today-layout"))return;
  var act=b.getAttribute("data-act"),id=b.getAttribute("data-id"),type=b.getAttribute("data-type"),ctx=b.getAttribute("data-context"),view=b.getAttribute("data-view"),tool=b.getAttribute("data-tool"),current=get(id);
  if(act==="today-section"){var key=b.getAttribute("data-section");if(["due","overdue","completed"].includes(key)){var prefs=todaySections();prefs[key]=!prefs[key];save();paint();var button=document.querySelector('[data-act="today-section"][data-section="'+key+'"]');if(button)button.focus({preventScroll:true})}return}
- if(act==="today-task-details"){state.ui.todayExpandedTask=state.ui.todayExpandedTask===id?null:id;save();paint();return}
+ if(act==="edit-task"){openTaskEditor(id);return}
  if(act==="today-bring"){bringTaskToToday(id);return}
  if(act==="today-remove"){if(current){current.plannedDate="";touched(current);paint()}return}
  if(act==="today-plan-new"){openTodayPlanner(null,b.getAttribute("data-time"));return}
@@ -2517,6 +2604,7 @@ document.addEventListener("scroll",function(ev){
 },true);
 window.addEventListener("resize",function(){closeDetailsMenu(false);closeSectionMenu(false);closeJournalMenu(false)});
 document.addEventListener("submit",function(ev){
+ if(ev.target.id==="edit-task-form"){ev.preventDefault();saveTaskEditor();return}
  if(ev.target.id==="today-add-form"){ev.preventDefault();addTodayTask($("today-add-task").value);return}
  if(ev.target.id==="today-planner-form"){ev.preventDefault();saveTodayPlanner();return}
 if(ev.target.id==="create-form"){ev.preventDefault();submitCreate()}else if(ev.target.id==="rename-area-form"){ev.preventDefault();submitRenameArea()}else if(ev.target.id==="create-category-form"){ev.preventDefault();submitCreateCategory()}else if(ev.target.id==="rename-category-form"){ev.preventDefault();submitRenameCategory()}else if(ev.target.id==="rename-journal-form"){ev.preventDefault();submitRenameJournal()}});
@@ -2524,7 +2612,7 @@ document.addEventListener("input",function(ev){
  var el=ev.target;
  if(el.id==="today-add-task"){todayTaskDraft=el.value;return}
  if(el.hasAttribute("data-today-field")){if(["title","body"].includes(el.getAttribute("data-today-field")))setTodayTaskField(el);return}
- if(el.id&&el.id.startsWith("today-plan-")){rememberTodayPlanner();if(el.id==="today-plan-end"||el.id==="today-plan-time")$("today-plan-end").setCustomValidity("");return}
+ if(el.id&&el.id.startsWith("today-plan-")){if(el.id!=="today-plan-time")rememberTodayPlanner();if(el.id==="today-plan-end")$("today-plan-end").setCustomValidity("");return}
  if(el.id==="quick-search"){updateQuickResults(el.value);return}
  if(el.id==="global-search"){updateSearchResults(el.value);return}
  if(el.id==="universal-capture"){updateUniversalPreview();return}
@@ -2534,7 +2622,13 @@ document.addEventListener("input",function(ev){
 });
 document.addEventListener("change",function(ev){
  var input=ev.target;
- if(input.id==="today-plan-all-day"){$("today-plan-times").hidden=input.checked;$("today-plan-time").required=!input.checked;rememberTodayPlanner();return}
+ if(input.id==="new-time"){$("new-end-time").disabled=!input.value;$("new-end-time").value=defaultCalendarEnd(input.value);$("new-end-time").setCustomValidity("");return}
+ if(input.id==="new-end-time"){input.setCustomValidity("");return}
+ if(input.id==="edit-task-placement"){taskEditorScheduleVisibility();return}
+ if(input.id==="edit-task-start"){$("edit-task-end").value=defaultCalendarEnd(input.value);$("edit-task-end").setCustomValidity("");return}
+ if(input.id==="edit-task-end"){input.setCustomValidity("");return}
+ if(input.id==="today-plan-time"){syncPlannerTime();rememberTodayPlanner();return}
+ if(input.id==="today-plan-all-day"){$("today-plan-times").hidden=input.checked;$("today-plan-time").required=!input.checked;if(!input.checked&&!todayPlannerEditor.end)$("today-plan-end").value=defaultCalendarEnd($("today-plan-time").value);rememberTodayPlanner();return}
  if(input.id&&input.id.startsWith("today-plan-")){rememberTodayPlanner();return}
  if(input.hasAttribute("data-today-field")){var changed=setTodayTaskField(input);if(changed!==false&&!["title","body"].includes(input.getAttribute("data-today-field")))paint();return}
  if(input.hasAttribute("data-sidebar-section")){
@@ -2549,6 +2643,7 @@ document.addEventListener("keydown",function(ev){
   (typeof target.closest==="function"&&!!target.closest('[contenteditable="true"],[contenteditable=""],[role="textbox"]'));
  var modalOpen=modalRoot.classList.contains("open");
  if(ev.isComposing)return;
+ if(ev.key==="Escape"&&todayPointerDrag){ev.preventDefault();cancelTodayPointerDrag();todayDragClickUntil=now()+400;return}
  if(ev.key==="Enter"&&target.id==="today-add-task"){ev.preventDefault();if(!ev.repeat)addTodayTask(target.value);return}
  if(ev.key==="Escape"&&todayPlannerEditor){ev.preventDefault();todayPlannerEditor=null;paint();return}
  if(itemMenuState&&["ArrowDown","ArrowUp","Home","End","Tab"].includes(ev.key)){

@@ -678,7 +678,7 @@ svg{flex-shrink:0;vertical-align:middle}
 .today-task-scroll{flex:1;min-height:0;overflow:auto;padding:22px;scrollbar-width:thin;scrollbar-color:#e0e2e0 transparent}
 .today-working>h2{font-size:12px;font-weight:600;margin:0 0 10px;display:flex;align-items:center;gap:9px}
 .today-working>h2>span{font-size:10px;font-weight:400;color:var(--quiet)}
-.today-task-item{border-bottom:1px solid #f1f2ef}
+.today-task-item{border:0}
 .today-task-row{min-height:43px;display:flex;align-items:center;gap:10px}
 .today-task-row>.task-check{flex-shrink:0;width:16px;height:16px;margin:0}
 .today-task-text{flex:1;min-width:0;padding:6px 0;display:flex;flex-direction:column}
@@ -742,3 +742,24 @@ svg{flex-shrink:0;vertical-align:middle}
 @media(max-width:1150px){.today-layout{grid-template-columns:minmax(0,1fr) 275px;gap:12px}.ws-body.today-body{padding:14px}.today-task-scroll{padding:16px}.today-pane-header{padding-left:16px;padding-right:16px}.today-completed{padding-left:16px;padding-right:16px}.today-task-row{gap:7px}.today-task-title{font-size:12px}}
 @media(max-width:850px){.workspace.today-workspace{display:block;overflow:auto}.ws-body.today-body{height:auto;padding:12px}.today-layout{height:auto;grid-template-columns:minmax(0,1fr)}.today-task-pane{min-height:65dvh}.today-task-scroll{overflow:visible}.today-planner{height:580px}.today-planner-editor{max-height:290px}.today-completed{margin-top:auto}.today-task-pane .today-pane-header{min-height:70px}}
 @media(hover:none){.today-row-action.icon-button,.today-add-row button{opacity:1}}
+
+/* Quiet task rows and explicit calendar dragging. */
+.nav-brand-icon.icon-button{width:29px;height:29px;color:#68777c;flex-shrink:0}
+.nav-brand-icon.icon-button:hover{color:#293d46;background:#e9ece9}
+.today-add-checkbox{height:16px;border:1px solid #d5dddc;border-radius:4px;opacity:.6}
+.today-task-title:focus,.today-task-title:focus-visible,#today-add-task:focus,#today-add-task:focus-visible{outline:none;box-shadow:none}
+.today-task-row{position:relative}
+.today-drag-handle{position:absolute;left:-15px;width:12px;height:24px;display:flex;align-items:center;justify-content:center;opacity:0;color:#a7b0b0;cursor:grab;user-select:none}
+.today-task-row:hover .today-drag-handle,.today-task-row:focus-within .today-drag-handle{opacity:1}
+.today-dragging{opacity:.45}
+.today-calendar-drag .today-hour>button{background:#f8faf7}
+.today-drop-preview{position:absolute;left:44px;right:3px;height:30px;border:1px dashed #819f71;border-radius:4px;background:#edf4e7e6;z-index:5;pointer-events:none}
+.today-drop-preview[hidden]{display:none}
+.today-drop-preview span{font-size:10px;color:#536a45;padding:5px 8px;display:block}
+.today-all-day.is-drop-target{background:#edf4e7}
+#edit-task-schedule[hidden],#edit-task-times[hidden]{display:none}
+@media(hover:none){.today-drag-handle{opacity:.6}}
+
+.today-drag-handle{touch-action:none;-webkit-user-drag:none}.today-dragging{user-select:none}.today-dragging input{user-select:none}
+
+.task-row{border-bottom:0}
