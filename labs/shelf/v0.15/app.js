@@ -626,7 +626,7 @@ function renderSidebar(){
  var taskAreas=list("area"),projects=list("project"),journals=list("journalbook"),books=list("notebook"),
   folders=list("folder"),links=list("resource").filter(isBookmark),more=state.ui.navMore||{};
  var top='<div class="shelf-nav-header">'+
- '<div class="shelf-nav-brand"><span>Shelf</span><span class="shelf-nav-brand-caret">'+ic("chevron-down",14)+'</span>'+
+ '<div class="shelf-nav-brand"><span>Shelf</span>'+
  '<span class="shelf-nav-head-spacer"></span>'+
  '<button data-act="search" class="shelf-nav-icon" title="Search everything" aria-label="Search">'+ic("search",17)+'</button>'+
  '</div>'+
