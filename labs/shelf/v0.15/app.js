@@ -2644,6 +2644,14 @@ document.addEventListener("keydown",function(ev){
  var modalOpen=modalRoot.classList.contains("open");
  if(ev.isComposing)return;
  if(ev.key==="Escape"&&todayPointerDrag){ev.preventDefault();cancelTodayPointerDrag();todayDragClickUntil=now()+400;return}
+ var taskInput=target.id==="today-add-task"||target.classList&&target.classList.contains("today-task-title");
+ if(!modalOpen&&taskInput&&ev.key==="Escape"){ev.preventDefault();target.blur();return}
+ if(!modalOpen&&taskInput&&ev.key==="Enter"&&(ev.ctrlKey||ev.metaKey)&&!ev.altKey){
+  ev.preventDefault();if(ev.repeat)return;
+  if(target.id==="today-add-task"){var created=addTodayTask(target.value);if(created)openTaskEditor(created.id)}
+  else{setTodayTaskField(target);openTaskEditor(target.getAttribute("data-id"))}
+  return
+ }
  if(ev.key==="Enter"&&target.id==="today-add-task"){ev.preventDefault();if(!ev.repeat)addTodayTask(target.value);return}
  if(ev.key==="Escape"&&todayPlannerEditor){ev.preventDefault();todayPlannerEditor=null;paint();return}
  if(itemMenuState&&["ArrowDown","ArrowUp","Home","End","Tab"].includes(ev.key)){
