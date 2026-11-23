@@ -23,6 +23,7 @@ var TOOLS=[
 ];
 // Icon paths: official Lucide SVGs (ISC License). See LUCIDE-LICENSE.txt.
 var ICONS={
+ "settings":'<path d="M4 6h4m4 0h8M4 12h8m4 0h4M4 18h2m4 0h10"/><circle cx="10" cy="6" r="2"/><circle cx="14" cy="12" r="2"/><circle cx="8" cy="18" r="2"/>',
  "target":"<circle cx=\"12\" cy=\"12\" r=\"10\" /><circle cx=\"12\" cy=\"12\" r=\"6\" /><circle cx=\"12\" cy=\"12\" r=\"2\" />",
  "flame":"<path d=\"M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4\" />",
  "list-checks":"<path d=\"M13 5h8\" /><path d=\"M13 12h8\" /><path d=\"M13 19h8\" /><path d=\"m3 17 2 2 4-4\" /><path d=\"m3 7 2 2 4-4\" />",
@@ -241,6 +242,7 @@ function ensureV15(){
  if(!ui.navSections||typeof ui.navSections!=="object")ui.navSections={todo:true,life:true,resources:true,filters:false,tags:false,pinned:false};
  if(!ui.navNodes||typeof ui.navNodes!=="object")ui.navNodes={tasks:true,projects:false,journals:false,notebooks:false,bookmarks:false,collections:false};
  if(!ui.navMore||typeof ui.navMore!=="object")ui.navMore={};
+ if(!Array.isArray(ui.hiddenSidebarSections))ui.hiddenSidebarSections=[];
  if(!ui.miniCalendars||typeof ui.miniCalendars!=="object")ui.miniCalendars={};
  if(!ui.miniCalendars.sidebar)ui.miniCalendars.sidebar={expanded:false,month:monthKey(today())};
  if(ui.navLayout!=="flat-sections"){
@@ -623,14 +625,13 @@ function navSection(key,label,content,extraActions){
  (key==="pinned"?'<button role="menuitem" data-act="quick-add">'+ic("plus",15)+' Add shortcut</button>':"")+'</div>';
  return '<section class="nav-section'+(open?" expanded":" collapsed")+'">'+
  '<div class="nav-section-row">'+
- '<button class="nav-section-title'+(active?" selected":"")+'" data-act="nav-section-open" data-key="'+esc(key)+'">'+esc(label)+'</button>'+
- '<button class="nav-section-toggle" data-act="nav-section-toggle" data-key="'+esc(key)+
- '" aria-expanded="'+open+'" aria-label="'+(open?"Collapse ":"Expand ")+esc(label)+'">'+
- ic(open?"chevron-down":"chevron-right",14)+'</button>'+
- '<span class="nav-section-spacer"></span>'+
+ '<button class="nav-section-title'+(active?" selected":"")+'" data-act="nav-section-toggle" data-key="'+esc(key)+
+ '" aria-expanded="'+open+'" aria-controls="nav-content-'+esc(key)+'">'+
+ '<span>'+esc(label)+'</span><span class="nav-card-chevron">'+ic(open?"chevron-down":"chevron-right",14)+'</span></button>'+
  '<button class="nav-section-options" data-act="nav-section-menu" title="'+esc(label)+' options" aria-label="Options for '+esc(label)+'" aria-haspopup="menu" aria-expanded="false">'+ic("more",16)+'</button>'+
  menu+'</div>'+
- (open?'<div class="nav-section-content">'+content+'</div>':"")+'</section>'
+ '<div id="nav-content-'+esc(key)+'" class="nav-section-content"'+(open?'':' hidden')+'>'+(open?content:"")+'</div></section>'
+
 }
 function navTags(){
  var map={};
@@ -674,9 +675,9 @@ function renderSidebar(){
  content.types=types.map(function(x){return navLeaf(x[0],"browse",x[1],x[2],1)}).join("");
  var tags=navTags();
  content.tags=tags.length?tags.map(function(tag){return navLeaf("#"+tag.label,"tag",tag.label,"hash",1,{count:tag.count})}).join(""):'<div class="nav-muted-item">No tags yet</div>';
- var navigation=NAV_SECTIONS.map(function(section){return navSection(section.key,section.title,content[section.key])}).join("");
+ var navigation=NAV_SECTIONS.filter(function(section){return sidebarSectionVisible(section.key)}).map(function(section){return navSection(section.key,section.title,content[section.key])}).join("");
  var footer='<div class="shelf-nav-footer">'+sidebarCalendarFooter(state.ui.tool)+
-  '<div class="nav-bottom-links">'+navLeaf("Archive","resources","archive","archive",0)+navLeaf("Trash","resources","trash","trash",0)+'</div>'+
+  '<div class="nav-bottom-links">'+navLeaf("Archive","resources","archive","archive",0)+navLeaf("Trash","resources","trash","trash",0)+navLeaf("Settings","settings","sidebar","settings",0)+'</div>'+
   '<div class="shelf-nav-meta"><span>Shelf · v0.15</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></div></div>';
  sidebar.innerHTML=top+'<div class="shelf-nav-scroll" aria-label="Browse Shelf">'+topLinks+navigation+footer+'</div>';
  var nextScroll=sidebar.querySelector(".shelf-nav-scroll");
@@ -1441,6 +1442,26 @@ function renderTagResults(){
   empty("hash","Nothing with this tag","This view updates automatically when you tag an item."))
 }
 
+function sidebarSectionVisible(key){return !(state.ui.hiddenSidebarSections||[]).includes(key)}
+function sidebarVisibilitySummary(){return NAV_SECTIONS.filter(function(section){return sidebarSectionVisible(section.key)}).length+" of "+NAV_SECTIONS.length+" sections visible"}
+function setSidebarSectionVisible(key,visible){
+ if(!NAV_SECTIONS.some(function(section){return section.key===key}))return;
+ var hidden=(state.ui.hiddenSidebarSections||[]).filter(function(id){return id!==key});
+ if(!visible)hidden.push(key);
+ state.ui.hiddenSidebarSections=hidden
+}
+function renderSettings(){
+ var descriptions={starred:"Items you have starred",todo:"Your areas and tasks",notes:"Your notebooks",journals:"Your journals",projects:"Your projects",goals:"Your goals",habits:"Your habits",bookmarks:"Bookmark collections",resources:"Resource collections",types:"Browse every type of item",tags:"Browse your tags"};
+ return pageHeader("Settings","Make Shelf feel like your workspace.","","SHELF")+
+ '<section class="settings-panel"><div class="settings-panel-heading"><div><h2>Sidebar</h2><p>Choose which sections appear. Changes save automatically.</p></div>'+
+ '<button class="button subtle" data-act="sidebar-show-all">Show all</button></div>'+
+ '<p id="sidebar-visibility-summary" class="settings-summary" role="status" aria-live="polite">'+sidebarVisibilitySummary()+'</p>'+
+ '<fieldset class="sidebar-visibility-list"><legend class="visually-hidden">Visible sidebar sections</legend>'+
+ NAV_SECTIONS.map(function(section){return '<label class="sidebar-visibility-row" for="sidebar-visible-'+esc(section.key)+'">'+
+ '<span><strong>'+esc(section.title)+'</strong><small>'+esc(descriptions[section.key]||"")+'</small></span>'+
+ '<input type="checkbox" id="sidebar-visible-'+esc(section.key)+'" data-sidebar-section="'+esc(section.key)+'"'+(sidebarSectionVisible(section.key)?' checked':'')+'></label>'}).join("")+
+ '</fieldset></section>'
+}
 function renderWorkspace(){
  var inner;
  if(state.ui.detailId){
@@ -1459,6 +1480,7 @@ function renderWorkspace(){
  else if(state.ui.tool==="overview")inner=renderOverview();
  else if(state.ui.tool==="browse")inner=renderBrowseType();
  else if(state.ui.tool==="tag")inner=renderTagResults();
+ else if(state.ui.tool==="settings")inner=renderSettings();
  else inner=renderHome();
  mediaUrls.forEach(function(u){URL.revokeObjectURL(u)});mediaUrls=[];
  workspace.innerHTML=topbar()+'<div class="ws-body">'+inner+'</div>';
@@ -2078,6 +2100,10 @@ function toggleSectionMenu(trigger){
 function onClick(ev){
  var b=ev.target.closest("[data-act]");if(!b)return;
  var act=b.getAttribute("data-act"),id=b.getAttribute("data-id"),type=b.getAttribute("data-type"),ctx=b.getAttribute("data-context"),view=b.getAttribute("data-view"),tool=b.getAttribute("data-tool"),current=get(id);
+ if(act==="sidebar-show-all"){
+  state.ui.hiddenSidebarSections=[];save();renderSidebar();renderWorkspace();
+  var restore=document.querySelector('[data-act="sidebar-show-all"]');if(restore)restore.focus({preventScroll:true});return
+ }
  if(act==="history-page"){
   var pages=Math.max(1,Math.ceil(historyEntries().length/25));
   state.ui.historyPage=Math.max(0,Math.min(pages-1,Number(b.getAttribute("data-page"))||0));
@@ -2217,7 +2243,14 @@ document.addEventListener("input",function(ev){
  if(el.id==="rich-content"){applyRichEdit();return}
  if(el.hasAttribute("data-edit")){if(["areaId","categoryId"].includes(el.getAttribute("data-edit")))return;editField(el);return}
 });
-document.addEventListener("change",function(ev){if(ev.target.hasAttribute("data-edit")){editField(ev.target);paint()}});
+document.addEventListener("change",function(ev){
+ var input=ev.target;
+ if(input.hasAttribute("data-sidebar-section")){
+  setSidebarSectionVisible(input.getAttribute("data-sidebar-section"),input.checked);
+  save();renderSidebar();var summary=$("sidebar-visibility-summary");if(summary)summary.textContent=sidebarVisibilitySummary();return
+ }
+ if(input.hasAttribute("data-edit")){editField(input);paint()}
+});
 document.addEventListener("keydown",function(ev){
  var target=ev.target||{},tag=String(target.tagName||"").toUpperCase();
  var isTyping=["INPUT","TEXTAREA","SELECT"].includes(tag)||target.isContentEditable||
