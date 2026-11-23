@@ -264,7 +264,7 @@ if(state.ui.expandedAreaId===undefined){
 var $=function(id){return document.getElementById(id)};
 var rail=$("toolrail"),sidebar=$("sidebar"),workspace=$("workspace"),modalRoot=$("modal-root"),toastEl=$("toast");
 var activeComposer="auto",composerFor=null,composerText="",modalState=null,uploadContext=null,universalUpload=false,uploadCaptureOptions=null,mediaUrls=[],toastTimer=null;
-var lastToolView=null,workingSearch="",draggingAreaItem=null,draggingQuickKey=null;
+var lastToolView=null,workingSearch="",draggingAreaItem=null,draggingQuickKey=null,itemMenuState=null,lastTypeConversion=null;
 function get(id){return state.entities.find(function(x){return x.id===id})}
 function list(type,includeHidden){return state.entities.filter(function(x){return (!type||x.type===type)&&(includeHidden||(!x.archived&&!x.trashed))})}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){toast("Cannot save: browser storage may be full. Export a backup.")}}
@@ -299,7 +299,7 @@ function meaningfulContext(e){return sources(e).length>0||!!areaOf(e)}
 function count(type){return list(type).length}
 function inInbox(e){return e&&e.type==="task"&&!e.completed&&e.inbox===true}
 function inboxCount(){return list("task").filter(inInbox).length}
-function toast(s){toastEl.textContent=s;toastEl.classList.add("open");clearTimeout(toastTimer);toastTimer=setTimeout(function(){toastEl.classList.remove("open")},2800)}
+function toast(s){toastEl.classList.remove("has-action");toastEl.textContent=s;toastEl.classList.add("open");clearTimeout(toastTimer);toastTimer=setTimeout(function(){toastEl.classList.remove("open")},2800)}
 function typeIcon(e){if(!e)return "layers";if(e.type==="resource")return e.resourceKind==="image"?"image":e.resourceKind==="video"?"video":e.resourceKind==="link"?"link":"file";return {event:"calendar",task:"check-circle",note:"note",project:"clipboard",journal:"book-open",journalbook:"book-open",notebook:"notebook",folder:"folder",area:"layers",category:"folder",goal:"target",habit:"flame",routine:"list-checks"}[e.type]||"layers"}
 function typeName(type){return {event:"Event",task:"Task",note:"Note",resource:"Resource",project:"Project",journal:"Journal entry",journalbook:"Journal",notebook:"Notebook",folder:"Collection",area:"Area",category:"Category",goal:"Goal",habit:"Habit",routine:"Routine"}[type]||"Item"}
 function objTitle(e){return e.title|| (e.type==="journal"?humanDay(e.date):e.fileName||hostname(e.url)||"Untitled")}
@@ -1220,9 +1220,9 @@ function renderDetail(e){
  '<div class="detail-actions"><button class="icon-button'+(e.starred?" active":"")+'" data-act="toggle-star" data-id="'+e.id+'" title="'+(e.starred?"Unstar":"Star")+'">'+ic(e.starred?"starfill":"star",17)+'</button>'+
  '<button class="icon-button'+(quickHas({kind:"entity",id:e.id})?' quick-pinned':'')+'" data-act="quick-toggle-entity" data-id="'+e.id+'" title="'+(quickHas({kind:"entity",id:e.id})?'Remove from Home Quick Access':'Pin to Home Quick Access')+'" aria-label="Pin or unpin in Desk">'+ic(quickHas({kind:"entity",id:e.id})?"pinfill":"pin",17)+'</button>'+
  '<button class="icon-button'+(state.ui.focusId===e.id?" active":"")+'" data-act="focus-context" data-id="'+e.id+'" title="Work in this context">'+ic("layers",17)+'</button>'+
- '<button class="icon-button" data-act="detail-menu" data-id="'+e.id+'" title="More options">'+ic("more",19)+'</button></div></div>';
+ '<button class="icon-button" data-act="detail-menu" data-id="'+e.id+'" title="More options" aria-label="More options" aria-haspopup="menu" aria-expanded="false" aria-controls="item-menu">'+ic("more",19)+'</button></div></div>';
  var related=relatedSection(e),showCapture=["event","project","task","note","resource","journal","goal","habit","routine"].includes(e.type);
- var detail='<div class="detail-root">'+back+head+detailMeta(e)+'<div class="detail-columns"><div class="detail-core">'+detailMain(e)+
+ var detail='<div class="detail-root">'+back+head+detailMeta(e)+'<div class="detail-columns"><div class="detail-core">'+detailMain(e)+retainedResource(e)+
  (related?related:"")+(showCapture?'<div class="detail-section"><h3>'+ic("plus",15)+' Add to '+esc(objTitle(e))+'</h3>'+captureBox(e)+'</div>':"")+
  '</div><div class="detail-side">'+detailSidebar(e)+'</div></div></div>';
  return detail
@@ -1513,7 +1513,7 @@ function renderWorkspace(){
  workspace.innerHTML=topbar()+'<div class="ws-body">'+inner+'</div>';
  fillPreviews()
 }
-function paint(){renderRail();renderSidebar();renderWorkspace()}
+function paint(){closeDetailsMenu(false);renderRail();renderSidebar();renderWorkspace()}
 function go(tool,view,stay){
  if(tool==="home"&&(view==="history"||view==="recent")){view="history";state.ui.historyPage=0}
  var oldTool=tool;tool=canonicalTool(tool,view);
@@ -1738,7 +1738,7 @@ function submitRenameArea(){
  var area=get(modalState.id),name=$("area-name")?$("area-name").value.trim():"";if(!area||!name)return;
  area.title=name;touched(area);closeModal();paint();toast("Area renamed")
 }
-function openModal(inner){modalRoot.innerHTML='<div class="modal-backdrop" data-act="modal-close"></div><div class="modal-box" role="dialog" aria-modal="true">'+inner+'</div>';modalRoot.classList.add("open");modalRoot.setAttribute("aria-hidden","false")}
+function openModal(inner){closeDetailsMenu(false);modalRoot.innerHTML='<div class="modal-backdrop" data-act="modal-close"></div><div class="modal-box" role="dialog" aria-modal="true">'+inner+'</div>';modalRoot.classList.add("open");modalRoot.setAttribute("aria-hidden","false")}
 function closeModal(){modalRoot.classList.remove("open");modalRoot.setAttribute("aria-hidden","true");modalRoot.innerHTML="";modalState=null;workingSearch=""}
 function newMenu(){
  var t=state.ui.tool;
@@ -1969,19 +1969,103 @@ function updateAttachResults(q){
  return !(e.contextIds||[]).includes(target.id)}).sort(byRecent).slice(0,40);
  el.innerHTML=arr.length?arr.map(function(e){return '<button class="search-result" data-act="attach-one" data-id="'+e.id+'">'+ic(typeIcon(e),18)+'<span><strong>'+esc(objTitle(e))+'</strong><small>'+esc(typeName(e.type))+(contextName(e)?" · "+esc(contextName(e)):"")+'</small></span>'+ic("plus",16)+'</button>'}).join(""):'<div class="modal-empty">Nothing else to link.</div>'
 }
-function detailsMenu(e){
- if(!e)return;
- modalState={mode:"options",id:e.id};
- openModal('<div class="modal-header"><h2>'+esc(objTitle(e))+'</h2><button class="icon-button" data-act="modal-close">'+ic("x",19)+'</button></div><div class="modal-scroll"><div class="menu-list">'+
- '<button class="menu-choice" data-act="toggle-star" data-id="'+e.id+'">'+ic("star",19)+'<span>'+(e.starred?"Remove star":"Star this item")+'</span></button>'+
- '<button class="menu-choice" data-act="quick-toggle-entity" data-id="'+e.id+'">'+ic("pin",19)+'<span>'+(quickHas({kind:"entity",id:e.id})?"Remove from Home Quick Access":"Pin to Home")+'</span></button>'+
- (e.type==="task"?'<button class="menu-choice" data-act="'+(inInbox(e)?"clear-inbox":"mark-inbox")+'" data-id="'+e.id+'">'+ic("inbox",19)+'<span>'+(inInbox(e)?"Remove from Inbox":"Send to Inbox")+'</span></button>':"")+
- '<button class="menu-choice" data-act="focus-context" data-id="'+e.id+'">'+ic("layers",19)+'<span>'+(state.ui.focusId===e.id?"Stop working here":"Work in this context")+'</span></button>'+
- '<button class="menu-choice" data-act="attach-existing" data-context="'+e.id+'">'+ic("link",19)+'<span>Link an existing item</span></button>'+
- '<button class="menu-choice" data-act="archive-item" data-id="'+e.id+'">'+ic("archive",19)+'<span>'+(e.archived?"Restore from archive":"Archive")+'</span></button>'+
- '<button class="menu-choice" data-act="'+(e.trashed?"restore-item":"trash-item")+'" data-id="'+e.id+'" style="color:#b1786f">'+ic("trash",19)+'<span>'+(e.trashed?"Restore from trash":"Move to trash")+'</span></button>'+
- (e.trashed?'<button class="menu-choice" data-act="delete-forever" data-id="'+e.id+'" style="color:#b2564b">'+ic("trash",19)+'<span>Delete permanently</span></button>':"")+
- '</div></div>');
+var CONVERSION_TYPES=["note","task","project","event","goal","habit","routine","journal","resource"];
+function conversionTargets(e){
+ if(!e||!CONVERSION_TYPES.includes(e.type))return [];
+ return CONVERSION_TYPES.filter(function(type){return type!==e.type&&(type!=="resource"||safeUrl(e.url)||e.blobId)})
+}
+function conversionPlainText(html){
+ return stripHtml(String(html||"").replace(/<br\s*\/?\s*>/gi,"\n").replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi,"\n").replace(/<li(?:\s[^>]*)?>/gi,"• ")).replace(/\n{3,}/g,"\n\n").trim()
+}
+function turnItemInto(id,type,undo){
+ var e=get(id);if(!e||e.trashed||!conversionTargets(e).includes(type))return false;
+ var from=e.type,wasRich=["note","journal"].includes(from),isRich=["note","journal"].includes(type);
+ if(wasRich&&!isRich){
+  var html=e.html||universalHtml(e.body||"");
+  e.body=conversionPlainText(html);e.conversionRichText={html:html,body:e.body}
+ }else if(!wasRich&&isRich){
+  var text=e.body||"",cached=e.conversionRichText;
+  e.html=cached&&cached.body===text?cached.html:e.html&&conversionPlainText(e.html)===text?e.html:universalHtml(text)
+ }
+ if(from==="journal"&&!e.title)e.title=objTitle(e);
+ e.type=type;
+ if(type==="task")e.inbox=!e.completed&&!e.areaId&&!e.categoryId&&!e.dueDate&&!(e.contextIds||[]).length;
+ if(type==="event"||type==="journal"){if(!e.date)e.date=today()}
+ if(type==="journal"){
+  var book=get(e.journalBookId);if(!book||book.type!=="journalbook"||book.trashed)e.journalBookId=state.ui.defaultJournalId
+ }
+ if(type==="project"&&!e.projectStatus)e.projectStatus="active";
+ if(type==="goal"){if(typeof e.goalProgress!=="number")e.goalProgress=0;if(!e.goalStatus)e.goalStatus="active"}
+ if(type==="habit"){if(!Array.isArray(e.habitLog))e.habitLog=[];if(!e.frequency)e.frequency="daily"}
+ if(type==="routine"){if(!Array.isArray(e.routineSteps))e.routineSteps=[];if(!e.routineLog)e.routineLog={};if(!e.frequency)e.frequency="daily"}
+ if(type==="resource"&&!e.resourceKind)e.resourceKind=e.blobId?"document":classifyUrl(e.url);
+ closeDetailsMenu(false);
+ if(state.ui.detailId===e.id){
+  var tool={note:"notes",task:"todo",project:"projects",event:"calendar",goal:"goals",habit:"habits",routine:"routines",journal:"journals",resource:isBookmark(e)?"bookmarks":"resources"}[type];
+  state.ui.tool=tool;state.ui.view=tool==="calendar"?"month":tool==="habits"||tool==="routines"?"today":"all";
+  state.ui.lastTool=tool;state.ui.lastView=state.ui.view;
+  if(state.ui.sidebarDateFilters)delete state.ui.sidebarDateFilters[tool]
+ }
+ touched(e);paint();
+ if(undo){lastTypeConversion=null;toast("Changed back to "+typeName(type))}
+ else{
+  lastTypeConversion={id:e.id,type:from};toast("Turned into "+typeName(type));toastEl.classList.add("has-action");
+  var action=document.createElement("button");action.textContent="Undo";action.setAttribute("data-act","undo-turn-into");toastEl.appendChild(action);
+  clearTimeout(toastTimer);toastTimer=setTimeout(function(){toastEl.classList.remove("open")},8000)
+ }
+ return true
+}
+function retainedResource(e){
+ var out="";
+ if(e.type!=="resource"&&(safeUrl(e.url)||e.blobId))out+='<div class="detail-section retained-resource"><h3>Saved resource</h3>'+
+  (safeUrl(e.url)?'<a target="_blank" rel="noopener noreferrer" href="'+esc(safeUrl(e.url))+'">'+ic("external-link",14)+' '+esc(e.url)+'</a>':"")+
+  (e.blobId?'<button class="button" data-act="download-resource" data-id="'+esc(e.id)+'">'+ic("download",14)+' '+esc(e.fileName||"Download original file")+'</button>':"")+'</div>';
+ if(e.type!=="routine"&&Array.isArray(e.routineSteps)&&e.routineSteps.length)out+='<div class="detail-section"><h3>Checklist</h3><ul>'+e.routineSteps.map(function(step){return '<li>'+esc(step.text)+'</li>'}).join("")+'</ul></div>';
+ return out
+}
+function closeDetailsMenu(restoreFocus){
+ var menu=document.getElementById("item-menu"),trigger=itemMenuState&&itemMenuState.trigger;
+ if(!menu&&!itemMenuState)return false;
+ if(menu)menu.remove();itemMenuState=null;
+ if(trigger){trigger.setAttribute("aria-expanded","false");if(restoreFocus&&trigger.isConnected)trigger.focus()}
+ return true
+}
+function positionDetailsMenu(){
+ var menu=document.getElementById("item-menu"),trigger=itemMenuState&&itemMenuState.trigger;if(!menu||!trigger)return;
+ var rect=trigger.getBoundingClientRect(),width=menu.offsetWidth,height=menu.offsetHeight;
+ var left=Math.max(8,Math.min(rect.right-width,window.innerWidth-width-8));
+ var top=rect.bottom+6;
+ if(top+height>window.innerHeight-8)top=rect.top-height-6;
+ menu.style.left=left+"px";menu.style.top=Math.max(8,Math.min(top,window.innerHeight-height-8))+"px"
+}
+function renderDetailsMenu(){
+ var menu=document.getElementById("item-menu"),e=get(itemMenuState&&itemMenuState.id);if(!menu||!e)return;
+ function option(label,action,icon,attrs,danger){return '<button role="menuitem" class="item-menu-option'+(danger?' danger':'')+'" data-act="'+action+'" data-id="'+esc(e.id)+'" '+(attrs||"")+'>'+ic(icon,16)+'<span>'+esc(label)+'</span></button>'}
+ if(itemMenuState.view==="convert"){
+  menu.setAttribute("aria-label","Turn into");
+  menu.innerHTML=option("Back to item actions","item-menu-back","chevron-left")+'<div class="item-menu-label">Turn into…</div>'+
+   conversionTargets(e).map(function(type){return option(typeName(type),"turn-into",typeIcon({type:type}), 'data-type="'+type+'"')}).join("")
+ }else{
+  menu.setAttribute("aria-label","Item actions");
+  menu.innerHTML=option(e.starred?"Remove star":"Star this item","toggle-star","star")+
+   option(quickHas({kind:"entity",id:e.id})?"Remove from Home Quick Access":"Pin to Home","quick-toggle-entity","pin")+
+   (e.type==="task"?option(inInbox(e)?"Remove from Inbox":"Send to Inbox",inInbox(e)?"clear-inbox":"mark-inbox","inbox"):"")+
+   (conversionTargets(e).length?option("Turn into…","item-menu-turn","repeat",'aria-haspopup="menu" aria-expanded="false"'):"")+
+   option(state.ui.focusId===e.id?"Stop working here":"Work in this context","focus-context","layers")+
+   option("Link an existing item","attach-existing","link",'data-context="'+esc(e.id)+'"')+
+   '<div class="item-menu-divider"></div>'+option(e.archived?"Restore from archive":"Archive","archive-item","archive")+
+   option(e.trashed?"Restore from trash":"Move to trash",e.trashed?"restore-item":"trash-item","trash","",true)+
+   (e.trashed?option("Delete permanently","delete-forever","trash","",true):"")
+ }
+ positionDetailsMenu();var first=menu.querySelector('[role="menuitem"]');if(first)first.focus()
+}
+function detailsMenu(e,trigger){
+ if(!e||!trigger)return;
+ var closing=itemMenuState&&itemMenuState.id===e.id;
+ closeDetailsMenu(false);closeSectionMenu(false);closeJournalMenu(false);if(closing)return;
+ itemMenuState={id:e.id,trigger:trigger,view:"actions"};
+ var menu=document.createElement("div");menu.id="item-menu";menu.className="item-popover";menu.setAttribute("role","menu");
+ document.body.appendChild(menu);trigger.setAttribute("aria-expanded","true");renderDetailsMenu()
 }
 function toggleTask(id){var e=get(id);if(!e)return;e.completed=!e.completed;if(e.completed)e.inbox=false;touched(e);paint();toast(e.completed?"Task completed":"Task reopened")}
 function clearInbox(id){var e=get(id);if(!e||e.type!=="task")return;e.inbox=false;touched(e);paint();toast("Kept as an independent task · removed from Inbox")}
@@ -2154,6 +2238,11 @@ function toggleSectionMenu(trigger){
 function onClick(ev){
  var b=ev.target.closest("[data-act]");if(!b)return;
  var act=b.getAttribute("data-act"),id=b.getAttribute("data-id"),type=b.getAttribute("data-type"),ctx=b.getAttribute("data-context"),view=b.getAttribute("data-view"),tool=b.getAttribute("data-tool"),current=get(id);
+ if(act==="item-menu-turn"){if(itemMenuState){itemMenuState.view="convert";renderDetailsMenu()}return}
+ if(act==="item-menu-back"){if(itemMenuState){itemMenuState.view="actions";renderDetailsMenu()}return}
+ if(act==="turn-into"){turnItemInto(id,type,false);return}
+ if(act==="undo-turn-into"){if(lastTypeConversion)turnItemInto(lastTypeConversion.id,lastTypeConversion.type,true);return}
+ if(b.closest&&b.closest("#item-menu"))closeDetailsMenu(false);
  if(act==="sidebar-capture"){
   closeSectionMenu(false);openUniversalCapture("",{captureType:type,contextId:ctx||null,section:b.getAttribute("data-section")||""});return
  }
@@ -2234,7 +2323,7 @@ function onClick(ev){
  if(act==="clear-inbox"){clearInbox(id);return}
  if(act==="mark-inbox"){markInbox(id);return}
  if(act==="toggle-star"&&current){current.starred=!current.starred;touched(current);closeModal();paint();return}
- if(act==="detail-menu"){detailsMenu(current);return}
+ if(act==="detail-menu"){detailsMenu(current,b);return}
  if(act==="focus-context"){focusContext(id);return}
  if(act==="clear-focus"){state.ui.focusId=null;save();paint();return}
  if(act==="modal-close"){closeModal();return}
@@ -2290,6 +2379,16 @@ document.addEventListener("click",function(ev){
  if(ev.target&&typeof ev.target.closest==="function"&&ev.target.closest(".journal-page-menu"))return;
  closeJournalMenu(false)
 });
+document.addEventListener("click",function(ev){
+ var path=typeof ev.composedPath==="function"?ev.composedPath():[];
+ if(path.some(function(node){return node&&(node.id==="item-menu"||node===((itemMenuState||{}).trigger))}))return;
+ closeDetailsMenu(false)
+});
+document.addEventListener("scroll",function(ev){
+ if(ev.target&&ev.target.closest&&ev.target.closest("#item-menu"))return;
+ closeDetailsMenu(false);closeSectionMenu(false);closeJournalMenu(false)
+},true);
+window.addEventListener("resize",function(){closeDetailsMenu(false);closeSectionMenu(false);closeJournalMenu(false)});
 document.addEventListener("submit",function(ev){if(ev.target.id==="create-form"){ev.preventDefault();submitCreate()}else if(ev.target.id==="rename-area-form"){ev.preventDefault();submitRenameArea()}else if(ev.target.id==="create-category-form"){ev.preventDefault();submitCreateCategory()}else if(ev.target.id==="rename-category-form"){ev.preventDefault();submitRenameCategory()}else if(ev.target.id==="rename-journal-form"){ev.preventDefault();submitRenameJournal()}});
 document.addEventListener("input",function(ev){
  var el=ev.target;
@@ -2313,7 +2412,12 @@ document.addEventListener("keydown",function(ev){
  var isTyping=["INPUT","TEXTAREA","SELECT"].includes(tag)||target.isContentEditable||
   (typeof target.closest==="function"&&!!target.closest('[contenteditable="true"],[contenteditable=""],[role="textbox"]'));
  var modalOpen=modalRoot.classList.contains("open");
- if(ev.key==="Escape"){if(modalOpen){ev.preventDefault();closeModal();return}if(closeSectionMenu(true)){ev.preventDefault();return}if(closeJournalMenu(true)){ev.preventDefault();return}if(state.ui.detailId){back();return}}
+ if(itemMenuState&&["ArrowDown","ArrowUp","Home","End","Tab"].includes(ev.key)){
+  if(ev.key==="Tab"){closeDetailsMenu(true);return}
+  var menu=document.getElementById("item-menu"),items=menu?Array.from(menu.querySelectorAll('[role="menuitem"]')):[],index=items.indexOf(document.activeElement);
+  if(items.length){ev.preventDefault();var next=ev.key==="Home"?0:ev.key==="End"?items.length-1:(index+(ev.key==="ArrowDown"?1:-1)+items.length)%items.length;items[next].focus()}return
+ }
+ if(ev.key==="Escape"){if(modalOpen){ev.preventDefault();closeModal();return}if(closeDetailsMenu(true)){ev.preventDefault();return}if(closeSectionMenu(true)){ev.preventDefault();return}if(closeJournalMenu(true)){ev.preventDefault();return}if(state.ui.detailId){back();return}}
  if((ev.key==="q"||ev.key==="Q")&&!isTyping&&!modalOpen&&!ev.repeat&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey&&!ev.isComposing){
   ev.preventDefault();openUniversalCapture();return
  }
