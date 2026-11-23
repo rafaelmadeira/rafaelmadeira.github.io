@@ -249,7 +249,7 @@ function ensureV15(){
  }
  if(!Array.isArray(ui.history))ui.history=(ui.recent||[]).map(function(id){return {id:id,openedAt:null}});
  if(!Number.isInteger(ui.historyPage)||ui.historyPage<0)ui.historyPage=0;
- if(ui.tool==="home"&&ui.view==="recent")ui.view="history";
+ if(ui.tool==="home"&&["recent","history"].includes(ui.view))ui.view="today";
  ui.navMenu=null;
  state.version=15
 }
@@ -652,7 +652,7 @@ function renderSidebar(){
   '<span class="shelf-nav-head-spacer"></span><button data-act="universal-open" class="nav-brand-new" title="New item (Q)">'+ic("plus",15)+' New</button></div></div>';
  var topLinks='<div class="nav-top-links">'+navTop("Today","home","today","sun")+
   navTop("Inbox","home","inbox","inbox",inboxCount())+navTop("Calendar","calendar","month","calendar-days")+
-  navTop("History","home","history","clock")+'</div>';
+  '</div>';
  function objectLink(e){return '<button class="nav-leaf nav-object-link" style="--nav-depth:1" data-act="open" data-id="'+esc(e.id)+'" title="'+esc(objTitle(e))+'">'+
   '<span class="nav-item-icon">'+ic(typeIcon(e),15)+'</span><span class="nav-row-label">'+esc(objTitle(e))+'</span></button>'}
  function objectChildren(key,items,message){return items.length?navShowMore(key,items.sort(byRecent),objectLink):'<div class="nav-muted-item">'+esc(message)+'</div>'}
