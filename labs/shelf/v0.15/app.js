@@ -525,111 +525,167 @@ function calendarDateHeader(tool,date,subtitle,actions){
   subtitle,actions+'<button class="button subtle" data-act="sidebar-mini-clear">'+ic("x",14)+' Clear date</button>',
   tool.toUpperCase()+" / DATE")
 }
+// Persistent navigation: section names open aggregators; chevrons only expand.
+var NAV_SECTIONS=[
+ {key:"todo",title:"To Do",actions:[["task","New task"],["project","New project"],["routine","New routine"]]},
+ {key:"life",title:"My Life",actions:[["journalbook","New journal"],["goal","New goal"],["habit","New habit"]]},
+ {key:"resources",title:"Resources",actions:[["note","New note"],["resource","Save link or file"],["folder","New collection"]]},
+ {key:"filters",title:"Filters",actions:[]},
+ {key:"tags",title:"Tags",actions:[]}
+];
+function navSections(){return state.ui.navSections||(state.ui.navSections={})}
+function navNodes(){return state.ui.navNodes||(state.ui.navNodes={})}
+function navExpanded(key){return navSections()[key]!==false}
+function navOpenDestination(key){
+ if(key==="todo")go("overview","todo");
+ else if(key==="life")go("overview","life");
+ else if(key==="resources")go("overview","resources");
+ else if(key==="filters")go("overview","filters");
+ else if(key==="tags")go("overview","tags");
+ else if(key==="pinned")go("overview","pinned")
+}
+function navSelected(tool,view){
+ return !state.ui.detailId&&state.ui.tool===tool&&state.ui.view===(view||"all")
+}
+function navTop(label,tool,view,icon,count){
+ return '<button class="nav-top-row'+(navSelected(tool,view)?" selected":"")+
+ '" data-act="navigate" data-tool="'+esc(tool)+'" data-view="'+esc(view)+
+ '" aria-current="'+(navSelected(tool,view)?"page":"false")+'">'+
+ ic(icon,17)+'<span class="nav-row-label">'+esc(label)+'</span>'+
+ (count?'<span class="nav-subtle-count">'+count+'</span>':"")+'</button>'
+}
+function navLeaf(label,tool,view,icon,depth,extra){
+ extra=extra||{};var active=navSelected(tool,view);
+ return '<button class="nav-leaf'+(active?" selected":"")+'" style="--nav-depth:'+(depth||1)+
+ '" data-act="navigate" data-tool="'+esc(tool)+'" data-view="'+esc(view)+
+ '" title="'+esc(label)+'" aria-current="'+(active?"page":"false")+'">'+
+ (icon?'<span class="nav-item-icon">'+ic(icon,15)+'</span>':"")+
+ '<span class="nav-row-label">'+esc(label)+'</span>'+
+ (extra.count!=null?'<span class="nav-subtle-count">'+extra.count+'</span>':"")+'</button>'
+}
+function navShowMore(key,array,render){
+ var n=array.length,more=state.ui.navMore||(state.ui.navMore={});
+ var cap=n<=10?n:Math.min(n,Math.max(5,more[key]||5));
+ var output=array.slice(0,cap).map(render).join("");
+ if(n>10&&cap<n)output+='<button class="nav-show-more" data-act="nav-show-more" data-key="'+esc(key)+'" data-next="'+Math.min(n,cap+10)+'">Show more</button>';
+ else if(n>10&&cap>5)output+='<button class="nav-show-more" data-act="nav-show-less" data-key="'+esc(key)+'">Show less</button>';
+ return output
+}
+function navNode(key,label,icon,tool,view,children){
+ var expanded=navNodes()[key]===true,active=navSelected(tool,view);
+ return '<div class="nav-branch"><div class="nav-node-row">'+
+ '<button class="nav-node-link'+(active?" selected":"")+'" data-act="navigate" data-tool="'+esc(tool)+
+ '" data-view="'+esc(view)+'">'+
+ '<span class="nav-item-icon">'+ic(icon,15)+'</span><span class="nav-row-label">'+esc(label)+'</span></button>'+
+ '<button class="nav-node-toggle'+(expanded?" open":"")+'" data-act="nav-node-toggle" data-key="'+esc(key)+
+ '" aria-label="'+(expanded?"Collapse ":"Expand ")+esc(label)+'" aria-expanded="'+expanded+'">'+
+ ic(expanded?"chevron-down":"chevron-right",14)+'</button></div>'+
+ (expanded?'<div class="nav-node-children">'+children+'</div>':"")+'</div>'
+}
+function navSection(key,label,content,extraActions){
+ var open=navExpanded(key),active=navSelected("overview",key);
+ var config=NAV_SECTIONS.find(function(s){return s.key===key}),actions=extraActions||(config?config.actions:[]);
+ var menu='<div class="nav-section-popover" role="menu" aria-label="'+esc(label)+' options" hidden>'+
+ '<button role="menuitem" data-act="nav-section-open" data-key="'+esc(key)+'">'+ic("folder",15)+' Open '+esc(label)+'</button>'+
+ '<button role="menuitem" data-act="nav-section-toggle" data-key="'+esc(key)+'">'+ic(open?"chevron-up":"chevron-down",15)+(open?" Collapse":" Expand")+'</button>'+
+ (actions||[]).map(function(item){return '<button role="menuitem" data-act="create" data-type="'+item[0]+'">'+ic("plus",15)+' '+esc(item[1])+'</button>'}).join("")+
+ (key==="pinned"?'<button role="menuitem" data-act="quick-add">'+ic("plus",15)+' Add shortcut</button>':"")+'</div>';
+ return '<section class="nav-section'+(open?" expanded":" collapsed")+'">'+
+ '<div class="nav-section-row">'+
+ '<button class="nav-section-toggle" data-act="nav-section-toggle" data-key="'+esc(key)+
+ '" aria-expanded="'+open+'" aria-label="'+(open?"Collapse ":"Expand ")+esc(label)+'">'+
+ ic(open?"chevron-down":"chevron-right",14)+'</button>'+
+ '<button class="nav-section-title'+(active?" selected":"")+'" data-act="nav-section-open" data-key="'+esc(key)+'">'+esc(label)+'</button>'+
+ '<button class="nav-section-options" data-act="nav-section-menu" title="'+esc(label)+' options" aria-label="Options for '+esc(label)+'" aria-haspopup="menu" aria-expanded="false">'+ic("more",16)+'</button>'+
+ menu+'</div>'+
+ (open?'<div class="nav-section-content">'+content+'</div>':"")+'</section>'
+}
+function navTags(){
+ var map={};
+ list().forEach(function(e){(e.tags||[]).forEach(function(tag){tag=String(tag||"").trim();if(!tag)return;var k=tag.toLowerCase();if(!map[k])map[k]={label:tag,count:0};map[k].count++})});
+ return Object.keys(map).sort(function(a,b){return a.localeCompare(b)}).map(function(key){return map[key]})
+}
 function renderSidebar(){
- var t=state.ui.tool,html='<div class="sb-head"><h2>'+esc((TOOLS.find(function(x){return x.id===t})||TOOLS[0]).name)+'</h2>'+(t==="journals"?"":'<button data-act="create-primary" title="New in '+esc(t)+'">'+ic("plus",18)+'</button>')+'</div><div class="sb-scroll">';
- if(t==="home"){
-  html+=sr("Today","today","sun")+sr("Inbox","inbox","inbox",{count:inboxCount()})+sr("Recent","recent","clock")+sr("Starred","starred","star");
-  html+='<div class="sb-section-heading"><span>Quick Access</span><button data-act="quick-add" title="Add a shortcut to Home" aria-label="Add Quick Access shortcut">'+ic("plus",15)+'</button></div>';
-  var quicks=quickList();
-  html+=quicks.length?quicks.map(function(x,i){return quickRow(x.ref,i)}).join(""):'<div class="sidebar-empty quick-empty">Keep your favorite destinations here.<br><button data-act="quick-add">+ Add shortcut</button></div>';
- }
- if(t==="journals"){
-  html+=sh("Journals","journalbook");
-  html+=sr("All entries","all","book-open",{count:list("journal").length});
-  html+=list("journalbook").sort(function(a,b){return (a.id===state.ui.defaultJournalId?-1:b.id===state.ui.defaultJournalId?1:0)||a.createdAt-b.createdAt}).map(function(book){
-   return sr(objTitle(book),"journalbook:"+book.id,"book-open",{count:list("journal").filter(function(e){return e.journalBookId===book.id}).length})
-  }).join("");
- }
- if(t==="calendar"){
-  html+=sr("Month view","month","calendar")+sr("Upcoming","upcoming","clock");
-  html+=sh("Calendars");
-  html+=sr("My calendar","all","calendar-days",{count:list("event").length});
- }
- if(t==="todo"){
-  var tasks=list("task");
-  html+=sr("Today","today","sun",{count:tasks.filter(function(x){return !x.completed&&x.dueDate&&x.dueDate<=today()}).length});
-  html+=sr("Inbox","inbox","inbox",{count:inboxCount()});
-  html+=sr("Upcoming","upcoming","calendar-days");
-  html+=sr("All tasks","all","check-circle",{count:tasks.length});
-  html+=sr("Completed","completed","check");
-  html+=sh("Areas","area");
-  html+=list("area").map(function(a){
-   var active=state.ui.view==="area:"+a.id,expanded=state.ui.expandedAreaId===a.id;
-   var inView=state.ui.view.startsWith("category:")&&get(state.ui.view.slice(9))&&get(state.ui.view.slice(9)).areaId===a.id;
-   var n=tasks.filter(function(e){return inArea(e,a)&&!e.completed}).length;
-   var result='<div class="sb-area-group"><div class="sb-area-header'+(active||inView?" has-active":"")+'" data-area-drop="'+esc(a.id)+'">'+
-    '<button class="sb-area-toggle" data-act="area-toggle" data-id="'+esc(a.id)+'" aria-label="'+(expanded?"Collapse ":"Expand ")+esc(objTitle(a))+'">'+ic(expanded?"chevron-down":"chevron-right",13)+'</button>'+
-    '<button class="sb-row sb-area-link'+(active?" active":"")+'" data-act="area-open" data-id="'+esc(a.id)+'"><span class="sb-ico">'+ic(areaIcon(a),16)+'</span><span class="label">'+esc(objTitle(a))+'</span><span class="sb-num">'+n+'</span></button></div>';
-   if(expanded){
-    result+=categoriesIn(a).map(function(c){
-     var selected=state.ui.view==="category:"+c.id,count=tasks.filter(function(t){return !t.completed&&inCategory(t,c)}).length;
-     return '<button class="sb-row sb-category-row'+(selected?" active":"")+'" data-act="category-open" data-id="'+esc(c.id)+'" data-category-drop="'+esc(c.id)+'">'+
-      '<span class="sb-ico">'+ic("folder",14)+'</span><span class="label">'+esc(objTitle(c))+'</span>'+(count?'<span class="sb-num">'+count+'</span>':"")+'</button>'
-    }).join("");
-    result+='<button class="sb-row sb-category-add" data-act="create-category" data-area="'+esc(a.id)+'">'+ic("plus",13)+' <span class="label">Add category</span></button>';
-   }
-   return result+'</div>';
-  }).join("")||'<div class="sidebar-empty">Create your first area</div>';
- }
- if(t==="notes"){
-  html+=sr("All notes","all","note",{count:list("note").length})+sr("Starred","starred","star");
-  html+=sh("From other tools");
-  html+=sr("From Calendar","from-events","calendar-days",{count:list("note").filter(function(e){return sources(e).some(function(x){return x.type==="event"})}).length});
-  html+=sr("From To do and Projects","from-projects","clipboard",{count:list("note").filter(function(e){return sources(e).some(function(x){return x.type==="project"||x.type==="task"})}).length});
-  html+=sr("From Journal","from-journal","book-open",{count:list("note").filter(function(e){return sources(e).some(function(x){return x.type==="journal"})}).length});
-  html+=sh("My notebooks","notebook");
-  html+=list("notebook").sort(byRecent).map(function(n){return sr(objTitle(n),"book:"+n.id,"notebook",{count:list("note").filter(function(x){return x.notebookId===n.id}).length})}).join("")||'<div class="sidebar-empty">No notebooks yet</div>';
- }
- if(t==="resources"){
-  var rs=list("resource"),folders=list("folder");
-  html+=sr("All items","all","library",{count:rs.length})+sr("Unsorted","unsorted","inbox",{count:rs.filter(function(x){return !x.folderId&&!meaningfulContext(x)&&!isBookmark(x)}).length})+sr("Starred","starred","star");
-  html+=sh("Collections","folder");
-  html+=folders.map(function(f){return sr(objTitle(f),"folder:"+f.id,"folder",{count:rs.filter(function(r){return r.folderId===f.id}).length})}).join("")||'<div class="sidebar-empty">No collections yet</div>';
-  html+=sh("From other tools");
-  html+=sr("From Calendar","from-events","calendar-days")+sr("From To do and Projects","from-projects","clipboard");
-  html+=sh("Filters");
-  LIBRARY_TYPES.forEach(function(item){var n=rs.filter(function(r){return r.resourceKind===item.id}).length;if(n)html+=sr(item.name,"kind:"+item.id,item.icon,{count:n})});
- }
- if(t==="projects"){
-  var projects=list("project");
-  html+=sr("All projects","all","folder-kanban",{count:projects.length})+
-   sr("Active","active","sun",{count:projects.filter(function(p){return p.projectStatus==="active"}).length})+
-   sr("Waiting","waiting","clock",{count:projects.filter(function(p){return p.projectStatus==="waiting"}).length})+
-   sr("Completed","completed","check",{count:projects.filter(function(p){return p.projectStatus==="completed"}).length});
-  html+=sh("Areas");
-  html+=list("area").map(function(a){
-   return sr(objTitle(a),"area:"+a.id,areaIcon(a),{count:projects.filter(function(p){return inArea(p,a)}).length})
-  }).join("")||'<div class="sidebar-empty">No areas yet</div>';
-  html+=sr("Without area","unassigned","folder",{count:projects.filter(function(p){return !areaOf(p)}).length});
- }
- if(t==="bookmarks"){
-  var links=list("resource").filter(isBookmark);
-  html+=sr("All bookmarks","all","bookmark",{count:links.length})+
-   sr("Starred","starred","star",{count:links.filter(function(x){return x.starred}).length});
-  html+=sh("Collections","folder");
-  html+=list("folder").map(function(f){
-   var n=links.filter(function(x){return x.folderId===f.id}).length;
-   return sr(objTitle(f),"folder:"+f.id,"folder",{count:n})
-  }).join("")||'<div class="sidebar-empty">No collections yet</div>';
-  html+=sr("Unsorted","unsorted","inbox",{count:links.filter(function(x){return !x.folderId}).length});
- }
- if(t==="goals"){
-  var goals=list("goal");
-  html+=sr("Active goals","active","target",{count:goals.filter(function(g){return g.goalStatus==="active"}).length})+
-   sr("All goals","all","layers",{count:goals.length})+
-   sr("Achieved","achieved","check",{count:goals.filter(function(g){return g.goalStatus==="achieved"}).length})+
-   sr("On hold","paused","clock",{count:goals.filter(function(g){return g.goalStatus==="paused"}).length});
- }
- if(t==="habits"){
-  html+=sr("Today","today","sun")+sr("All habits","all","flame",{count:list("habit").length});
- }
- if(t==="routines"){
-  html+=sr("Today","today","sun")+sr("All routines","all","list-checks",{count:list("routine").length});
- }
- html+='</div>';
- html+=sidebarCalendarFooter(t);
- html+='<div class="sb-foot"><small><span>SHELF · v0.15</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></small></div>';
- sidebar.innerHTML=html;
+ var taskAreas=list("area"),projects=list("project"),journals=list("journalbook"),books=list("notebook"),
+  folders=list("folder"),links=list("resource").filter(isBookmark),more=state.ui.navMore||{};
+ var top='<div class="shelf-nav-header">'+
+ '<div class="shelf-nav-brand"><span>Shelf</span><span class="shelf-nav-brand-caret">'+ic("chevron-down",14)+'</span>'+
+ '<span class="shelf-nav-head-spacer"></span>'+
+ '<button data-act="search" class="shelf-nav-icon" title="Search everything" aria-label="Search">'+ic("search",17)+'</button>'+
+ '</div>'+
+ '<button class="nav-new-item" data-act="universal-open">'+ic("pen",16)+' <span>New item</span><kbd>Q</kbd></button>'+
+ '<div class="nav-top-links">'+
+ navTop("Today","home","today","sun")+
+ navTop("Inbox","home","inbox","inbox",inboxCount())+
+ navTop("Calendar","calendar","month","calendar-days")+
+ navTop("Recent","home","recent","clock")+
+ '</div></div>';
+ var tasksChildren=navShowMore("task-areas",taskAreas,function(a){
+  return navLeaf(objTitle(a),"todo","area:"+a.id,areaIcon(a),3)
+ });
+ var activeProjects=projects.filter(function(e){return e.projectStatus==="active"}).sort(function(a,b){return (b.starred?1:0)-(a.starred?1:0)||b.updatedAt-a.updatedAt});
+ var projectsChildren=navShowMore("active-projects",activeProjects,function(p){
+  return '<button class="nav-leaf nav-object-link" style="--nav-depth:3" data-act="open" data-id="'+esc(p.id)+'" title="'+esc(objTitle(p))+'">'+
+   '<span class="nav-item-icon">'+ic("folder-kanban",15)+'</span><span class="nav-row-label">'+esc(objTitle(p))+'</span></button>'
+ });
+ if(!activeProjects.length)projectsChildren='<div class="nav-muted-item">No active projects</div>';
+ var todoContent=
+  navNode("tasks","Tasks","check-circle","todo","all",tasksChildren)+
+  navNode("projects","Projects","folder-kanban","projects","all",projectsChildren)+
+  navLeaf("Routines","routines","today","list-checks",1);
+ var journalsChildren=navLeaf("All entries","journals","all","book-open",2);
+ journals.sort(function(a,b){return (a.id===state.ui.defaultJournalId?-1:b.id===state.ui.defaultJournalId?1:0)||a.createdAt-b.createdAt});
+ journalsChildren+=navShowMore("journalbooks",journals,function(j){
+  return navLeaf(objTitle(j),"journals","journalbook:"+j.id,"book-open",2,{count:list("journal").filter(function(e){return e.journalBookId===j.id}).length})
+ });
+ var lifeContent=navNode("journals","Journal","book-open","journals","journalbook:"+state.ui.defaultJournalId,journalsChildren)+
+  navLeaf("Goals","goals","active","target",1)+navLeaf("Habits","habits","today","flame",1);
+ var notebookChildren=navShowMore("notebooks",books.sort(byRecent),function(n){
+  return navLeaf(objTitle(n),"notes","book:"+n.id,"notebook",2)
+ });
+ var bookmarkCollections=folders.filter(function(f){return links.some(function(e){return e.folderId===f.id})});
+ var bookmarkChildren=navShowMore("bookmark-folders",bookmarkCollections,function(f){
+  return navLeaf(objTitle(f),"bookmarks","folder:"+f.id,"folder",2)
+ });
+ var collectionChildren=navShowMore("collections",folders,function(f){
+  return navLeaf(objTitle(f),"resources","folder:"+f.id,"folder",2)
+ });
+ var resourcesContent=
+  navNode("notebooks","Notebook","notebook","notes","all",notebookChildren)+
+  navNode("bookmarks","Bookmarks","bookmark","bookmarks","all",bookmarkChildren)+
+  navLeaf("Files & documents","resources","kind:documents","file",1)+
+  navNode("collections","Collections","folder","resources","all",collectionChildren);
+ var filters=[
+  ["Links","link","link"],["Notes","note","note"],["Images","image","image"],
+  ["Videos","video","video"],["Documents","document","file"],
+  ["Tasks","task","check-circle"],["Events","event","calendar-days"],
+  ["Projects","project","folder-kanban"],["Journal entries","journal","book-open"]
+ ];
+ var filterContent=filters.map(function(x){return navLeaf(x[0],"browse",x[1],x[2],1)}).join("");
+ var tagData=navTags(),tagsContent=navShowMore("tags",tagData,function(tag){
+  return navLeaf("#"+tag.label,"tag",tag.label,"hash",1,{count:tag.count})
+ });
+ if(!tagData.length)tagsContent='<div class="nav-muted-item">No tags yet</div>';
+ var shortcuts=quickList(),pinnedContent=navShowMore("pinned",shortcuts,function(item){
+  return '<button class="nav-leaf nav-pinned-item" style="--nav-depth:1" data-act="quick-open" data-key="'+esc(quickKey(item.ref))+'">'+
+   '<span class="nav-item-icon">'+ic(item.item.icon,15)+'</span><span class="nav-row-label">'+esc(item.item.label)+'</span></button>'
+ });
+ var navigation='<div class="shelf-nav-scroll" aria-label="Browse Shelf">'+
+  navSection("todo","To Do",todoContent)+
+  navSection("life","My Life",lifeContent)+
+  navSection("resources","Resources",resourcesContent)+
+  navSection("filters","Filters",filterContent)+
+  navSection("tags","Tags",tagsContent)+
+  (shortcuts.length?navSection("pinned","Pinned",pinnedContent):"")+
+ '</div>';
+ var footer='<div class="shelf-nav-footer">'+sidebarCalendarFooter(state.ui.tool)+
+ '<div class="nav-bottom-links">'+
+ navLeaf("Archive","resources","archive","archive",0)+
+ navLeaf("Trash","resources","trash","trash",0)+
+ '</div>'+
+ '<div class="shelf-nav-meta"><span>Shelf · v0.15</span><span><button data-act="export">Export</button> · <button data-act="import">Import</button></span></div>'+
+ '</div>';
+ sidebar.innerHTML=top+navigation+footer
 }
 function topbar(){
  var focus=isFocusValid();
