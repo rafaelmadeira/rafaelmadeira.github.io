@@ -242,7 +242,7 @@ function ensureV15(){
  if(!ui.navNodes||typeof ui.navNodes!=="object")ui.navNodes={tasks:true,projects:false,journals:false,notebooks:false,bookmarks:false,collections:false};
  if(!ui.navMore||typeof ui.navMore!=="object")ui.navMore={};
  if(!ui.miniCalendars||typeof ui.miniCalendars!=="object")ui.miniCalendars={};
- if(!ui.miniCalendars.sidebar)ui.miniCalendars.sidebar=Object.assign({expanded:true,month:monthKey(today())},ui.miniCalendars.home||ui.miniCalendars.journals||{});
+ if(!ui.miniCalendars.sidebar)ui.miniCalendars.sidebar={expanded:false,month:monthKey(today())};
  ui.navMenu=null;
  state.version=15
 }
@@ -2042,6 +2042,11 @@ function toggleSectionMenu(trigger){
  closeSectionMenu(false);
  if(next){
   popup.hidden=false;trigger.setAttribute("aria-expanded","true");
+  if(typeof trigger.getBoundingClientRect==="function"){
+   var rect=trigger.getBoundingClientRect(),height=typeof window!=="undefined"&&window.innerHeight?window.innerHeight:800;
+   popup.style.left=Math.max(8,Math.round(rect.right-185))+"px";
+   popup.style.top=Math.max(8,Math.min(Math.round(rect.bottom+5),height-195))+"px"
+  }
   var first=popup.querySelector('[role="menuitem"]');
   if(first)first.focus()
  }
